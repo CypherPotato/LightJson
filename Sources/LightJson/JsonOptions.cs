@@ -16,4 +16,7 @@ public static class JsonOptions
 	/// Gets or sets whether the JSON serializer should throw an exception when trying to convert a value to an invalid type.
 	/// </summary>
 	public static bool ThrowOnInvalidCast { get; set; } = false;
+
+	public static HashSet<JsonSerializerMapper> Mappers { get; set; } = new HashSet<JsonSerializerMapper>();
+
 }

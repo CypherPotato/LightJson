@@ -120,15 +120,89 @@ namespace LightJson
 			}
 		}
 
-		/// <summary>
-		/// Gets a value indicating whether this JsonValue represents a DateTime.
-		/// </summary>
-		public bool IsDateTime
+		public T? As<T>()
 		{
-			get
+			if (Is<T>(out T? output))
 			{
-				return this.AsDateTime != default;
+				return output;
+			} else
+			{
+				return ThrowOrNull<T>();
 			}
+		}
+
+		public bool Is<T>(out T? output)
+		{
+			Type tType = typeof(T);
+
+			if (IsNull)
+			{
+				output = default;
+				return false;
+			}
+
+			if (tType == typeof(bool))
+			{
+				if (IsBoolean)
+				{
+					output = (T)(object)(this.value == 1 ? true : false);
+					return true;
+				}
+				else
+				{
+					output = default;
+					return false;
+				}
+			}
+			if (tType == typeof(string))
+			{
+				if (IsString)
+				{
+					output = (T)this.reference;
+					return true;
+				}
+				else
+				{
+					output = default;
+					return false;
+				}
+			}
+			else if (tType == typeof(int)
+				 || tType == typeof(byte)
+				 || tType == typeof(short)
+				 || tType == typeof(ushort)
+				 || tType == typeof(uint)
+				 || tType == typeof(sbyte)
+				 || tType == typeof(long)
+				 || tType == typeof(ulong)
+				 || tType == typeof(decimal)
+				 || tType == typeof(double)
+				 || tType == typeof(float))
+			{
+				if (IsNumber)
+				{
+					output = (T)(object)this.value;
+					return true;
+				}
+				else
+				{
+					output = default;
+					return false;
+				}
+			}
+
+			foreach (var mapper in JsonOptions.Mappers)
+			{
+				if (mapper.CanDeserialize(this))
+				{
+					object result = mapper.Deserialize(this);
+					output = (T)result;
+					return true;
+				}
+			}
+
+			output = default;
+			return false;
 		}
 
 		/// <summary>
@@ -172,14 +246,13 @@ namespace LightJson
 			{
 				var value = this.AsNumber;
 
-				// Prevent overflow if the value doesn't fit.
 				if (value >= int.MaxValue)
 				{
-					return int.MaxValue;
+					throw new OverflowException("The value in the JSON content is too big or too small for an Int32.");
 				}
 				if (value <= int.MinValue)
 				{
-					return int.MinValue;
+					throw new OverflowException("The value in the JSON content is too big or too small for an Int32.");
 				}
 
 				return (int)value;
@@ -240,6 +313,9 @@ namespace LightJson
 					case JsonValueType.String:
 						return (string)this.reference;
 
+					case JsonValueType.Null:
+						return null;
+
 					default:
 						return ThrowOrNull<string>();
 				}
@@ -269,24 +345,6 @@ namespace LightJson
 				return (this.IsJsonArray)
 					? (JsonArray)this.reference
 					: ThrowOrNull<JsonArray>();
-			}
-		}
-
-		/// <summary>
-		/// Gets this value as a system.DateTime.
-		/// </summary>
-		public DateTime AsDateTime  // it would never return an null datetime, even if theres no value on it.
-		{
-			get
-			{
-				if (this.IsString && DateTime.TryParse((string)this.reference, out DateTime value))
-				{
-					return value;
-				}
-				else
-				{
-					return ThrowOrNull<DateTime>();
-				}
 			}
 		}
 
@@ -438,7 +496,18 @@ namespace LightJson
 				valueType = JsonValueType.Boolean;
 				return new JsonValue(valueType, nbool ? 1 : 0, null);
 			}
-			else if (value.GetType().IsArray)
+
+			foreach (var mapper in JsonOptions.Mappers)
+			{
+				if (mapper.CanSerialize(value))
+				{
+					var result = mapper.Serialize(value);
+					valueType = result.Type;
+					return result;
+				}
+			}
+
+			if (value.GetType().IsArray)
 			{
 				JsonArray arr = new JsonArray();
 				foreach (object? item in (IEnumerable)value)
@@ -626,24 +695,6 @@ namespace LightJson
 		public static implicit operator JsonValue(JsonArray value)
 		{
 			return new JsonValue(value);
-		}
-
-		/// <summary>
-		/// Converts the given DateTime? into a JsonValue.
-		/// </summary>
-		/// <remarks>
-		/// The DateTime value will be stored as a string using ISO 8601 format,
-		/// since JSON does not define a DateTime type.
-		/// </remarks>
-		/// <param name="value">The value to be converted.</param>
-		public static implicit operator JsonValue(DateTime? value)
-		{
-			if (value is null)
-			{
-				return JsonValue.Null;
-			}
-
-			return new JsonValue(value.Value.ToString("o"));
 		}
 
 		/// <summary>
@@ -841,45 +892,6 @@ namespace LightJson
 				{
 					return null;
 				}
-			}
-		}
-
-		/// <summary>
-		/// Converts the given JsonValue into a DateTime.
-		/// </summary>
-		/// <param name="jsonValue">The JsonValue to be converted.</param>
-		public static implicit operator DateTime(JsonValue jsonValue)
-		{
-			if (jsonValue.IsDateTime)
-			{
-				return jsonValue.AsDateTime;
-			}
-			else
-			{
-				if (JsonOptions.ThrowOnInvalidCast)
-				{
-					throw new InvalidCastException($"Cannot cast value of type {jsonValue.Type} to DateTime.");
-				}
-				else
-				{
-					return default;
-				}
-			}
-		}
-
-		/// <summary>
-		/// Converts the given JsonValue into a nullable DateTime.
-		/// </summary>
-		/// <param name="jsonValue">The JsonValue to be converted.</param>
-		public static implicit operator DateTime?(JsonValue jsonValue)
-		{
-			if (jsonValue.IsDateTime || jsonValue.IsNull)
-			{
-				return jsonValue.AsDateTime;
-			}
-			else
-			{
-				return null;
 			}
 		}
 
