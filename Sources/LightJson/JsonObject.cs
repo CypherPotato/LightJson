@@ -56,7 +56,15 @@ namespace LightJson
 		/// </summary>
 		public JsonObject()
 		{
-			this.properties = new Dictionary<string, JsonValue>();
+			if (JsonOptions.PropertyNameCaseInsensitive)
+			{
+				var comparer = StringComparer.OrdinalIgnoreCase;
+				this.properties = new Dictionary<string, JsonValue>(comparer);
+			}
+			else
+			{
+				this.properties = new Dictionary<string, JsonValue>();
+			}
 		}
 
 		/// <summary>

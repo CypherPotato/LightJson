@@ -2,6 +2,10 @@ using System;
 using System.Diagnostics;
 using System.Collections.Generic;
 using LightJson.Serialization;
+using System.Reflection;
+using System.Collections;
+
+#nullable enable
 
 namespace LightJson
 {
@@ -13,7 +17,7 @@ namespace LightJson
 	public struct JsonValue
 	{
 		private readonly JsonValueType type;
-		private readonly object reference;
+		private readonly object reference = null!;
 		private readonly double value;
 
 		/// <summary>
@@ -123,7 +127,7 @@ namespace LightJson
 		{
 			get
 			{
-				return this.AsDateTime is not null;
+				return this.AsDateTime != default;
 			}
 		}
 
@@ -139,18 +143,22 @@ namespace LightJson
 					case JsonValueType.Boolean:
 						return (this.value == 1);
 
-					case JsonValueType.Number:
-						return (this.value != 0);
+					// this shoulnd't implicit check if value is defined in order to return an
+					// boolean value. instead, it should just check if the value is an boolean,
+					// in order to return an boolean.
 
-					case JsonValueType.String:
-						return ((string)this.reference != "");
+					//case JsonValueType.Number:
+					//    return (this.value != 0);
 
-					case JsonValueType.Object:
-					case JsonValueType.Array:
-						return true;
+					//case JsonValueType.String:
+					//    return ((string)this.reference != "");
+
+					//case JsonValueType.Object:
+					//case JsonValueType.Array:
+					//    return true;
 
 					default:
-						return false;
+						return ThrowOrNull<bool>();
 				}
 			}
 		}
@@ -207,7 +215,7 @@ namespace LightJson
 						}
 
 					default:
-						return 0;
+						return ThrowOrNull<double>();
 				}
 			}
 		}
@@ -215,7 +223,7 @@ namespace LightJson
 		/// <summary>
 		/// Gets this value as a String type.
 		/// </summary>
-		public string AsString
+		public string? AsString
 		{
 			get
 			{
@@ -233,7 +241,7 @@ namespace LightJson
 						return (string)this.reference;
 
 					default:
-						return null;
+						return ThrowOrNull<string>();
 				}
 			}
 		}
@@ -241,33 +249,33 @@ namespace LightJson
 		/// <summary>
 		/// Gets this value as an JsonObject.
 		/// </summary>
-		public JsonObject AsJsonObject
+		public JsonObject? AsJsonObject
 		{
 			get
 			{
 				return (this.IsJsonObject)
 					? (JsonObject)this.reference
-					: null;
+					: ThrowOrNull<JsonObject>();
 			}
 		}
 
 		/// <summary>
 		/// Gets this value as an JsonArray.
 		/// </summary>
-		public JsonArray AsJsonArray
+		public JsonArray? AsJsonArray
 		{
 			get
 			{
 				return (this.IsJsonArray)
 					? (JsonArray)this.reference
-					: null;
+					: ThrowOrNull<JsonArray>();
 			}
 		}
 
 		/// <summary>
 		/// Gets this value as a system.DateTime.
 		/// </summary>
-		public DateTime? AsDateTime
+		public DateTime AsDateTime  // it would never return an null datetime, even if theres no value on it.
 		{
 			get
 			{
@@ -277,7 +285,7 @@ namespace LightJson
 				}
 				else
 				{
-					return null;
+					return ThrowOrNull<DateTime>();
 				}
 			}
 		}
@@ -285,7 +293,7 @@ namespace LightJson
 		/// <summary>
 		/// Gets this (inner) value as a System.object.
 		/// </summary>
-		public object AsObject
+		public object? AsObject
 		{
 			get
 			{
@@ -372,6 +380,13 @@ namespace LightJson
 			}
 		}
 
+		private T? ThrowOrNull<T>()
+		{
+			return JsonOptions.ThrowOnInvalidCast ?
+				throw new InvalidCastException($"Cannot cast an value of type {Type} into {typeof(T).Name}.")
+				: default;
+		}
+
 		/// <summary>
 		/// Initializes a new instance of the JsonValue struct.
 		/// </summary>
@@ -384,11 +399,88 @@ namespace LightJson
 		/// The internal value reference of the JsonValue.
 		/// This value is used when the Json type is String, JsonObject, or JsonArray.
 		/// </param>
-		private JsonValue(JsonValueType type, double value, object reference)
+		private JsonValue(JsonValueType type, double value, object? reference)
 		{
-			this.type      = type;
-			this.value     = value;
-			this.reference = reference;
+			this.type = type;
+			this.value = value;
+			this.reference = reference!;
+		}
+
+		private static JsonValue DetermineSingle(object? value, int deepness, out JsonValueType valueType)
+		{
+			if (deepness > 128)
+			{
+				throw new InvalidOperationException("The maximum JSON depth level has been reached.");
+			}
+
+			if (value is null)
+			{
+				valueType = JsonValueType.Null;
+				return new JsonValue(valueType, 0, null);
+			}
+			else if (value is string)
+			{
+				valueType = JsonValueType.String;
+				return new JsonValue(valueType, 0, value);
+			}
+			else if (value is int nint)
+			{
+				valueType = JsonValueType.Number;
+				return new JsonValue(valueType, nint, null);
+			}
+			else if (value is double ndbl)
+			{
+				valueType = JsonValueType.Number;
+				return new JsonValue(valueType, ndbl, null);
+			}
+			else if (value is bool nbool)
+			{
+				valueType = JsonValueType.Boolean;
+				return new JsonValue(valueType, nbool ? 1 : 0, null);
+			}
+			else if (value.GetType().IsArray)
+			{
+				JsonArray arr = new JsonArray();
+				foreach (object? item in (IEnumerable)value)
+				{
+					if (item == null) continue;
+					arr.Add(DetermineSingle(item, deepness + 1, out _));
+				}
+
+				valueType = JsonValueType.Array;
+				return new JsonValue(valueType, 0, arr);
+			}
+			else
+			{
+				JsonObject newObj = new JsonObject();
+				PropertyInfo[] valueProperties = value.GetType()
+					.GetProperties(BindingFlags.Public | BindingFlags.Instance);
+
+				foreach (PropertyInfo property in valueProperties)
+				{
+					string name = property.Name;
+					object? v = property.GetValue(value);
+
+					JsonValue jsonValue = DetermineSingle(v, deepness + 1, out _);
+					newObj.Add(name, jsonValue);
+				}
+
+				valueType = JsonValueType.Object;
+				return new JsonValue(JsonValueType.Object, 0, newObj);
+			}
+		}
+
+		/// <summary>
+		/// Initializes a new instance of the JsonValue struct, representing a dynamic value.
+		/// </summary>
+		/// <param name="value">The value to be wrapped.</param>
+		public JsonValue(object value)
+		{
+			JsonValue _value = DetermineSingle(value, 0, out JsonValueType valueType);
+
+			this.type = valueType;
+			this.reference = _value.reference;
+			this.value = _value.value;
 		}
 
 		/// <summary>
@@ -399,7 +491,7 @@ namespace LightJson
 		{
 			if (value.HasValue)
 			{
-				this.reference = null;
+				this.reference = null!;
 
 				this.type = JsonValueType.Boolean;
 
@@ -419,7 +511,7 @@ namespace LightJson
 		{
 			if (value.HasValue)
 			{
-				this.reference = null;
+				this.reference = null!;
 
 				this.type = JsonValueType.Number;
 
@@ -566,7 +658,14 @@ namespace LightJson
 			}
 			else
 			{
-				return 0;
+				if (JsonOptions.ThrowOnInvalidCast)
+				{
+					throw new InvalidCastException($"Cannot cast value of type {jsonValue.Type} to Int32.");
+				}
+				else
+				{
+					return 0;
+				}
 			}
 		}
 
@@ -602,7 +701,14 @@ namespace LightJson
 			}
 			else
 			{
-				return false;
+				if (JsonOptions.ThrowOnInvalidCast)
+				{
+					throw new InvalidCastException($"Cannot cast value of type {jsonValue.Type} to Boolean.");
+				}
+				else
+				{
+					return false;
+				}
 			}
 		}
 
@@ -638,7 +744,14 @@ namespace LightJson
 			}
 			else
 			{
-				return double.NaN;
+				if (JsonOptions.ThrowOnInvalidCast)
+				{
+					throw new InvalidCastException($"Cannot cast value of type {jsonValue.Type} to Double.");
+				}
+				else
+				{
+					return Double.NaN;
+				}
 			}
 		}
 
@@ -666,15 +779,22 @@ namespace LightJson
 		/// Converts the given JsonValue into a String.
 		/// </summary>
 		/// <param name="jsonValue">The JsonValue to be converted.</param>
-		public static implicit operator string(JsonValue jsonValue)
+		public static implicit operator string?(JsonValue jsonValue)
 		{
 			if (jsonValue.IsString || jsonValue.IsNull)
 			{
-				return jsonValue.reference as string;
+				return jsonValue.AsString;
 			}
 			else
 			{
-				return null;
+				if (JsonOptions.ThrowOnInvalidCast)
+				{
+					throw new InvalidCastException($"Cannot cast value of type {jsonValue.Type} to String.");
+				}
+				else
+				{
+					return null;
+				}
 			}
 		}
 
@@ -682,7 +802,7 @@ namespace LightJson
 		/// Converts the given JsonValue into a JsonObject.
 		/// </summary>
 		/// <param name="jsonValue">The JsonValue to be converted.</param>
-		public static implicit operator JsonObject(JsonValue jsonValue)
+		public static implicit operator JsonObject?(JsonValue jsonValue)
 		{
 			if (jsonValue.IsJsonObject || jsonValue.IsNull)
 			{
@@ -690,7 +810,14 @@ namespace LightJson
 			}
 			else
 			{
-				return null;
+				if (JsonOptions.ThrowOnInvalidCast)
+				{
+					throw new InvalidCastException($"Cannot cast value of type {jsonValue.Type} to JsonObject.");
+				}
+				else
+				{
+					return null;
+				}
 			}
 		}
 
@@ -698,7 +825,7 @@ namespace LightJson
 		/// Converts the given JsonValue into a JsonArray.
 		/// </summary>
 		/// <param name="jsonValue">The JsonValue to be converted.</param>
-		public static implicit operator JsonArray(JsonValue jsonValue)
+		public static implicit operator JsonArray?(JsonValue jsonValue)
 		{
 			if (jsonValue.IsJsonArray || jsonValue.IsNull)
 			{
@@ -706,7 +833,14 @@ namespace LightJson
 			}
 			else
 			{
-				return null;
+				if (JsonOptions.ThrowOnInvalidCast)
+				{
+					throw new InvalidCastException($"Cannot cast value of type {jsonValue.Type} to JsonArray.");
+				}
+				else
+				{
+					return null;
+				}
 			}
 		}
 
@@ -716,15 +850,20 @@ namespace LightJson
 		/// <param name="jsonValue">The JsonValue to be converted.</param>
 		public static implicit operator DateTime(JsonValue jsonValue)
 		{
-			var dateTime = jsonValue.AsDateTime;
-
-			if (dateTime.HasValue)
+			if (jsonValue.IsDateTime)
 			{
-				return dateTime.Value;
+				return jsonValue.AsDateTime;
 			}
 			else
 			{
-				return DateTime.MinValue;
+				if (JsonOptions.ThrowOnInvalidCast)
+				{
+					throw new InvalidCastException($"Cannot cast value of type {jsonValue.Type} to DateTime.");
+				}
+				else
+				{
+					return default;
+				}
 			}
 		}
 
@@ -779,7 +918,7 @@ namespace LightJson
 		/// Returns a value indicating whether this JsonValue is equal to the given object.
 		/// </summary>
 		/// <param name="obj">The object to test.</param>
-		public override bool Equals(object obj)
+		public override bool Equals(object? obj)
 		{
 			if (obj is null)
 			{
@@ -847,7 +986,7 @@ namespace LightJson
 			private JsonValue jsonValue;
 
 			[DebuggerBrowsable(DebuggerBrowsableState.RootHidden)]
-			public JsonObject ObjectView
+			public JsonObject? ObjectView
 			{
 				get
 				{
@@ -863,7 +1002,7 @@ namespace LightJson
 			}
 
 			[DebuggerBrowsable(DebuggerBrowsableState.RootHidden)]
-			public JsonArray ArrayView
+			public JsonArray? ArrayView
 			{
 				get
 				{

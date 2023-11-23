@@ -41,7 +41,7 @@
 
   <ItemGroup>
     <None Remove="LightJson.xml" />
-    <None Include="../../README.md;../../LICENSE.txt" Pack="true" PackagePath="/" />
+    <None Include="../../README.md;../../LICENSE.txt" Pack="true" PackagePath="/"/>
 
     <!-- Pack sources in the nuget package -->
     <Content Include="Package\**">
@@ -55,6 +55,8 @@
       <PackagePath>src\LightJson\%(RecursiveDir)%(Filename).g%(Extension)</PackagePath>
       <PackageCopyToOutput>true</PackageCopyToOutput>
     </Content>
+
+    <PackageReference Include="Microsoft.SourceLink.GitHub" Version="1.1.1" PrivateAssets="All"/>
   </ItemGroup>
 
 </Project>
