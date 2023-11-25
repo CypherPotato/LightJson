@@ -1,6 +1,8 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Linq;
+using System.Reflection;
 using LightJson.Serialization;
 
 namespace LightJson
@@ -12,6 +14,7 @@ namespace LightJson
 	[DebuggerTypeProxy(typeof(JsonArrayDebugView))]
 	public sealed class JsonArray : IEnumerable<JsonValue>
 	{
+		internal string path;
 		private IList<JsonValue> items;
 
 		/// <summary>
@@ -36,14 +39,17 @@ namespace LightJson
 		{
 			get
 			{
+				JsonValue val;
 				if (index >= 0 && index < this.items.Count)
 				{
-					return this.items[index];
+					val = this.items[index];
 				}
 				else
 				{
-					return JsonValue.Null;
+					val = JsonValue.Undefined;
 				}
+				val.path = this.path + $"[{index}]";
+				return val;
 			}
 			set
 			{

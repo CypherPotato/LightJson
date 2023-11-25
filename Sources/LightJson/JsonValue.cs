@@ -4,6 +4,8 @@ using System.Collections.Generic;
 using LightJson.Serialization;
 using System.Reflection;
 using System.Collections;
+using System.Diagnostics.CodeAnalysis;
+using System.Text.Json.Serialization.Metadata;
 
 #nullable enable
 
@@ -19,11 +21,22 @@ namespace LightJson
 		private readonly JsonValueType type;
 		private readonly object reference = null!;
 		private readonly double value;
+		internal string path;
 
 		/// <summary>
-		/// Represents a null JsonValue.
+		/// Represents a null <see cref="JsonValue"/>.
 		/// </summary>
 		public static readonly JsonValue Null = new JsonValue(JsonValueType.Null, default(double), null);
+
+		/// <summary>
+		/// Represents an <see cref="JsonValue"/> that wasn't defined in any JSON document.
+		/// </summary>
+		public static readonly JsonValue Undefined = new JsonValue(JsonValueType.Undefined, default(double), null);
+
+		public string Path
+		{
+			get => path;
+		}
 
 		/// <summary>
 		/// Gets the type of this JsonValue.
@@ -37,15 +50,21 @@ namespace LightJson
 		}
 
 		/// <summary>
-		/// Gets a value indicating whether this JsonValue is Null.
+		/// Gets a value indicating whether this JsonValue is either <see cref="JsonValueType.Null"/> or <see cref="JsonValueType.Undefined"/>.
 		/// </summary>
 		public bool IsNull
 		{
 			get
 			{
-				return this.Type == JsonValueType.Null;
+				return this.Type == JsonValueType.Null || this.Type == JsonValueType.Undefined;
 			}
 		}
+
+		/// <summary>
+		/// Gets an boolean indicating whether this <see cref="JsonValue"/> is defined or not. Does not match if this value
+		/// is <see cref="JsonValueType.Null"/>.
+		/// </summary>
+		public bool IsDefined => this.Type != JsonValueType.Undefined;
 
 		/// <summary>
 		/// Gets a value indicating whether this JsonValue is a Boolean.
@@ -120,256 +139,102 @@ namespace LightJson
 			}
 		}
 
-		public T? As<T>()
+		/// <summary>
+		/// Indicates that this JSON value can be null or undefined and returns a nullable value for this value.
+		/// </summary>
+		/// <returns></returns>
+		public JsonValue? MaybeNull()
 		{
-			if (Is<T>(out T? output))
-			{
-				return output;
-			} else
-			{
-				return ThrowOrNull<T>();
-			}
-		}
-
-		public bool Is<T>(out T? output)
-		{
-			Type tType = typeof(T);
-
 			if (IsNull)
 			{
-				output = default;
-				return false;
+				return null;
 			}
 
-			if (tType == typeof(bool))
+			return this;
+		}
+
+		/// <summary>
+		/// Gets this value as an defined <see cref="JsonSerializerMapper"/>.
+		/// </summary>
+		/// <typeparam name="T">The defined mapping type.</typeparam>
+		public T Map<T>()
+		{
+			if (this.IsNull)
 			{
-				if (IsBoolean)
-				{
-					output = (T)(object)(this.value == 1 ? true : false);
-					return true;
-				}
-				else
-				{
-					output = default;
-					return false;
-				}
+				return ThrowInvalidCast<T>();
 			}
-			if (tType == typeof(string))
-			{
-				if (IsString)
-				{
-					output = (T)this.reference;
-					return true;
-				}
-				else
-				{
-					output = default;
-					return false;
-				}
-			}
-			else if (tType == typeof(int)
-				 || tType == typeof(byte)
-				 || tType == typeof(short)
-				 || tType == typeof(ushort)
-				 || tType == typeof(uint)
-				 || tType == typeof(sbyte)
-				 || tType == typeof(long)
-				 || tType == typeof(ulong)
-				 || tType == typeof(decimal)
-				 || tType == typeof(double)
-				 || tType == typeof(float))
-			{
-				if (IsNumber)
-				{
-					output = (T)(object)this.value;
-					return true;
-				}
-				else
-				{
-					output = default;
-					return false;
-				}
-			}
+
+			Type tType = typeof(T);
 
 			foreach (var mapper in JsonOptions.Mappers)
 			{
-				if (mapper.CanDeserialize(this))
+				if (mapper.CanSerialize(tType))
 				{
-					object result = mapper.Deserialize(this);
-					output = (T)result;
-					return true;
+					try
+					{
+						return (T)mapper.Deserialize(this);
+					}
+					catch (Exception ex)
+					{
+						throw new InvalidOperationException($"Caught exception while trying to map {path} to {typeof(T).Name}: {ex.Message}");
+					}
 				}
 			}
 
-			output = default;
-			return false;
+			throw new InvalidOperationException($"No mapper was defined to type {typeof(T).Name}.");
 		}
 
 		/// <summary>
 		/// Gets this value as a Boolean type.
 		/// </summary>
-		public bool AsBoolean
+		public bool GetBoolean()
 		{
-			get
-			{
-				switch (this.Type)
-				{
-					case JsonValueType.Boolean:
-						return (this.value == 1);
-
-					// this shoulnd't implicit check if value is defined in order to return an
-					// boolean value. instead, it should just check if the value is an boolean,
-					// in order to return an boolean.
-
-					//case JsonValueType.Number:
-					//    return (this.value != 0);
-
-					//case JsonValueType.String:
-					//    return ((string)this.reference != "");
-
-					//case JsonValueType.Object:
-					//case JsonValueType.Array:
-					//    return true;
-
-					default:
-						return ThrowOrNull<bool>();
-				}
-			}
+			if (this.type == JsonValueType.Boolean) return (this.value == 1);
+			return ThrowInvalidCast<bool>(JsonValueType.Boolean);
 		}
 
 		/// <summary>
 		/// Gets this value as an Integer type.
 		/// </summary>
-		public int AsInteger
+		public int GetInteger()
 		{
-			get
-			{
-				var value = this.AsNumber;
-
-				if (value >= int.MaxValue)
-				{
-					throw new OverflowException("The value in the JSON content is too big or too small for an Int32.");
-				}
-				if (value <= int.MinValue)
-				{
-					throw new OverflowException("The value in the JSON content is too big or too small for an Int32.");
-				}
-
-				return (int)value;
-			}
+			return (int)this.GetNumber();
 		}
 
 		/// <summary>
 		/// Gets this value as a Number type.
 		/// </summary>
-		public double AsNumber
+		public double GetNumber()
 		{
-			get
-			{
-				switch (this.Type)
-				{
-					case JsonValueType.Boolean:
-						return (this.value == 1)
-							? 1
-							: 0;
-
-					case JsonValueType.Number:
-						return this.value;
-
-					case JsonValueType.String:
-						double number;
-						if (double.TryParse((string)this.reference, out number))
-						{
-							return number;
-						}
-						else
-						{
-							goto default;
-						}
-
-					default:
-						return ThrowOrNull<double>();
-				}
-			}
+			if (this.type == JsonValueType.Number) return this.value;
+			return ThrowInvalidCast<double>(JsonValueType.Number);
 		}
 
 		/// <summary>
 		/// Gets this value as a String type.
 		/// </summary>
-		public string? AsString
+		public string GetString()
 		{
-			get
-			{
-				switch (this.Type)
-				{
-					case JsonValueType.Boolean:
-						return (this.value == 1)
-							? "true"
-							: "false";
-
-					case JsonValueType.Number:
-						return this.value.ToString();
-
-					case JsonValueType.String:
-						return (string)this.reference;
-
-					case JsonValueType.Null:
-						return null;
-
-					default:
-						return ThrowOrNull<string>();
-				}
-			}
+			if (this.type == JsonValueType.String) return (string)this.reference;
+			return ThrowInvalidCast<string>(JsonValueType.String);
 		}
 
 		/// <summary>
 		/// Gets this value as an JsonObject.
 		/// </summary>
-		public JsonObject? AsJsonObject
+		public JsonObject GetJsonObject()
 		{
-			get
-			{
-				return (this.IsJsonObject)
-					? (JsonObject)this.reference
-					: ThrowOrNull<JsonObject>();
-			}
+			if (this.type == JsonValueType.Object) return (JsonObject)this.reference;
+			return ThrowInvalidCast<JsonObject>(JsonValueType.Object);
 		}
 
 		/// <summary>
 		/// Gets this value as an JsonArray.
 		/// </summary>
-		public JsonArray? AsJsonArray
+		public JsonArray GetJsonArray()
 		{
-			get
-			{
-				return (this.IsJsonArray)
-					? (JsonArray)this.reference
-					: ThrowOrNull<JsonArray>();
-			}
-		}
-
-		/// <summary>
-		/// Gets this (inner) value as a System.object.
-		/// </summary>
-		public object? AsObject
-		{
-			get
-			{
-				switch (this.Type)
-				{
-					case JsonValueType.Boolean:
-					case JsonValueType.Number:
-						return this.value;
-
-					case JsonValueType.String:
-					case JsonValueType.Object:
-					case JsonValueType.Array:
-						return this.reference;
-
-					default:
-						return null;
-				}
-			}
+			if (this.type == JsonValueType.Array) return (JsonArray)this.reference;
+			return ThrowInvalidCast<JsonArray>(JsonValueType.Array);
 		}
 
 		/// <summary>
@@ -389,18 +254,18 @@ namespace LightJson
 				}
 				else
 				{
-					throw new InvalidOperationException("This value does not represent a JsonObject.");
+					throw new InvalidOperationException($"The JSON value at {path} does not represent a JsonObject.");
 				}
 			}
 			set
 			{
 				if (this.IsJsonObject)
 				{
-					((JsonObject)this.reference)[key] = value;
+					var jobj = ((JsonObject)this.reference)[key] = value;
 				}
 				else
 				{
-					throw new InvalidOperationException("This value does not represent a JsonObject.");
+					throw new InvalidOperationException($"The JSON value at {path} does not represent a JsonObject.");
 				}
 			}
 		}
@@ -422,7 +287,7 @@ namespace LightJson
 				}
 				else
 				{
-					throw new InvalidOperationException("This value does not represent a JsonArray.");
+					throw new InvalidOperationException($"The JSON value at {path} does not represent a JsonArray.");
 				}
 			}
 			set
@@ -433,16 +298,27 @@ namespace LightJson
 				}
 				else
 				{
-					throw new InvalidOperationException("This value does not represent a JsonArray.");
+					throw new InvalidOperationException($"The JSON value at {path} does not represent a JsonArray.");
 				}
 			}
 		}
 
-		private T? ThrowOrNull<T>()
+		private T ThrowInvalidCast<T>(JsonValueType expectedType)
 		{
-			return JsonOptions.ThrowOnInvalidCast ?
-				throw new InvalidCastException($"Cannot cast an value of type {Type} into {typeof(T).Name}.")
-				: default;
+			if (!IsDefined)
+			{
+				throw new InvalidCastException($"Attempted to read an undefined value, at {path}.");
+			}
+			throw new InvalidCastException($"Expected to read the JSON value at {path} as {expectedType}, but got {Type} instead.");
+		}
+
+		private T ThrowInvalidCast<T>()
+		{
+			if (!IsDefined)
+			{
+				throw new InvalidCastException($"Attempted to read an undefined value, at {path}.");
+			}
+			throw new InvalidCastException($"Expected to read the JSON value at {path} as {typeof(T).Name}, but got {Type} instead.");
 		}
 
 		/// <summary>
@@ -462,9 +338,10 @@ namespace LightJson
 			this.type = type;
 			this.value = value;
 			this.reference = reference!;
+			this.path = "";
 		}
 
-		private static JsonValue DetermineSingle(object? value, int deepness, out JsonValueType valueType)
+		private static JsonValue DetermineSingle(object? value, int deepness, bool mapping, out JsonValueType valueType)
 		{
 			if (deepness > 128)
 			{
@@ -497,15 +374,16 @@ namespace LightJson
 				return new JsonValue(valueType, nbool ? 1 : 0, null);
 			}
 
-			foreach (var mapper in JsonOptions.Mappers)
-			{
-				if (mapper.CanSerialize(value))
+			if (mapping)
+				foreach (var mapper in JsonOptions.Mappers)
 				{
-					var result = mapper.Serialize(value);
-					valueType = result.Type;
-					return result;
+					if (mapper.CanSerialize(value.GetType()))
+					{
+						var result = mapper.Serialize(value);
+						valueType = result.Type;
+						return result;
+					}
 				}
-			}
 
 			if (value.GetType().IsArray)
 			{
@@ -513,7 +391,7 @@ namespace LightJson
 				foreach (object? item in (IEnumerable)value)
 				{
 					if (item == null) continue;
-					arr.Add(DetermineSingle(item, deepness + 1, out _));
+					arr.Add(DetermineSingle(item, deepness + 1, mapping, out _));
 				}
 
 				valueType = JsonValueType.Array;
@@ -530,7 +408,7 @@ namespace LightJson
 					string name = property.Name;
 					object? v = property.GetValue(value);
 
-					JsonValue jsonValue = DetermineSingle(v, deepness + 1, out _);
+					JsonValue jsonValue = DetermineSingle(v, deepness + 1, mapping, out _);
 					newObj.Add(name, jsonValue);
 				}
 
@@ -543,53 +421,37 @@ namespace LightJson
 		/// Initializes a new instance of the JsonValue struct, representing a dynamic value.
 		/// </summary>
 		/// <param name="value">The value to be wrapped.</param>
-		public JsonValue(object value)
+		/// <param name="mapping">Optional. Specifies if the value can be mapped in their first level or not.</param>
+		public JsonValue(object value, bool mapping = true)
 		{
-			JsonValue _value = DetermineSingle(value, 0, out JsonValueType valueType);
+			JsonValue _value = DetermineSingle(value, 0, mapping, out JsonValueType valueType);
 
 			this.type = valueType;
 			this.reference = _value.reference;
 			this.value = _value.value;
+			this.path = "";
 		}
 
 		/// <summary>
 		/// Initializes a new instance of the JsonValue struct, representing a Boolean value.
 		/// </summary>
 		/// <param name="value">The value to be wrapped.</param>
-		public JsonValue(bool? value)
+		public JsonValue(bool value)
 		{
-			if (value.HasValue)
-			{
-				this.reference = null!;
-
-				this.type = JsonValueType.Boolean;
-
-				this.value = value.Value ? 1 : 0;
-			}
-			else
-			{
-				this = JsonValue.Null;
-			}
+			this.type = JsonValueType.Boolean;
+			this.value = value ? 1 : 0;
+			this.path = "";
 		}
 
 		/// <summary>
 		/// Initializes a new instance of the JsonValue struct, representing a Number value.
 		/// </summary>
 		/// <param name="value">The value to be wrapped.</param>
-		public JsonValue(double? value)
+		public JsonValue(double value)
 		{
-			if (value.HasValue)
-			{
-				this.reference = null!;
-
-				this.type = JsonValueType.Number;
-
-				this.value = value.Value;
-			}
-			else
-			{
-				this = JsonValue.Null;
-			}
+			this.type = JsonValueType.Number;
+			this.value = value;
+			this.path = "";
 		}
 
 		/// <summary>
@@ -598,18 +460,9 @@ namespace LightJson
 		/// <param name="value">The value to be wrapped.</param>
 		public JsonValue(string value)
 		{
-			if (value is not null)
-			{
-				this.value = default(double);
-
-				this.type = JsonValueType.String;
-
-				this.reference = value;
-			}
-			else
-			{
-				this = JsonValue.Null;
-			}
+			this.type = JsonValueType.String;
+			this.reference = value;
+			this.path = "";
 		}
 
 		/// <summary>
@@ -618,18 +471,9 @@ namespace LightJson
 		/// <param name="value">The value to be wrapped.</param>
 		public JsonValue(JsonObject value)
 		{
-			if (value is not null)
-			{
-				this.value = default(double);
-
-				this.type = JsonValueType.Object;
-
-				this.reference = value;
-			}
-			else
-			{
-				this = JsonValue.Null;
-			}
+			this.type = JsonValueType.Object;
+			this.reference = value;
+			this.path = "";
 		}
 
 		/// <summary>
@@ -638,262 +482,75 @@ namespace LightJson
 		/// <param name="value">The value to be wrapped.</param>
 		public JsonValue(JsonArray value)
 		{
-			if (value is not null)
-			{
-				this.value = default(double);
-
-				this.type = JsonValueType.Array;
-
-				this.reference = value;
-			}
-			else
-			{
-				this = JsonValue.Null;
-			}
+			this.type = JsonValueType.Array;
+			this.reference = value;
+			this.path = "";
 		}
 
 		/// <summary>
 		/// Converts the given nullable boolean into a JsonValue.
 		/// </summary>
 		/// <param name="value">The value to be converted.</param>
-		public static implicit operator JsonValue(bool? value)
-		{
-			return new JsonValue(value);
-		}
+		public static implicit operator JsonValue(bool value) => new JsonValue(value);
 
 		/// <summary>
 		/// Converts the given nullable double into a JsonValue.
 		/// </summary>
 		/// <param name="value">The value to be converted.</param>
-		public static implicit operator JsonValue(double? value)
-		{
-			return new JsonValue(value);
-		}
+		public static implicit operator JsonValue(double value) => new JsonValue(value);
 
 		/// <summary>
 		/// Converts the given string into a JsonValue.
 		/// </summary>
 		/// <param name="value">The value to be converted.</param>
-		public static implicit operator JsonValue(string value)
-		{
-			return new JsonValue(value);
-		}
+		public static implicit operator JsonValue(string value) => new JsonValue(value);
 
 		/// <summary>
 		/// Converts the given JsonObject into a JsonValue.
 		/// </summary>
 		/// <param name="value">The value to be converted.</param>
-		public static implicit operator JsonValue(JsonObject value)
-		{
-			return new JsonValue(value);
-		}
+		public static implicit operator JsonValue(JsonObject value) => new JsonValue(value);
 
 		/// <summary>
 		/// Converts the given JsonArray into a JsonValue.
 		/// </summary>
 		/// <param name="value">The value to be converted.</param>
-		public static implicit operator JsonValue(JsonArray value)
-		{
-			return new JsonValue(value);
-		}
+		public static implicit operator JsonValue(JsonArray value) => new JsonValue(value);
 
 		/// <summary>
 		/// Converts the given JsonValue into an Int.
 		/// </summary>
 		/// <param name="jsonValue">The JsonValue to be converted.</param>
-		public static implicit operator int(JsonValue jsonValue)
-		{
-			if (jsonValue.IsInteger)
-			{
-				return jsonValue.AsInteger;
-			}
-			else
-			{
-				if (JsonOptions.ThrowOnInvalidCast)
-				{
-					throw new InvalidCastException($"Cannot cast value of type {jsonValue.Type} to Int32.");
-				}
-				else
-				{
-					return 0;
-				}
-			}
-		}
-
-		/// <summary>
-		/// Converts the given JsonValue into a nullable Int.
-		/// </summary>
-		/// <param name="jsonValue">The JsonValue to be converted.</param>
-		/// <exception cref="System.InvalidCastException">
-		/// Throws System.InvalidCastException when the inner value type of the
-		/// JsonValue is not the desired type of the conversion.
-		/// </exception>
-		public static implicit operator int?(JsonValue jsonValue)
-		{
-			if (jsonValue.IsNull)
-			{
-				return null;
-			}
-			else
-			{
-				return (int)jsonValue;
-			}
-		}
+		public static implicit operator int(JsonValue jsonValue) => jsonValue.GetInteger();
 
 		/// <summary>
 		/// Converts the given JsonValue into a Bool.
 		/// </summary>
 		/// <param name="jsonValue">The JsonValue to be converted.</param>
-		public static implicit operator bool(JsonValue jsonValue)
-		{
-			if (jsonValue.IsBoolean)
-			{
-				return (jsonValue.value == 1);
-			}
-			else
-			{
-				if (JsonOptions.ThrowOnInvalidCast)
-				{
-					throw new InvalidCastException($"Cannot cast value of type {jsonValue.Type} to Boolean.");
-				}
-				else
-				{
-					return false;
-				}
-			}
-		}
-
-		/// <summary>
-		/// Converts the given JsonValue into a nullable Bool.
-		/// </summary>
-		/// <param name="jsonValue">The JsonValue to be converted.</param>
-		/// <exception cref="System.InvalidCastException">
-		/// Throws System.InvalidCastException when the inner value type of the
-		/// JsonValue is not the desired type of the conversion.
-		/// </exception>
-		public static implicit operator bool?(JsonValue jsonValue)
-		{
-			if (jsonValue.IsNull)
-			{
-				return null;
-			}
-			else
-			{
-				return (bool)jsonValue;
-			}
-		}
+		public static implicit operator bool(JsonValue jsonValue) => jsonValue.GetBoolean();
 
 		/// <summary>
 		/// Converts the given JsonValue into a Double.
 		/// </summary>
 		/// <param name="jsonValue">The JsonValue to be converted.</param>
-		public static implicit operator double(JsonValue jsonValue)
-		{
-			if (jsonValue.IsNumber)
-			{
-				return jsonValue.value;
-			}
-			else
-			{
-				if (JsonOptions.ThrowOnInvalidCast)
-				{
-					throw new InvalidCastException($"Cannot cast value of type {jsonValue.Type} to Double.");
-				}
-				else
-				{
-					return Double.NaN;
-				}
-			}
-		}
-
-		/// <summary>
-		/// Converts the given JsonValue into a nullable Double.
-		/// </summary>
-		/// <param name="jsonValue">The JsonValue to be converted.</param>
-		/// <exception cref="System.InvalidCastException">
-		/// Throws System.InvalidCastException when the inner value type of the
-		/// JsonValue is not the desired type of the conversion.
-		/// </exception>
-		public static implicit operator double?(JsonValue jsonValue)
-		{
-			if (jsonValue.IsNull)
-			{
-				return null;
-			}
-			else
-			{
-				return (double)jsonValue;
-			}
-		}
+		public static implicit operator double(JsonValue jsonValue) => jsonValue.GetNumber();
 
 		/// <summary>
 		/// Converts the given JsonValue into a String.
 		/// </summary>
 		/// <param name="jsonValue">The JsonValue to be converted.</param>
-		public static implicit operator string?(JsonValue jsonValue)
-		{
-			if (jsonValue.IsString || jsonValue.IsNull)
-			{
-				return jsonValue.AsString;
-			}
-			else
-			{
-				if (JsonOptions.ThrowOnInvalidCast)
-				{
-					throw new InvalidCastException($"Cannot cast value of type {jsonValue.Type} to String.");
-				}
-				else
-				{
-					return null;
-				}
-			}
-		}
+		public static implicit operator string(JsonValue jsonValue) => jsonValue.GetString();
 
 		/// <summary>
 		/// Converts the given JsonValue into a JsonObject.
 		/// </summary>
 		/// <param name="jsonValue">The JsonValue to be converted.</param>
-		public static implicit operator JsonObject?(JsonValue jsonValue)
-		{
-			if (jsonValue.IsJsonObject || jsonValue.IsNull)
-			{
-				return jsonValue.reference as JsonObject;
-			}
-			else
-			{
-				if (JsonOptions.ThrowOnInvalidCast)
-				{
-					throw new InvalidCastException($"Cannot cast value of type {jsonValue.Type} to JsonObject.");
-				}
-				else
-				{
-					return null;
-				}
-			}
-		}
-
+		public static implicit operator JsonObject(JsonValue jsonValue) => jsonValue.GetJsonObject();
 		/// <summary>
 		/// Converts the given JsonValue into a JsonArray.
 		/// </summary>
 		/// <param name="jsonValue">The JsonValue to be converted.</param>
-		public static implicit operator JsonArray?(JsonValue jsonValue)
-		{
-			if (jsonValue.IsJsonArray || jsonValue.IsNull)
-			{
-				return jsonValue.reference as JsonArray;
-			}
-			else
-			{
-				if (JsonOptions.ThrowOnInvalidCast)
-				{
-					throw new InvalidCastException($"Cannot cast value of type {jsonValue.Type} to JsonArray.");
-				}
-				else
-				{
-					return null;
-				}
-			}
-		}
+		public static implicit operator JsonArray?(JsonValue jsonValue) => jsonValue.GetJsonArray();
 
 		/// <summary>
 		/// Returns a value indicating whether the two given JsonValues are equal.

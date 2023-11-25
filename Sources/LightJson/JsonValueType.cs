@@ -1,6 +1,4 @@
-﻿using System;
-
-namespace LightJson
+﻿namespace LightJson
 {
 	/// <summary>
 	/// Enumerates the types of Json values.
@@ -11,6 +9,11 @@ namespace LightJson
 		/// A null value.
 		/// </summary>
 		Null = 0,
+
+		/// <summary>
+		/// An undefined value.
+		/// </summary>
+		Undefined = 1,
 
 		/// <summary>
 		/// A boolean value.

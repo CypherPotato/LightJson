@@ -13,6 +13,7 @@ namespace LightJson.Serialization
 	public sealed class JsonReader
 	{
 		private TextScanner scanner;
+		private string moutingPath = "$";
 
 		private JsonReader(TextReader reader)
 		{
@@ -21,7 +22,9 @@ namespace LightJson.Serialization
 
 		private string ReadJsonKey()
 		{
-			return ReadString();
+			var read = ReadString();
+			moutingPath += "." + read;
+			return read;
 		}
 
 		private JsonValue ReadJsonValue()
@@ -306,6 +309,8 @@ namespace LightJson.Serialization
 
 		private JsonObject ReadObject(JsonObject jsonObject)
 		{
+			string initialPath = moutingPath;
+
 			this.scanner.Assert('{');
 
 			this.scanner.SkipWhitespace();
@@ -338,14 +343,17 @@ namespace LightJson.Serialization
 
 					var value = ReadJsonValue();
 
+					value.path = moutingPath;
+
 					jsonObject.Add(key, value);
 
 					this.scanner.SkipWhitespace();
 
 					var next = this.scanner.Read();
+					moutingPath = initialPath;
 
 					if (next == '}')
-					{
+					{					
 						break;
 					}
 					else if (next == ',')
@@ -362,6 +370,7 @@ namespace LightJson.Serialization
 				}
 			}
 
+			jsonObject.path = moutingPath;
 			return jsonObject;
 		}
 
@@ -372,6 +381,9 @@ namespace LightJson.Serialization
 
 		private JsonArray ReadArray(JsonArray jsonArray)
 		{
+			string initialPath = moutingPath;
+			int index = 0;
+
 			this.scanner.Assert('[');
 
 			this.scanner.SkipWhitespace();
@@ -386,12 +398,16 @@ namespace LightJson.Serialization
 				{
 					this.scanner.SkipWhitespace();
 
+					moutingPath += $"[{index}]";
 					var value = ReadJsonValue();
+					
+					value.path = moutingPath;
 
 					jsonArray.Add(value);
 
 					this.scanner.SkipWhitespace();
 
+					moutingPath = initialPath;
 					var next = this.scanner.Read();
 
 					if (next == ']')
@@ -400,6 +416,7 @@ namespace LightJson.Serialization
 					}
 					else if (next == ',')
 					{
+						index++;
 						continue;
 					}
 					else
@@ -412,6 +429,7 @@ namespace LightJson.Serialization
 				}
 			}
 
+			jsonArray.path = moutingPath;
 			return jsonArray;
 		}
 

@@ -6,8 +6,7 @@ namespace LightJson;
 
 public abstract class JsonSerializerMapper
 {
-	public abstract bool CanSerialize(object obj);
-	public abstract bool CanDeserialize(JsonValue value);
+	public abstract bool CanSerialize(Type obj);
 	public abstract JsonValue Serialize(object value);
 	public abstract object Deserialize(JsonValue value);
 }

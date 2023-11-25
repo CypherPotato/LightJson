@@ -12,7 +12,13 @@ namespace LightJson
 	[DebuggerTypeProxy(typeof(JsonObjectDebugView))]
 	public sealed class JsonObject : IEnumerable<KeyValuePair<string, JsonValue>>, IEnumerable<JsonValue>
 	{
+		internal string path;
 		private IDictionary<string, JsonValue> properties;
+
+		/// <summary>
+		/// Gets all defined properties in this <see cref="JsonObject"/>.
+		/// </summary>
+		public IDictionary<string, JsonValue> Properties { get => properties; }
 
 		/// <summary>
 		/// Gets the number of properties in this JsonObject.
@@ -42,7 +48,9 @@ namespace LightJson
 				}
 				else
 				{
-					return JsonValue.Null;
+					var nullValue = JsonValue.Undefined;
+					nullValue.path = this.path + "." + key;
+					return nullValue;
 				}
 			}
 			set
@@ -65,6 +73,17 @@ namespace LightJson
 			{
 				this.properties = new Dictionary<string, JsonValue>();
 			}
+		}
+
+		/// <summary>
+		/// Executes an iterator on this JSON object and returns another one from this.
+		/// </summary>
+		/// <typeparam name="T"></typeparam>
+		/// <param name="selector"></param>
+		/// <returns></returns>
+		public T Select<T>(Func<JsonValue, T> selector)
+		{
+			return selector(this);
 		}
 
 		/// <summary>

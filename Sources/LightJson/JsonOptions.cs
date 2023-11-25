@@ -13,10 +13,8 @@ public static class JsonOptions
 	public static bool PropertyNameCaseInsensitive { get; set; } = false;
 
 	/// <summary>
-	/// Gets or sets whether the JSON serializer should throw an exception when trying to convert a value to an invalid type.
+	/// Gets or sets an list of <see cref="JsonSerializerMapper"/>.
 	/// </summary>
-	public static bool ThrowOnInvalidCast { get; set; } = false;
-
 	public static HashSet<JsonSerializerMapper> Mappers { get; set; } = new HashSet<JsonSerializerMapper>();
 
 }

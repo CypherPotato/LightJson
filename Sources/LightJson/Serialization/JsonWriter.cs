@@ -95,7 +95,7 @@ namespace LightJson.Serialization
 					break;
 
 				case JsonValueType.Boolean:
-					Write(value.AsString);
+					Write(value.GetString());
 					break;
 
 				case JsonValueType.Number:
@@ -112,11 +112,11 @@ namespace LightJson.Serialization
 					break;
 
 				case JsonValueType.Object:
-					Write(string.Format("JsonObject[{0}]", value.AsJsonObject.Count));
+					Write(string.Format("JsonObject[{0}]", value.GetJsonObject().Count));
 					break;
 
 				case JsonValueType.Array:
-					Write(string.Format("JsonArray[{0}]", value.AsJsonArray.Count));
+					Write(string.Format("JsonArray[{0}]", value.GetJsonArray().Count));
 					break;
 
 				default:

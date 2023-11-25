@@ -1,58 +1,51 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
-  <PropertyGroup>
-    <TargetFrameworks>
-      netcoreapp3.1;
-      netstandard2.0;
-      netstandard2.1;
-      net452;
-      net462;
-      net472;
-      net48;
-      net6.0
-    </TargetFrameworks>
+	<PropertyGroup>
+		<TargetFrameworks>
+			net6.0
+		</TargetFrameworks>
 
-    <Deterministic>true</Deterministic>
-    <ContinuousIntegrationBuild Condition="'$(GITHUB_ACTIONS)' == 'true'">True</ContinuousIntegrationBuild>
+		<Deterministic>true</Deterministic>
+		<ContinuousIntegrationBuild Condition="'$(GITHUB_ACTIONS)' == 'true'">True</ContinuousIntegrationBuild>
 
-    <LangVersion>latest</LangVersion>
-    <Version>0.5.3</Version>
-    <Authors>Marcos López C.</Authors>
-    <Description>A minimalist JSON library designed to easily encode and decode JSON messages.</Description>
-    <Copyright>Copyright © 2023 Marcos López C.</Copyright>
-    <PackageLicenseExpression>MIT</PackageLicenseExpression>
-    <PackageId>MarcosLopezC.LightJson</PackageId>
-    <RepositoryUrl>https://github.com/MarcosLopezC/LightJson.git</RepositoryUrl>
-    <PublishRepositoryUrl>true</PublishRepositoryUrl>
-    <PackageTags>JSON</PackageTags>
-    <RepositoryType>git</RepositoryType>
-    <PackageReadmeFile>README.md</PackageReadmeFile>
+		<LangVersion>latest</LangVersion>
+		<Version>0.5.3</Version>
+		<Authors>CypherPotato</Authors>
+		<Description>A minimalist JSON library designed to easily encode and decode JSON messages.</Description>
+		<Copyright>Copyright © 2023 CypherPotato</Copyright>
+		<PackageLicenseExpression>MIT</PackageLicenseExpression>
+		<PackageId>MarcosLopezC.LightJson</PackageId>
+		<RepositoryUrl>https://github.com/CypherPotato/LightJson</RepositoryUrl>
+		<PublishRepositoryUrl>true</PublishRepositoryUrl>
+		<PackageTags>JSON</PackageTags>
+		<RepositoryType>git</RepositoryType>
+		<PackageReadmeFile>README.md</PackageReadmeFile>
 
-    <EmbedUntrackedSources>true</EmbedUntrackedSources>
-    <IncludeSource>true</IncludeSource>
-    <SymbolPackageFormat>snupkg</SymbolPackageFormat>
-  </PropertyGroup>
+		<EmbedUntrackedSources>true</EmbedUntrackedSources>
+		<IncludeSource>true</IncludeSource>
+		<SymbolPackageFormat>snupkg</SymbolPackageFormat>
+	</PropertyGroup>
 
-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'">
-    <GenerateDocumentationFile>true</GenerateDocumentationFile>
-  </PropertyGroup>
+	<PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'">
+		<GenerateDocumentationFile>true</GenerateDocumentationFile>
+	</PropertyGroup>
 
-  <ItemGroup>
-    <None Remove="LightJson.xml" />
-    <None Include="../../README.md;../../LICENSE.txt" Pack="true" PackagePath="/" />
+	<ItemGroup>
+		<None Remove="LightJson.xml" />
+		<None Include="../../README.md;../../LICENSE.txt" Pack="true" PackagePath="/" />
 
-    <!-- Pack sources in the nuget package -->
-    <Content Include="Package\**">
-      <Pack>true</Pack>
-      <PackagePath>build\</PackagePath>
-      <PackageCopyToOutput>true</PackageCopyToOutput>
-    </Content>
+		<!-- Pack sources in the nuget package -->
+		<Content Include="Package\**">
+			<Pack>true</Pack>
+			<PackagePath>build\</PackagePath>
+			<PackageCopyToOutput>true</PackageCopyToOutput>
+		</Content>
 
-    <Content Include="**\*.cs" Exclude="**\obj\**;**\bin\**">
-      <Pack>true</Pack>
-      <PackagePath>src\LightJson\%(RecursiveDir)%(Filename).g%(Extension)</PackagePath>
-      <PackageCopyToOutput>true</PackageCopyToOutput>
-    </Content>
-  </ItemGroup>
+		<Content Include="**\*.cs" Exclude="**\obj\**;**\bin\**">
+			<Pack>true</Pack>
+			<PackagePath>src\LightJson\%(RecursiveDir)%(Filename).g%(Extension)</PackagePath>
+			<PackageCopyToOutput>true</PackageCopyToOutput>
+		</Content>
+	</ItemGroup>
 
 </Project>
