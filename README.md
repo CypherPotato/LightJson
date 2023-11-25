@@ -1,77 +1,85 @@
 # LightJson
 
-A minimalist JSON library designed to easily encode and decode JSON messages.
+This repository contains code that was based on the incredible [LightJson](https://github.com/MarcosLopezC/LightJson) work by Marcos Lopez C. which I made
+with a personal touch.
 
-[![Build and Tests](https://github.com/MarcosLopezC/LightJson/actions/workflows/build-and-tests.yml/badge.svg)](https://github.com/MarcosLopezC/LightJson/actions/workflows/build-and-tests.yml)
+This library is a very simple component for writing and reading JSON messages. It does
+not use [Source Generators](https://learn.microsoft.com/en-us/dotnet/csharp/roslyn-sdk/source-generators-overview) to read
+or write messages, which makes it possible to build code with [bflat](https://github.com/bflattened/bflat) and also
+features manual object mapping.
 
-## Features
+Almost everything in this class is inherited from the main project mentioned above, however, there are these changes:
 
-- Strict adherence to JSON Standard as defined in [json.org](http://json.org/).
-- Expressive fluent API.
-- Configurable output (minified/pretty).
-- Enhanced debugging data for Visual Studio.
+- Unlike the original project, a `JsonValue` does not contain any `AsFoobar` properties, but has
+a method for each `GetFoobar()`, and the main difference is that you cannot get an implicit
+value of what the JsonValue is. For example, you cannot read `JsonValue.GetBoolean()` if
+the stored value is a string.
+- All functions that return an object converted from a JsonValue, such as `JsonValue.GetString()` for example, do
+not return nullable values. You can check for nullable JSON values using `JsonValue.MaybeNull()`.
+- You can search for objects in an ignore-case manner if you set `JsonOptions.PropertyNameCaseInsensitive` to `true`.
+- Undefined values will come with `JsonValueType.Undefined` instead of `JsonValueType.Null`.
+- This projects only targets .NET 6 and above.
 
-# Usage
+Additionally, this library includes these new features:
 
-## Creating a JSON message
+#### Create JsonValues from any kind of object:
 
-```C#
-var json = new JsonObject
+```cs
+object anonymousObject = new
 {
-	["menu"] = new JsonArray
-	{
-		"home",
-		"projects",
-		"about",
-	}
-}.ToString(pretty: true);
+    foo = "bar"
+};
+
+string json = new JsonValue(anonymousObject).ToString();
 ```
 
-JSON output:
 
-```JSON
+#### Create custom mappers (a.k.a. converters):
+
+```cs
+static void Main(string[] args)
 {
-	"menu": [
-		"home",
-		"projects",
-		"about"
-	]
+    JsonOptions.Mappers.Add(new DatetimeMapper());
+
+    string json = new JsonValue(DateTime.Now).ToString();
+
+    Console.WriteLine(json);
+}
+
+public class DatetimeMapper : JsonSerializerMapper
+{
+    public override Boolean CanSerialize(Type obj)
+    {
+        return obj == typeof(DateTime);
+    }
+
+    public override Object Deserialize(JsonValue value)
+    {
+        return DateTime.Parse(value.GetString());
+    }
+
+    public override JsonValue Serialize(Object value)
+    {
+        DateTime t = (DateTime)value;
+        return new JsonValue(t.ToString("s"));
+    }
 }
 ```
 
-## Reading a JSON message
+#### Fluent syntax for retrieving items:
 
-In this example, the variable `json` contains the string generated in the previous example.
+```cs
+// $.foobar must be present, non null and carry an string value.
+string stringValue = obj["foobar"].GetString();
 
-```C#
-var menu = JsonValue.Parse(json)["menu"].AsJsonArray;
+// $.bazdaz can be null or undefined, but if not, it must be an string.
+string? optionalValue = obj["bazdaz"].MaybeNull()?.GetString();
 
-foreach (var item in menu)
-{
-	Console.WriteLine(item);
-}
+// $.duzkaz must be present, non null, be an json array and every children on it
+// must be an string value.
+string[] arrayItems = obj["duzkaz"].GetJsonArray().Select(i => i.GetString()).ToArray();
+
+// $.user must be present, non null, and must be mapped to User, which it's mapper
+// is defined on JsonOptions.Mappers.
+User user = obj["user"].Map<User>();
 ```
-
-Console output:
-
-```
-home
-projects
-about
-```
-
-# License
-
-MIT License ([Read License](LICENSE.txt)).
-
-# Author
-
-- Marcos López C. (MarcosLopezC) <MarcosLopezC@live.com>
-
-## Contributors
-
-- Trevor Stavropoulos (tstavropoulos) <Trevor.Stavropoulos@gmail.com>
-- Sam Harwell (sharwell)
-- saiedkia
-- Björn Hellander (bjornhellander)
-- Vitor Rodrigues (vsilvar)
