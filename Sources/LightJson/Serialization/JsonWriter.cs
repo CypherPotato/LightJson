@@ -95,7 +95,7 @@ namespace LightJson.Serialization
 					break;
 
 				case JsonValueType.Boolean:
-					Write(value.GetString());
+					Write(value.GetBoolean() ? "true" : "false");
 					break;
 
 				case JsonValueType.Number:
@@ -282,13 +282,17 @@ namespace LightJson.Serialization
 
 			indent += 1;
 
-			using(var enumerator = GetJsonObjectEnumerator(value))
+			using (var enumerator = GetJsonObjectEnumerator(value))
 			{
 				var hasNext = enumerator.MoveNext();
 
 				while (hasNext)
 				{
-					WriteEncodedString(enumerator.Current.Key);
+					string key = enumerator.Current.Key;
+					if (JsonOptions.NamingPolicy != null)
+						key = JsonOptions.NamingPolicy.ConvertName(key);
+
+					WriteEncodedString(key);
 					Write(":");
 					WriteSpacing();
 					Render(enumerator.Current.Value);

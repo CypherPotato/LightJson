@@ -1,9 +1,16 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Text;
+using System.Text.Json;
+using LightJson.Converters;
 
 namespace LightJson;
 
+#nullable enable
+
+/// <summary>
+/// Provides options and configurations for using the LightJson library.
+/// </summary>
 public static class JsonOptions
 {
 	/// <summary>
@@ -13,8 +20,18 @@ public static class JsonOptions
 	public static bool PropertyNameCaseInsensitive { get; set; } = false;
 
 	/// <summary>
-	/// Gets or sets an list of <see cref="JsonSerializerMapper"/>.
+	/// Gets or sets an list of <see cref="JsonConverter"/>.
 	/// </summary>
-	public static HashSet<JsonSerializerMapper> Mappers { get; set; } = new HashSet<JsonSerializerMapper>();
+	public static HashSet<JsonConverter> Mappers { get; set; } = new HashSet<JsonConverter>()
+	{
+		new DictionaryConverter(),
+		new GuidConverter(),
+		new EnumConverter(),
+		new DatetimeConverter()
+	};
 
+	/// <summary>
+	/// Gets or sets the function that transforms the property name of a JSON object to JSON output.
+	/// </summary>
+	public static JsonNamingPolicy? NamingPolicy { get; set; }
 }

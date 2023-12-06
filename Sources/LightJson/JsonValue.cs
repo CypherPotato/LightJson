@@ -6,6 +6,9 @@ using System.Reflection;
 using System.Collections;
 using System.Diagnostics.CodeAnalysis;
 using System.Text.Json.Serialization.Metadata;
+using LightJson.Converters;
+using System.Reflection.Metadata;
+
 
 #nullable enable
 
@@ -154,10 +157,10 @@ namespace LightJson
 		}
 
 		/// <summary>
-		/// Gets this value as an defined <see cref="JsonSerializerMapper"/>.
+		/// Gets this value as an defined <see cref="JsonConverter"/>.
 		/// </summary>
 		/// <typeparam name="T">The defined mapping type.</typeparam>
-		public T Map<T>()
+		public T Get<T>()
 		{
 			if (this.IsNull)
 			{
@@ -172,7 +175,7 @@ namespace LightJson
 				{
 					try
 					{
-						return (T)mapper.Deserialize(this);
+						return (T)mapper.Deserialize(this, tType);
 					}
 					catch (Exception ex)
 					{
@@ -181,7 +184,7 @@ namespace LightJson
 				}
 			}
 
-			throw new InvalidOperationException($"No mapper was defined to type {typeof(T).Name}.");
+			throw new InvalidOperationException($"No converter matched the object type {typeof(T).FullName}.");
 		}
 
 		/// <summary>
@@ -254,7 +257,7 @@ namespace LightJson
 				}
 				else
 				{
-					throw new InvalidOperationException($"The JSON value at {path} does not represent a JsonObject.");
+					return ThrowInvalidCast<JsonValue>(JsonValueType.Object);
 				}
 			}
 			set
@@ -265,7 +268,7 @@ namespace LightJson
 				}
 				else
 				{
-					throw new InvalidOperationException($"The JSON value at {path} does not represent a JsonObject.");
+					ThrowInvalidCast<JsonValue>(JsonValueType.Object);
 				}
 			}
 		}
@@ -287,7 +290,7 @@ namespace LightJson
 				}
 				else
 				{
-					throw new InvalidOperationException($"The JSON value at {path} does not represent a JsonArray.");
+					return ThrowInvalidCast<JsonValue>(JsonValueType.Array);
 				}
 			}
 			set
@@ -298,7 +301,7 @@ namespace LightJson
 				}
 				else
 				{
-					throw new InvalidOperationException($"The JSON value at {path} does not represent a JsonArray.");
+					ThrowInvalidCast<JsonValue>(JsonValueType.Array);
 				}
 			}
 		}
@@ -307,7 +310,7 @@ namespace LightJson
 		{
 			if (!IsDefined)
 			{
-				throw new InvalidCastException($"Attempted to read an undefined value, at {path}.");
+				throw new InvalidCastException($"At value {path} it is expected to have a {expectedType}.");
 			}
 			throw new InvalidCastException($"Expected to read the JSON value at {path} as {expectedType}, but got {Type} instead.");
 		}
@@ -316,7 +319,7 @@ namespace LightJson
 		{
 			if (!IsDefined)
 			{
-				throw new InvalidCastException($"Attempted to read an undefined value, at {path}.");
+				throw new InvalidCastException($"At value {path} it is expected to have a {typeof(T).Name}.");
 			}
 			throw new InvalidCastException($"Expected to read the JSON value at {path} as {typeof(T).Name}, but got {Type} instead.");
 		}
@@ -347,13 +350,15 @@ namespace LightJson
 			{
 				throw new InvalidOperationException("The maximum JSON depth level has been reached.");
 			}
-
 			if (value is null)
 			{
 				valueType = JsonValueType.Null;
 				return new JsonValue(valueType, 0, null);
 			}
-			else if (value is string)
+
+			var itemType = value.GetType();
+
+			if (value is string)
 			{
 				valueType = JsonValueType.String;
 				return new JsonValue(valueType, 0, value);
@@ -375,23 +380,25 @@ namespace LightJson
 			}
 
 			if (mapping)
+			{
 				foreach (var mapper in JsonOptions.Mappers)
 				{
-					if (mapper.CanSerialize(value.GetType()))
+					if (mapper.CanSerialize(itemType))
 					{
 						var result = mapper.Serialize(value);
 						valueType = result.Type;
 						return result;
 					}
 				}
+			}
 
-			if (value.GetType().IsArray)
+			if (itemType.IsAssignableTo(typeof(IEnumerable)))
 			{
 				JsonArray arr = new JsonArray();
 				foreach (object? item in (IEnumerable)value)
 				{
 					if (item == null) continue;
-					arr.Add(DetermineSingle(item, deepness + 1, mapping, out _));
+					arr.Add(DetermineSingle(item, deepness + 1, true, out _));
 				}
 
 				valueType = JsonValueType.Array;
@@ -400,7 +407,7 @@ namespace LightJson
 			else
 			{
 				JsonObject newObj = new JsonObject();
-				PropertyInfo[] valueProperties = value.GetType()
+				PropertyInfo[] valueProperties = itemType
 					.GetProperties(BindingFlags.Public | BindingFlags.Instance);
 
 				foreach (PropertyInfo property in valueProperties)
@@ -408,7 +415,7 @@ namespace LightJson
 					string name = property.Name;
 					object? v = property.GetValue(value);
 
-					JsonValue jsonValue = DetermineSingle(v, deepness + 1, mapping, out _);
+					JsonValue jsonValue = DetermineSingle(v, deepness + 1, true, out _);
 					newObj.Add(name, jsonValue);
 				}
 
@@ -421,15 +428,26 @@ namespace LightJson
 		/// Initializes a new instance of the JsonValue struct, representing a dynamic value.
 		/// </summary>
 		/// <param name="value">The value to be wrapped.</param>
-		/// <param name="mapping">Optional. Specifies if the value can be mapped in their first level or not.</param>
-		public JsonValue(object value, bool mapping = true)
+		/// <param name="mapFirstLevel">Optional. Specifies if the value can be mapped in their first level or not.</param>
+		public JsonValue(object? value, bool mapFirstLevel = true)
 		{
-			JsonValue _value = DetermineSingle(value, 0, mapping, out JsonValueType valueType);
+			if (value == null)
+			{
+				this.type = JsonValueType.Null;
+				this.reference = null!;
+				this.value = 0;
+				this.path = "";
+			}
+			else
+			{
 
-			this.type = valueType;
-			this.reference = _value.reference;
-			this.value = _value.value;
-			this.path = "";
+				JsonValue _value = DetermineSingle(value, 0, mapFirstLevel, out JsonValueType valueType);
+
+				this.type = valueType;
+				this.reference = _value.reference;
+				this.value = _value.value;
+				this.path = "";
+			}
 		}
 
 		/// <summary>
@@ -448,6 +466,17 @@ namespace LightJson
 		/// </summary>
 		/// <param name="value">The value to be wrapped.</param>
 		public JsonValue(double value)
+		{
+			this.type = JsonValueType.Number;
+			this.value = value;
+			this.path = "";
+		}
+
+		/// <summary>
+		/// Initializes a new instance of the JsonValue struct, representing a Number value.
+		/// </summary>
+		/// <param name="value">The value to be wrapped.</param>
+		public JsonValue(int value)
 		{
 			this.type = JsonValueType.Number;
 			this.value = value;

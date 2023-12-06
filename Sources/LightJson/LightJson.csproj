@@ -8,44 +8,40 @@
 		<Deterministic>true</Deterministic>
 		<ContinuousIntegrationBuild Condition="'$(GITHUB_ACTIONS)' == 'true'">True</ContinuousIntegrationBuild>
 
+		<Nullable>enable</Nullable>
 		<LangVersion>latest</LangVersion>
-		<Version>0.5.3</Version>
+		<Version>0.5.6</Version>
 		<Authors>CypherPotato</Authors>
 		<Description>A minimalist JSON library designed to easily encode and decode JSON messages.</Description>
 		<Copyright>Copyright © 2023 CypherPotato</Copyright>
 		<PackageLicenseExpression>MIT</PackageLicenseExpression>
-		<PackageId>MarcosLopezC.LightJson</PackageId>
+		<PackageId>CypherPotato.LightJson</PackageId>
 		<RepositoryUrl>https://github.com/CypherPotato/LightJson</RepositoryUrl>
 		<PublishRepositoryUrl>true</PublishRepositoryUrl>
 		<PackageTags>JSON</PackageTags>
 		<RepositoryType>git</RepositoryType>
 		<PackageReadmeFile>README.md</PackageReadmeFile>
+		
+		<GeneratePackageOnBuild>True</GeneratePackageOnBuild>
+		<IncludeSymbols>True</IncludeSymbols>
+		<GenerateDocumentationFile>true</GenerateDocumentationFile>
+		<NeutralLanguage>en</NeutralLanguage>
+		<SymbolPackageFormat>symbols.nupkg</SymbolPackageFormat>
+		<PackRelease>True</PackRelease>
 
 		<EmbedUntrackedSources>true</EmbedUntrackedSources>
 		<IncludeSource>true</IncludeSource>
-		<SymbolPackageFormat>snupkg</SymbolPackageFormat>
-	</PropertyGroup>
-
-	<PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'">
-		<GenerateDocumentationFile>true</GenerateDocumentationFile>
 	</PropertyGroup>
 
 	<ItemGroup>
-		<None Remove="LightJson.xml" />
-		<None Include="../../README.md;../../LICENSE.txt" Pack="true" PackagePath="/" />
-
-		<!-- Pack sources in the nuget package -->
-		<Content Include="Package\**">
-			<Pack>true</Pack>
-			<PackagePath>build\</PackagePath>
-			<PackageCopyToOutput>true</PackageCopyToOutput>
-		</Content>
-
-		<Content Include="**\*.cs" Exclude="**\obj\**;**\bin\**">
-			<Pack>true</Pack>
-			<PackagePath>src\LightJson\%(RecursiveDir)%(Filename).g%(Extension)</PackagePath>
-			<PackageCopyToOutput>true</PackageCopyToOutput>
-		</Content>
+		<None Include="..\..\LICENSE.txt">
+			<Pack>True</Pack>
+			<PackagePath>\</PackagePath>
+		</None>
+		<None Include="..\..\README.md">
+			<Pack>True</Pack>
+			<PackagePath>\</PackagePath>
+		</None>
 	</ItemGroup>
 
 </Project>
