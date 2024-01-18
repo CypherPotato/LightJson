@@ -36,6 +36,9 @@ namespace LightJson
 		/// </summary>
 		public static readonly JsonValue Undefined = new JsonValue(JsonValueType.Undefined, default(double), null);
 
+		/// <summary>
+		/// Gets the JSON path of this JsonValue.
+		/// </summary>
 		public string Path
 		{
 			get => path;
@@ -414,7 +417,6 @@ namespace LightJson
 				{
 					string name = property.Name;
 					object? v = property.GetValue(value);
-
 					JsonValue jsonValue = DetermineSingle(v, deepness + 1, true, out _);
 					newObj.Add(name, jsonValue);
 				}

@@ -14,7 +14,7 @@ namespace LightJson
 	[DebuggerTypeProxy(typeof(JsonArrayDebugView))]
 	public sealed class JsonArray : IEnumerable<JsonValue>
 	{
-		internal string path;
+		internal string path = "";
 		private IList<JsonValue> items;
 
 		/// <summary>

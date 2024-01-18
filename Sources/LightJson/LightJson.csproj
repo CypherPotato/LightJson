@@ -10,9 +10,9 @@
 
 		<Nullable>enable</Nullable>
 		<LangVersion>latest</LangVersion>
-		<Version>0.5.6</Version>
+		<Version>0.6.0</Version>
 		<Authors>CypherPotato</Authors>
-		<Description>A minimalist JSON library designed to easily encode and decode JSON messages.</Description>
+		<Description>A fork from MarcosLopezC.LightJson with some personal tweaks for .NET 6+.</Description>
 		<Copyright>Copyright © 2023 CypherPotato</Copyright>
 		<PackageLicenseExpression>MIT</PackageLicenseExpression>
 		<PackageId>CypherPotato.LightJson</PackageId>
