@@ -66,6 +66,12 @@ namespace LightJson
 		}
 
 		/// <summary>
+		/// Returns an <see cref="JsonValue"/> representating this <see cref="JsonObject"/>.
+		/// </summary>
+		/// <returns></returns>
+		public JsonValue AsJsonValue() => new JsonValue(this);
+
+		/// <summary>
 		/// Initializes a new instance of JsonArray, adding the given values to the collection.
 		/// </summary>
 		/// <param name="values">The values to be added to this collection.</param>
@@ -217,7 +223,7 @@ namespace LightJson
 		/// </param>
 		public string ToString(bool pretty)
 		{
-			return JsonWriter.Serialize(this, pretty);
+			return JsonWriter.Serialize(this.AsJsonValue(), pretty);
 		}
 
 		private class JsonArrayDebugView

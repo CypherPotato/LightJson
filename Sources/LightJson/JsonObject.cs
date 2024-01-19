@@ -9,7 +9,6 @@ namespace LightJson
 	/// Represents a key-value pair collection of JsonValue objects.
 	/// </summary>
 	[DebuggerDisplay("Count = {Count}")]
-	[DebuggerTypeProxy(typeof(JsonObjectDebugView))]
 	public sealed class JsonObject : IEnumerable<KeyValuePair<string, JsonValue>>, IEnumerable<JsonValue>
 	{
 		internal string path;
@@ -64,6 +63,7 @@ namespace LightJson
 		/// </summary>
 		public JsonObject()
 		{
+			path = "$";
 			if (JsonOptions.PropertyNameCaseInsensitive)
 			{
 				var comparer = StringComparer.OrdinalIgnoreCase;
@@ -76,12 +76,18 @@ namespace LightJson
 		}
 
 		/// <summary>
+		/// Returns an <see cref="JsonValue"/> representating this <see cref="JsonObject"/>.
+		/// </summary>
+		/// <returns></returns>
+		public JsonValue AsJsonValue() => new JsonValue(this);
+
+		/// <summary>
 		/// Executes an iterator on this JSON object and returns another one from this.
 		/// </summary>
 		/// <typeparam name="T"></typeparam>
 		/// <param name="selector"></param>
 		/// <returns></returns>
-		public T Select<T>(Func<JsonValue, T> selector)
+		public T Select<T>(Func<JsonObject, T> selector)
 		{
 			return selector(this);
 		}
@@ -249,80 +255,7 @@ namespace LightJson
 		/// </param>
 		public string ToString(bool pretty)
 		{
-			return JsonWriter.Serialize(this, pretty);
-		}
-
-		private class JsonObjectDebugView
-		{
-			private JsonObject jsonObject;
-
-			[DebuggerBrowsable(DebuggerBrowsableState.RootHidden)]
-			public KeyValuePair[] Keys
-			{
-				get
-				{
-					var keys = new KeyValuePair[jsonObject.Count];
-
-					var i = 0;
-					foreach (var property in jsonObject)
-					{
-						keys[i] = new KeyValuePair(property.Key, property.Value);
-						i += 1;
-					}
-
-					return keys;
-				}
-			}
-
-			public JsonObjectDebugView(JsonObject jsonObject)
-			{
-				this.jsonObject = jsonObject;
-			}
-
-			[DebuggerDisplay("{value.ToString(),nq}", Name = "{key}", Type = "JsonValue({Type})")]
-			public class KeyValuePair
-			{
-				[DebuggerBrowsable(DebuggerBrowsableState.Never)]
-				private string key;
-
-				[DebuggerBrowsable(DebuggerBrowsableState.Never)]
-				private JsonValue value;
-
-				[DebuggerBrowsable(DebuggerBrowsableState.Never)]
-				private JsonValueType Type
-				{
-					get
-					{
-						return value.Type;
-					}
-				}
-
-				[DebuggerBrowsable(DebuggerBrowsableState.RootHidden)]
-				public object View
-				{
-					get
-					{
-						if (this.value.IsJsonObject)
-						{
-							return (JsonObject)this.value;
-						}
-						else if (this.value.IsJsonArray)
-						{
-							return (JsonArray)this.value;
-						}
-						else
-						{
-							return this.value;
-						}
-					}
-				}
-
-				public KeyValuePair(string key, JsonValue value)
-				{
-					this.key = key;
-					this.value = value;
-				}
-			}
+			return JsonWriter.Serialize(this.AsJsonValue(), pretty);
 		}
 	}
 }

@@ -347,7 +347,7 @@ namespace LightJson
 			this.path = "";
 		}
 
-		private static JsonValue DetermineSingle(object? value, int deepness, bool mapping, out JsonValueType valueType)
+		private static JsonValue DetermineSingle(object? value, int deepness, out JsonValueType valueType)
 		{
 			if (deepness > 128)
 			{
@@ -382,16 +382,13 @@ namespace LightJson
 				return new JsonValue(valueType, nbool ? 1 : 0, null);
 			}
 
-			if (mapping)
+			foreach (var mapper in JsonOptions.Mappers)
 			{
-				foreach (var mapper in JsonOptions.Mappers)
+				if (mapper.CanSerialize(itemType))
 				{
-					if (mapper.CanSerialize(itemType))
-					{
-						var result = mapper.Serialize(value);
-						valueType = result.Type;
-						return result;
-					}
+					var result = mapper.Serialize(value);
+					valueType = result.Type;
+					return result;
 				}
 			}
 
@@ -401,7 +398,7 @@ namespace LightJson
 				foreach (object? item in (IEnumerable)value)
 				{
 					if (item == null) continue;
-					arr.Add(DetermineSingle(item, deepness + 1, true, out _));
+					arr.Add(DetermineSingle(item, deepness + 1, out _));
 				}
 
 				valueType = JsonValueType.Array;
@@ -417,7 +414,7 @@ namespace LightJson
 				{
 					string name = property.Name;
 					object? v = property.GetValue(value);
-					JsonValue jsonValue = DetermineSingle(v, deepness + 1, true, out _);
+					JsonValue jsonValue = DetermineSingle(v, deepness + 1, out _);
 					newObj.Add(name, jsonValue);
 				}
 
@@ -430,26 +427,10 @@ namespace LightJson
 		/// Initializes a new instance of the JsonValue struct, representing a dynamic value.
 		/// </summary>
 		/// <param name="value">The value to be wrapped.</param>
-		/// <param name="mapFirstLevel">Optional. Specifies if the value can be mapped in their first level or not.</param>
-		public JsonValue(object? value, bool mapFirstLevel = true)
+		public static JsonValue FromObject(object? value)
 		{
-			if (value == null)
-			{
-				this.type = JsonValueType.Null;
-				this.reference = null!;
-				this.value = 0;
-				this.path = "";
-			}
-			else
-			{
-
-				JsonValue _value = DetermineSingle(value, 0, mapFirstLevel, out JsonValueType valueType);
-
-				this.type = valueType;
-				this.reference = _value.reference;
-				this.value = _value.value;
-				this.path = "";
-			}
+			JsonValue _value = DetermineSingle(value, 0, out JsonValueType valueType);
+			return _value;
 		}
 
 		/// <summary>
@@ -509,7 +490,7 @@ namespace LightJson
 
 		/// <summary>
 		/// Initializes a new instance of the JsonValue struct, representing a Array reference value.
-		/// </summary>
+		/// </summary> 
 		/// <param name="value">The value to be wrapped.</param>
 		public JsonValue(JsonArray value)
 		{
@@ -517,71 +498,6 @@ namespace LightJson
 			this.reference = value;
 			this.path = "";
 		}
-
-		/// <summary>
-		/// Converts the given nullable boolean into a JsonValue.
-		/// </summary>
-		/// <param name="value">The value to be converted.</param>
-		public static implicit operator JsonValue(bool value) => new JsonValue(value);
-
-		/// <summary>
-		/// Converts the given nullable double into a JsonValue.
-		/// </summary>
-		/// <param name="value">The value to be converted.</param>
-		public static implicit operator JsonValue(double value) => new JsonValue(value);
-
-		/// <summary>
-		/// Converts the given string into a JsonValue.
-		/// </summary>
-		/// <param name="value">The value to be converted.</param>
-		public static implicit operator JsonValue(string value) => new JsonValue(value);
-
-		/// <summary>
-		/// Converts the given JsonObject into a JsonValue.
-		/// </summary>
-		/// <param name="value">The value to be converted.</param>
-		public static implicit operator JsonValue(JsonObject value) => new JsonValue(value);
-
-		/// <summary>
-		/// Converts the given JsonArray into a JsonValue.
-		/// </summary>
-		/// <param name="value">The value to be converted.</param>
-		public static implicit operator JsonValue(JsonArray value) => new JsonValue(value);
-
-		/// <summary>
-		/// Converts the given JsonValue into an Int.
-		/// </summary>
-		/// <param name="jsonValue">The JsonValue to be converted.</param>
-		public static implicit operator int(JsonValue jsonValue) => jsonValue.GetInteger();
-
-		/// <summary>
-		/// Converts the given JsonValue into a Bool.
-		/// </summary>
-		/// <param name="jsonValue">The JsonValue to be converted.</param>
-		public static implicit operator bool(JsonValue jsonValue) => jsonValue.GetBoolean();
-
-		/// <summary>
-		/// Converts the given JsonValue into a Double.
-		/// </summary>
-		/// <param name="jsonValue">The JsonValue to be converted.</param>
-		public static implicit operator double(JsonValue jsonValue) => jsonValue.GetNumber();
-
-		/// <summary>
-		/// Converts the given JsonValue into a String.
-		/// </summary>
-		/// <param name="jsonValue">The JsonValue to be converted.</param>
-		public static implicit operator string(JsonValue jsonValue) => jsonValue.GetString();
-
-		/// <summary>
-		/// Converts the given JsonValue into a JsonObject.
-		/// </summary>
-		/// <param name="jsonValue">The JsonValue to be converted.</param>
-		public static implicit operator JsonObject(JsonValue jsonValue) => jsonValue.GetJsonObject();
-		/// <summary>
-		/// Converts the given JsonValue into a JsonArray.
-		/// </summary>
-		/// <param name="jsonValue">The JsonValue to be converted.</param>
-		public static implicit operator JsonArray?(JsonValue jsonValue) => jsonValue.GetJsonArray();
 
 		/// <summary>
 		/// Returns a value indicating whether the two given JsonValues are equal.

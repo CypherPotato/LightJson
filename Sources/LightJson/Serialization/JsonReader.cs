@@ -41,13 +41,13 @@ namespace LightJson.Serialization
 			switch (next)
 			{
 				case '{':
-					return ReadObject();
+					return new JsonValue(ReadObject());
 
 				case '[':
-					return ReadArray();
+					return new JsonValue(ReadArray());
 
 				case '"':
-					return ReadString();
+					return new JsonValue(ReadString());
 
 				case '-':
 					return ReadNumber();
@@ -79,11 +79,11 @@ namespace LightJson.Serialization
 			{
 				case 't':
 					this.scanner.Assert("true");
-					return true;
+					return new JsonValue(true);
 
 				case 'f':
 					this.scanner.Assert("false");
-					return false;
+					return new JsonValue(false);
 
 				default:
 					throw new JsonParseException(
@@ -142,10 +142,7 @@ namespace LightJson.Serialization
 				ReadDigits(builder);
 			}
 
-			return double.Parse(
-				builder.ToString(),
-				CultureInfo.InvariantCulture
-			);
+			return new JsonValue(double.Parse(builder.ToString(), CultureInfo.InvariantCulture));
 		}
 
 		private string ReadString()
@@ -353,7 +350,7 @@ namespace LightJson.Serialization
 					moutingPath = initialPath;
 
 					if (next == '}')
-					{					
+					{
 						break;
 					}
 					else if (next == ',')
@@ -400,7 +397,7 @@ namespace LightJson.Serialization
 
 					moutingPath += $"[{index}]";
 					var value = ReadJsonValue();
-					
+
 					value.path = moutingPath;
 
 					jsonArray.Add(value);

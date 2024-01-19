@@ -99,16 +99,11 @@ namespace LightJson.Serialization
 					break;
 
 				case JsonValueType.Number:
-					if (!IsValidNumber(value))
-					{
-						throw new JsonSerializationException(ErrorType.InvalidNumber);
-					}
-
-					Write(((double)value).ToString(CultureInfo.InvariantCulture));
+					Write(value.GetNumber().ToString(CultureInfo.InvariantCulture));
 					break;
 
 				case JsonValueType.String:
-					WriteEncodedString((string)value);
+					WriteEncodedString(value.GetString());
 					break;
 
 				case JsonValueType.Object:
@@ -226,11 +221,11 @@ namespace LightJson.Serialization
 					break;
 
 				case JsonValueType.Object:
-					Render((JsonObject)value);
+					Render(value.GetJsonObject());
 					break;
 
 				case JsonValueType.Array:
-					Render((JsonArray)value);
+					Render(value.GetJsonArray());
 					break;
 
 				default:

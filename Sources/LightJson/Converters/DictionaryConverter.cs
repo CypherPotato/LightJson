@@ -29,9 +29,9 @@ public class DictionaryConverter : JsonConverter
 
 		foreach (var item in items)
 		{
-			result.Add(item.Key, new JsonValue(item.Value, true));
+			result.Add(item.Key, JsonValue.FromObject(item.Value));
 		}
 
-		return result;
+		return result.AsJsonValue();
 	}
 }
