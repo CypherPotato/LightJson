@@ -5,7 +5,7 @@ using LightJson.Serialization;
 using System.Reflection;
 using System.Collections;
 using System.Diagnostics.CodeAnalysis;
-using System.Text.Json.Serialization.Metadata;
+using System.Text.Json.Serialization;
 using LightJson.Converters;
 using System.Reflection.Metadata;
 
@@ -172,7 +172,7 @@ namespace LightJson
 
 			Type tType = typeof(T);
 
-			foreach (var mapper in JsonOptions.Mappers)
+			foreach (var mapper in JsonOptions.Converters)
 			{
 				if (mapper.CanSerialize(tType))
 				{
@@ -197,6 +197,14 @@ namespace LightJson
 		{
 			if (this.type == JsonValueType.Boolean) return (this.value == 1);
 			return ThrowInvalidCast<bool>(JsonValueType.Boolean);
+		}
+
+		/// <summary>
+		/// Gets this value as an Long type.
+		/// </summary>
+		public long GetLong()
+		{
+			return (long)this.GetNumber();
 		}
 
 		/// <summary>
@@ -249,7 +257,7 @@ namespace LightJson
 		/// <param name="key">The key of the value to get or set.</param>
 		/// <exception cref="System.InvalidOperationException">
 		/// Thrown when this JsonValue is not a JsonObject.
-		/// </exception>
+		/// </exception> 
 		public JsonValue this[string key]
 		{
 			get
@@ -347,7 +355,7 @@ namespace LightJson
 			this.path = "";
 		}
 
-		private static JsonValue DetermineSingle(object? value, int deepness, out JsonValueType valueType)
+		private static JsonValue DetermineSingle(object? value, int deepness, bool serializeFields, out JsonValueType valueType)
 		{
 			if (deepness > 128)
 			{
@@ -361,20 +369,30 @@ namespace LightJson
 
 			var itemType = value.GetType();
 
-			if (value is string)
+			if (value is string || value is char)
 			{
 				valueType = JsonValueType.String;
-				return new JsonValue(valueType, 0, value);
+				return new JsonValue(valueType, 0, value.ToString());
 			}
 			else if (value is int nint)
 			{
 				valueType = JsonValueType.Number;
 				return new JsonValue(valueType, nint, null);
 			}
+			else if (value is byte || value is sbyte || value is uint || value is long || value is ulong)
+			{
+				valueType = JsonValueType.Number;
+				return new JsonValue(valueType, Convert.ToInt32(value), null);
+			}
 			else if (value is double ndbl)
 			{
 				valueType = JsonValueType.Number;
 				return new JsonValue(valueType, ndbl, null);
+			}
+			else if (value is float || value is decimal)
+			{
+				valueType = JsonValueType.Number;
+				return new JsonValue(valueType, Convert.ToDouble(value), null);
 			}
 			else if (value is bool nbool)
 			{
@@ -382,7 +400,7 @@ namespace LightJson
 				return new JsonValue(valueType, nbool ? 1 : 0, null);
 			}
 
-			foreach (var mapper in JsonOptions.Mappers)
+			foreach (var mapper in JsonOptions.Converters)
 			{
 				if (mapper.CanSerialize(itemType))
 				{
@@ -398,7 +416,7 @@ namespace LightJson
 				foreach (object? item in (IEnumerable)value)
 				{
 					if (item == null) continue;
-					arr.Add(DetermineSingle(item, deepness + 1, out _));
+					arr.Add(DetermineSingle(item, deepness + 1, serializeFields, out _));
 				}
 
 				valueType = JsonValueType.Array;
@@ -412,10 +430,48 @@ namespace LightJson
 
 				foreach (PropertyInfo property in valueProperties)
 				{
-					string name = property.Name;
+					var atrJsonIgnore = property.GetCustomAttribute<JsonIgnoreAttribute>();
+					var atrJsonProperty = property.GetCustomAttribute<JsonPropertyNameAttribute>();
+
+					if (atrJsonIgnore?.Condition == JsonIgnoreCondition.Always)
+						continue;
+
+					string name = atrJsonProperty?.Name ?? property.Name;
 					object? v = property.GetValue(value);
-					JsonValue jsonValue = DetermineSingle(v, deepness + 1, out _);
+
+					if (atrJsonIgnore?.Condition == JsonIgnoreCondition.WhenWritingNull && v is null)
+						continue;
+					if (atrJsonIgnore?.Condition == JsonIgnoreCondition.WhenWritingDefault && v == default)
+						continue;
+
+					JsonValue jsonValue = DetermineSingle(v, deepness + 1, serializeFields, out _);
 					newObj.Add(name, jsonValue);
+				}
+
+				if (serializeFields)
+				{
+					FieldInfo[] fields = itemType
+						.GetFields(BindingFlags.Public | BindingFlags.Instance);
+
+					foreach (FieldInfo field in fields)
+					{
+						var atrJsonIgnore = field.GetCustomAttribute<JsonIgnoreAttribute>();
+						var atrJsonProperty = field.GetCustomAttribute<JsonPropertyNameAttribute>();
+
+						if (atrJsonIgnore?.Condition == JsonIgnoreCondition.Always)
+							continue;
+
+						string name = atrJsonProperty?.Name ?? field.Name;
+						object? v = field.GetValue(value);
+
+						if (atrJsonIgnore?.Condition == JsonIgnoreCondition.WhenWritingNull && v is null)
+							continue;
+						if (atrJsonIgnore?.Condition == JsonIgnoreCondition.WhenWritingDefault && v == default)
+							continue;
+
+						JsonValue jsonValue = DetermineSingle(v, deepness + 1, serializeFields, out _);
+						newObj.Add(name, jsonValue);
+					}
 				}
 
 				valueType = JsonValueType.Object;
@@ -429,7 +485,7 @@ namespace LightJson
 		/// <param name="value">The value to be wrapped.</param>
 		public static JsonValue FromObject(object? value)
 		{
-			JsonValue _value = DetermineSingle(value, 0, out JsonValueType valueType);
+			JsonValue _value = DetermineSingle(value, 0, JsonOptions.SerializeFields, out JsonValueType valueType);
 			return _value;
 		}
 
@@ -474,6 +530,17 @@ namespace LightJson
 		{
 			this.type = JsonValueType.String;
 			this.reference = value;
+			this.path = "";
+		}
+
+		/// <summary>
+		/// Initializes a new instance of the JsonValue struct, representing a String value.
+		/// </summary>
+		/// <param name="value">The value to be wrapped.</param>
+		public JsonValue(char value)
+		{
+			this.type = JsonValueType.String;
+			this.reference = value.ToString();
 			this.path = "";
 		}
 
@@ -568,6 +635,15 @@ namespace LightJson
 					^ this.value.GetHashCode()
 					^ EqualityComparer<object>.Default.GetHashCode(this.reference);
 			}
+		}
+
+		/// <summary>
+		/// Returns an string representation of the value of this <see cref="JsonValue"/>,
+		/// regardless of its type.
+		/// </summary>
+		public string? ToValueString()
+		{
+			return reference.ToString() ?? value.ToString();
 		}
 
 		/// <summary>

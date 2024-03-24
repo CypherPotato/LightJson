@@ -20,9 +20,15 @@ public static class JsonOptions
 	public static bool PropertyNameCaseInsensitive { get; set; } = false;
 
 	/// <summary>
+	/// Gets or sets whether the <see cref="JsonValue.FromObject(object?, bool)"/> should serialize fields from
+	/// types.
+	/// </summary>
+	public static bool SerializeFields { get; set; } = false;
+
+	/// <summary>
 	/// Gets or sets an list of <see cref="JsonConverter"/>.
 	/// </summary>
-	public static HashSet<JsonConverter> Mappers { get; set; } = new HashSet<JsonConverter>()
+	public static HashSet<JsonConverter> Converters { get; set; } = new HashSet<JsonConverter>()
 	{
 		new DictionaryConverter(),
 		new GuidConverter(),

@@ -26,17 +26,17 @@ namespace LightJson.Serialization
 		/// <summary>
 		/// Gets or sets the string representing a indent in the output.
 		/// </summary>
-		public string IndentString { get; set; }
+		public string? IndentString { get; set; }
 
 		/// <summary>
 		/// Gets or sets the string representing a space in the output.
 		/// </summary>
-		public string SpacingString { get; set; }
+		public string? SpacingString { get; set; }
 
 		/// <summary>
 		/// Gets or sets the string representing a new line on the output.
 		/// </summary>
-		public string NewLineString { get; set; }
+		public string? NewLineString { get; set; }
 
 		/// <summary>
 		/// Gets or sets a value indicating whether JsonObject properties should be written in a deterministic order.
@@ -65,9 +65,13 @@ namespace LightJson.Serialization
 		{
 			if (pretty)
 			{
-				this.IndentString = "\t";
+				this.IndentString = new string(' ', 4);
 				this.SpacingString = " ";
 				this.NewLineString = "\n";
+			}
+			else
+			{
+
 			}
 
 			renderingCollections = new HashSet<IEnumerable<JsonValue>>();
@@ -75,7 +79,7 @@ namespace LightJson.Serialization
 			InnerWriter = innerWriter;
 		}
 
-		private void Write(string text)
+		private void Write(string? text)
 		{
 			if (this.isNewLine)
 			{
@@ -284,6 +288,7 @@ namespace LightJson.Serialization
 				while (hasNext)
 				{
 					string key = enumerator.Current.Key;
+
 					if (JsonOptions.NamingPolicy != null)
 						key = JsonOptions.NamingPolicy.ConvertName(key);
 
@@ -349,11 +354,6 @@ namespace LightJson.Serialization
 			Render(jsonValue);
 
 			this.renderingCollections.Clear();
-		}
-
-		private static bool IsValidNumber(double number)
-		{
-			return !(double.IsNaN(number) || double.IsInfinity(number));
 		}
 
 		/// <summary>

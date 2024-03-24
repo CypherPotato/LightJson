@@ -1,4 +1,5 @@
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics;
 using LightJson.Serialization;
@@ -64,15 +65,7 @@ namespace LightJson
 		public JsonObject()
 		{
 			path = "$";
-			if (JsonOptions.PropertyNameCaseInsensitive)
-			{
-				var comparer = StringComparer.OrdinalIgnoreCase;
-				this.properties = new Dictionary<string, JsonValue>(comparer);
-			}
-			else
-			{
-				this.properties = new Dictionary<string, JsonValue>();
-			}
+			this.properties = new Dictionary<string, JsonValue>(JsonOptions.PropertyNameCaseInsensitive ? StringComparer.InvariantCultureIgnoreCase : StringComparer.InvariantCulture);
 		}
 
 		/// <summary>
