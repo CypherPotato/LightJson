@@ -14,10 +14,12 @@ namespace LightJson.Serialization
 	{
 		private TextScanner scanner;
 		private string moutingPath = "$";
+		private JsonOptions options;
 
-		private JsonReader(TextReader reader)
+		private JsonReader(TextReader reader, JsonOptions options)
 		{
 			this.scanner = new TextScanner(reader);
+			this.options = options;
 		}
 
 		private string ReadJsonKey()
@@ -41,13 +43,13 @@ namespace LightJson.Serialization
 			switch (next)
 			{
 				case '{':
-					return new JsonValue(ReadObject());
+					return new JsonValue(ReadObject(), options);
 
 				case '[':
-					return new JsonValue(ReadArray());
+					return new JsonValue(ReadArray(), options);
 
 				case '"':
-					return new JsonValue(ReadString());
+					return new JsonValue(ReadString(), options);
 
 				case '-':
 					return ReadNumber();
@@ -79,11 +81,11 @@ namespace LightJson.Serialization
 			{
 				case 't':
 					this.scanner.Assert("true");
-					return new JsonValue(true);
+					return new JsonValue(true, options);
 
 				case 'f':
 					this.scanner.Assert("false");
-					return new JsonValue(false);
+					return new JsonValue(false, options);
 
 				default:
 					throw new JsonParseException(
@@ -142,7 +144,7 @@ namespace LightJson.Serialization
 				ReadDigits(builder);
 			}
 
-			return new JsonValue(double.Parse(builder.ToString(), CultureInfo.InvariantCulture));
+			return new JsonValue(double.Parse(builder.ToString(), CultureInfo.InvariantCulture), options);
 		}
 
 		private string ReadString()
@@ -301,7 +303,7 @@ namespace LightJson.Serialization
 
 		private JsonObject ReadObject()
 		{
-			return ReadObject(new JsonObject());
+			return ReadObject(new JsonObject(options));
 		}
 
 		private JsonObject ReadObject(JsonObject jsonObject)
@@ -373,7 +375,7 @@ namespace LightJson.Serialization
 
 		private JsonArray ReadArray()
 		{
-			return ReadArray(new JsonArray());
+			return ReadArray(new JsonArray(options));
 		}
 
 		private JsonArray ReadArray(JsonArray jsonArray)
@@ -440,21 +442,23 @@ namespace LightJson.Serialization
 		/// Creates a JsonValue by using the given TextReader.
 		/// </summary>
 		/// <param name="reader">The TextReader used to read a JSON message.</param>
-		public static JsonValue Parse(TextReader reader)
+		/// <param name="options">Optional. Specifies the JsonOptions used to read values.</param>
+		public static JsonValue Parse(TextReader reader, JsonOptions? options = null)
 		{
 			if (reader is null)
 			{
 				throw new ArgumentNullException("reader");
 			}
 
-			return new JsonReader(reader).Parse();
+			return new JsonReader(reader, options ?? JsonOptions.Default).Parse();
 		}
 
 		/// <summary>
 		/// Creates a JsonValue by reader the JSON message in the given string.
 		/// </summary>
 		/// <param name="source">The string containing the JSON message.</param>
-		public static JsonValue Parse(string source)
+		/// <param name="options">Optional. Specifies the JsonOptions used to read values.</param>
+		public static JsonValue Parse(string source, JsonOptions? options = null)
 		{
 			if (source is null)
 			{
@@ -463,7 +467,7 @@ namespace LightJson.Serialization
 
 			using (var reader = new StringReader(source))
 			{
-				return new JsonReader(reader).Parse();
+				return new JsonReader(reader, options ?? JsonOptions.Default).Parse();
 			}
 		}
 
@@ -471,7 +475,8 @@ namespace LightJson.Serialization
 		/// Creates a JsonValue by reading the given file.
 		/// </summary>
 		/// <param name="path">The file path to be read.</param>
-		public static JsonValue ParseFile(string path)
+		/// <param name="options">Optional. Specifies the JsonOptions used to read values.</param>
+		public static JsonValue ParseFile(string path, JsonOptions? options = null)
 		{
 			if (path is null)
 			{
@@ -482,7 +487,7 @@ namespace LightJson.Serialization
 			using (var stream = new FileStream(path, FileMode.Open, FileAccess.Read))
 			using (var reader = new StreamReader(stream))
 			{
-				return new JsonReader(reader).Parse();
+				return new JsonReader(reader, options ?? JsonOptions.Default).Parse();
 			}
 		}
 	}

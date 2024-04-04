@@ -6,8 +6,10 @@ using System.Threading.Tasks;
 
 namespace LightJson.Converters;
 
-/// <inheritdoc/>
-public class DatetimeConverter : JsonConverter
+/// <summary>
+/// Represents an Json Converter which can serialize and deserialize <see cref="DateTime"/> values.
+/// </summary>
+public class DateTimeConverter : JsonConverter
 {
 	/// <summary>
 	/// Gets or sets the <see cref="DateTime.ToString()"/> serialize format.

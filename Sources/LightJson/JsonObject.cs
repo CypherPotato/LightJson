@@ -9,10 +9,11 @@ namespace LightJson
 	/// <summary>
 	/// Represents a key-value pair collection of JsonValue objects.
 	/// </summary>
-	[DebuggerDisplay("Count = {Count}")]
+	[DebuggerDisplay("Count = {Count}")] 
 	public sealed class JsonObject : IEnumerable<KeyValuePair<string, JsonValue>>, IEnumerable<JsonValue>
 	{
 		internal string path;
+		private JsonOptions options;
 		private IDictionary<string, JsonValue> properties;
 
 		/// <summary>
@@ -62,17 +63,26 @@ namespace LightJson
 		/// <summary>
 		/// Initializes a new instance of JsonObject.
 		/// </summary>
-		public JsonObject()
+		public JsonObject() : this(JsonOptions.Default)
+		{
+		}
+
+		/// <summary>
+		/// Initializes a new instance of JsonObject with the specified <see cref="JsonOptions"/>.
+		/// </summary>
+		/// <param name="options">Specifies the JsonOptions used to compare values.</param>
+		public JsonObject(JsonOptions options)
 		{
 			path = "$";
-			this.properties = new Dictionary<string, JsonValue>(JsonOptions.PropertyNameCaseInsensitive ? StringComparer.InvariantCultureIgnoreCase : StringComparer.InvariantCulture);
+			this.options = options;
+			this.properties = new Dictionary<string, JsonValue>(options.PropertyNameCaseInsensitive ? StringComparer.InvariantCultureIgnoreCase : StringComparer.InvariantCulture);
 		}
 
 		/// <summary>
 		/// Returns an <see cref="JsonValue"/> representating this <see cref="JsonObject"/>.
 		/// </summary>
 		/// <returns></returns>
-		public JsonValue AsJsonValue() => new JsonValue(this);
+		public JsonValue AsJsonValue() => new JsonValue(this, options);
 
 		/// <summary>
 		/// Executes an iterator on this JSON object and returns another one from this.
@@ -233,7 +243,7 @@ namespace LightJson
 		/// </remarks>
 		public override string ToString()
 		{
-			return ToString(false);
+			return ToString(options);
 		}
 
 		/// <summary>
@@ -243,12 +253,10 @@ namespace LightJson
 		/// The resulting string is safe to be inserted as is into dynamically
 		/// generated JavaScript or JSON code.
 		/// </remarks>
-		/// <param name="pretty">
-		/// Indicates whether the resulting string should be formatted for human-readability.
-		/// </param>
-		public string ToString(bool pretty)
+		/// <param name="options">Specifies the JsonOptions used to render this Json value.</param>
+		public string ToString(JsonOptions options)
 		{
-			return JsonWriter.Serialize(this.AsJsonValue(), pretty);
+			return JsonWriter.Serialize(this.AsJsonValue(), options);
 		}
 	}
 }

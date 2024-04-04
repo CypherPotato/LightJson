@@ -15,6 +15,7 @@ namespace LightJson.Serialization
 	{
 		private int indent;
 		private bool isNewLine;
+		private JsonOptions options;
 
 		/// <summary>
 		/// A set of containing all the collection objects (JsonObject/JsonArray) being rendered.
@@ -52,18 +53,17 @@ namespace LightJson.Serialization
 		/// Initializes a new instance of JsonWriter.
 		/// </summary>
 		/// <param name="innerWriter">The TextWriter used to write JsonValues.</param>
-		public JsonWriter(TextWriter innerWriter) : this(innerWriter, false) { }
+		public JsonWriter(TextWriter innerWriter) : this(innerWriter, JsonOptions.Default) { }
 
 		/// <summary>
 		/// Initializes a new instance of JsonWriter.
 		/// </summary>
 		/// <param name="innerWriter">The TextWriter used to write JsonValues.</param>
-		/// <param name="pretty">
-		/// A value indicating whether the output of the writer should be human-readable.
-		/// </param>
-		public JsonWriter(TextWriter innerWriter, bool pretty)
+		/// <param name="options">The JsonOptions used to write data.</param>
+		public JsonWriter(TextWriter innerWriter, JsonOptions options)
 		{
-			if (pretty)
+			this.options = options;
+			if (options.WriteIndented)
 			{
 				this.IndentString = new string(' ', 4);
 				this.SpacingString = " ";
@@ -71,11 +71,9 @@ namespace LightJson.Serialization
 			}
 			else
 			{
-
 			}
 
 			renderingCollections = new HashSet<IEnumerable<JsonValue>>();
-
 			InnerWriter = innerWriter;
 		}
 
@@ -232,6 +230,9 @@ namespace LightJson.Serialization
 					Render(value.GetJsonArray());
 					break;
 
+				case JsonValueType.Undefined:
+					throw new JsonSerializationException(ErrorType.RenderUndefined);
+
 				default:
 					throw new JsonSerializationException(ErrorType.InvalidValueType);
 			}
@@ -289,8 +290,8 @@ namespace LightJson.Serialization
 				{
 					string key = enumerator.Current.Key;
 
-					if (JsonOptions.NamingPolicy != null)
-						key = JsonOptions.NamingPolicy.ConvertName(key);
+					if (options.NamingPolicy != null)
+						key = options.NamingPolicy.ConvertName(key);
 
 					WriteEncodedString(key);
 					Write(":");
@@ -362,19 +363,19 @@ namespace LightJson.Serialization
 		/// <param name="value">The value to serialize.</param>
 		public static string Serialize(JsonValue value)
 		{
-			return Serialize(value, false);
+			return Serialize(value, JsonOptions.Default);
 		}
 
 		/// <summary>
 		/// Generates a string representation of the given value.
 		/// </summary>
 		/// <param name="value">The value to serialize.</param>
-		/// <param name="pretty">Indicates whether the resulting string should be formatted for human-readability.</param>
-		public static string Serialize(JsonValue value, bool pretty)
+		/// <param name="options">The JsonOptions instance for serializing this object.</param>
+		public static string Serialize(JsonValue value, JsonOptions options)
 		{
 			using (var stringWriter = new StringWriter())
 			{
-				var jsonWriter = new JsonWriter(stringWriter, pretty);
+				var jsonWriter = new JsonWriter(stringWriter, options);
 
 				jsonWriter.Write(value);
 

@@ -16,6 +16,7 @@ namespace LightJson
 	{
 		internal string path = "";
 		private IList<JsonValue> items;
+		private JsonOptions options;
 
 		/// <summary>
 		/// Gets the number of values in this collection.
@@ -60,22 +61,31 @@ namespace LightJson
 		/// <summary>
 		/// Initializes a new instance of JsonArray.
 		/// </summary>
-		public JsonArray()
+		public JsonArray() : this(JsonOptions.Default)
+		{
+		}
+
+		/// <summary>
+		/// Initializes a new instance of JsonArray with the specified <see cref="JsonOptions"/>.
+		/// </summary>
+		public JsonArray(JsonOptions options)
 		{
 			this.items = new List<JsonValue>();
+			this.options = options;
 		}
 
 		/// <summary>
 		/// Returns an <see cref="JsonValue"/> representating this <see cref="JsonObject"/>.
 		/// </summary>
 		/// <returns></returns>
-		public JsonValue AsJsonValue() => new JsonValue(this);
+		public JsonValue AsJsonValue() => new JsonValue(this, options);
 
 		/// <summary>
 		/// Initializes a new instance of JsonArray, adding the given values to the collection.
 		/// </summary>
+		/// <param name="options">Specifies the <see cref="JsonOptions"/>.</param>
 		/// <param name="values">The values to be added to this collection.</param>
-		public JsonArray(params JsonValue[] values) : this()
+		public JsonArray(JsonOptions options, params JsonValue[] values) : this(options)
 		{
 			if (values == null)
 			{
@@ -208,7 +218,7 @@ namespace LightJson
 		/// </remarks>
 		public override string ToString()
 		{
-			return ToString(false);
+			return ToString(options);
 		}
 
 		/// <summary>
@@ -218,12 +228,10 @@ namespace LightJson
 		/// The resulting string is safe to be inserted as is into dynamically
 		/// generated JavaScript or JSON code.
 		/// </remarks>
-		/// <param name="pretty">
-		/// Indicates whether the resulting string should be formatted for human-readability.
-		/// </param>
-		public string ToString(bool pretty)
+		/// <param name="options">Specifies the JsonOptions used to render this Json value.</param>
+		public string ToString(JsonOptions options)
 		{
-			return JsonWriter.Serialize(this.AsJsonValue(), pretty);
+			return JsonWriter.Serialize(this.AsJsonValue(), options);
 		}
 
 		private class JsonArrayDebugView

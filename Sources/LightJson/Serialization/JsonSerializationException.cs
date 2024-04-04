@@ -52,6 +52,9 @@ namespace LightJson.Serialization
 				case ErrorType.CircularReference:
 					return "The value been serialized contains circular references.";
 
+				case ErrorType.RenderUndefined:
+					return "Cannot render Undefined JSON values.";
+
 				default:
 					return "An error occurred during serialization.";
 			}
@@ -82,6 +85,11 @@ namespace LightJson.Serialization
 			/// Indicates that the object been serialized contains a circular reference.
 			/// </summary>
 			CircularReference,
+			
+			/// <summary>
+			/// Indicates that an JsonWriter tried to render an undefined JSON value.
+			/// </summary>
+			RenderUndefined,
 		}
 	}
 }

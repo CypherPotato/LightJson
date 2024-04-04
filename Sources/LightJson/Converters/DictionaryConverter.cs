@@ -24,12 +24,12 @@ public class DictionaryConverter : JsonConverter
 	/// <inheritdoc/>
 	public override JsonValue Serialize(Object value)
 	{
-		JsonObject result = new JsonObject();
+		JsonObject result = new JsonObject(base.CurrentOptions);
 		IDictionary<string, object?> items = (IDictionary<string, object?>)value;
 
 		foreach (var item in items)
 		{
-			result.Add(item.Key, JsonValue.FromObject(item.Value));
+			result.Add(item.Key, JsonValue.Serialize(item.Value));
 		}
 
 		return result.AsJsonValue();

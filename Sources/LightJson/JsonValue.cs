@@ -8,7 +8,7 @@ using System.Diagnostics.CodeAnalysis;
 using System.Text.Json.Serialization;
 using LightJson.Converters;
 using System.Reflection.Metadata;
-
+using System.Drawing;
 
 #nullable enable
 
@@ -21,20 +21,21 @@ namespace LightJson
 	[DebuggerTypeProxy(typeof(JsonValueDebugView))]
 	public struct JsonValue
 	{
-		private readonly JsonValueType type;
+		private readonly JsonValueType type = JsonValueType.Undefined;
 		private readonly object reference = null!;
 		private readonly double value;
+		private JsonOptions options;
 		internal string path;
 
 		/// <summary>
 		/// Represents a null <see cref="JsonValue"/>.
 		/// </summary>
-		public static readonly JsonValue Null = new JsonValue(JsonValueType.Null, default(double), null);
+		public static readonly JsonValue Null = new JsonValue(JsonValueType.Null, default(double), null, JsonOptions.Default);
 
 		/// <summary>
 		/// Represents an <see cref="JsonValue"/> that wasn't defined in any JSON document.
 		/// </summary>
-		public static readonly JsonValue Undefined = new JsonValue(JsonValueType.Undefined, default(double), null);
+		public static readonly JsonValue Undefined = new JsonValue(JsonValueType.Undefined, default(double), null, JsonOptions.Default);
 
 		/// <summary>
 		/// Gets the JSON path of this JsonValue.
@@ -165,27 +166,46 @@ namespace LightJson
 		/// <typeparam name="T">The defined mapping type.</typeparam>
 		public T Get<T>()
 		{
+			var tType = typeof(T);
+
 			if (this.IsNull)
 			{
 				return ThrowInvalidCast<T>();
 			}
 
-			Type tType = typeof(T);
-
-			foreach (var mapper in JsonOptions.Converters)
+			if (tType == typeof(int) ||
+				tType == typeof(long) ||
+				tType == typeof(double) ||
+				tType == typeof(float) ||
+				tType == typeof(long))
 			{
-				if (mapper.CanSerialize(tType))
+				return (T)(object)GetNumber();
+			}
+			else if (tType == typeof(string))
+			{
+				return (T)(object)GetString();
+			}
+			else if (tType == typeof(bool))
+			{
+				return (T)(object)GetBoolean();
+			}
+			else
+			{
+				foreach (var mapper in options.Converters)
 				{
-					try
+					if (mapper.CanSerialize(tType))
 					{
-						return (T)mapper.Deserialize(this, tType);
-					}
-					catch (Exception ex)
-					{
-						throw new InvalidOperationException($"Caught exception while trying to map {path} to {typeof(T).Name}: {ex.Message}");
+						try
+						{
+							return (T)mapper.Deserialize(this, tType);
+						}
+						catch (Exception ex)
+						{
+							throw new InvalidOperationException($"Caught exception while trying to map {path} to {typeof(T).Name}: {ex.Message}");
+						}
 					}
 				}
-			}
+			}			
 
 			throw new InvalidOperationException($"No converter matched the object type {typeof(T).FullName}.");
 		}
@@ -335,27 +355,16 @@ namespace LightJson
 			throw new InvalidCastException($"Expected to read the JSON value at {path} as {typeof(T).Name}, but got {Type} instead.");
 		}
 
-		/// <summary>
-		/// Initializes a new instance of the JsonValue struct.
-		/// </summary>
-		/// <param name="type">The Json type of the JsonValue.</param>
-		/// <param name="value">
-		/// The internal value of the JsonValue.
-		/// This is used when the Json type is Number or Boolean.
-		/// </param>
-		/// <param name="reference">
-		/// The internal value reference of the JsonValue.
-		/// This value is used when the Json type is String, JsonObject, or JsonArray.
-		/// </param>
-		private JsonValue(JsonValueType type, double value, object? reference)
+		private JsonValue(JsonValueType type, double value, object? reference, JsonOptions options)
 		{
 			this.type = type;
 			this.value = value;
 			this.reference = reference!;
-			this.path = "";
+			this.path = "$";
+			this.options = options;
 		}
 
-		private static JsonValue DetermineSingle(object? value, int deepness, bool serializeFields, out JsonValueType valueType)
+		private static JsonValue DetermineSingle(object? value, int deepness, JsonOptions options, out JsonValueType valueType)
 		{
 			if (deepness > 128)
 			{
@@ -364,7 +373,7 @@ namespace LightJson
 			if (value is null)
 			{
 				valueType = JsonValueType.Null;
-				return new JsonValue(valueType, 0, null);
+				return new JsonValue(valueType, 0, null, options);
 			}
 
 			var itemType = value.GetType();
@@ -372,35 +381,35 @@ namespace LightJson
 			if (value is string || value is char)
 			{
 				valueType = JsonValueType.String;
-				return new JsonValue(valueType, 0, value.ToString());
+				return new JsonValue(valueType, 0, value.ToString(), options);
 			}
 			else if (value is int nint)
 			{
 				valueType = JsonValueType.Number;
-				return new JsonValue(valueType, nint, null);
+				return new JsonValue(valueType, nint, null, options);
 			}
 			else if (value is byte || value is sbyte || value is uint || value is long || value is ulong)
 			{
 				valueType = JsonValueType.Number;
-				return new JsonValue(valueType, Convert.ToInt32(value), null);
+				return new JsonValue(valueType, Convert.ToInt64(value), null, options);
 			}
 			else if (value is double ndbl)
 			{
 				valueType = JsonValueType.Number;
-				return new JsonValue(valueType, ndbl, null);
+				return new JsonValue(valueType, ndbl, null, options);
 			}
 			else if (value is float || value is decimal)
 			{
 				valueType = JsonValueType.Number;
-				return new JsonValue(valueType, Convert.ToDouble(value), null);
+				return new JsonValue(valueType, Convert.ToDouble(value), null, options);
 			}
 			else if (value is bool nbool)
 			{
 				valueType = JsonValueType.Boolean;
-				return new JsonValue(valueType, nbool ? 1 : 0, null);
+				return new JsonValue(valueType, nbool ? 1 : 0, null, options);
 			}
 
-			foreach (var mapper in JsonOptions.Converters)
+			foreach (var mapper in options.Converters)
 			{
 				if (mapper.CanSerialize(itemType))
 				{
@@ -412,19 +421,19 @@ namespace LightJson
 
 			if (itemType.IsAssignableTo(typeof(IEnumerable)))
 			{
-				JsonArray arr = new JsonArray();
+				JsonArray arr = new JsonArray(options);
 				foreach (object? item in (IEnumerable)value)
 				{
 					if (item == null) continue;
-					arr.Add(DetermineSingle(item, deepness + 1, serializeFields, out _));
+					arr.Add(DetermineSingle(item, deepness + 1, options, out _));
 				}
 
 				valueType = JsonValueType.Array;
-				return new JsonValue(valueType, 0, arr);
+				return new JsonValue(valueType, 0, arr, options);
 			}
 			else
 			{
-				JsonObject newObj = new JsonObject();
+				JsonObject newObj = new JsonObject(options);
 				PropertyInfo[] valueProperties = itemType
 					.GetProperties(BindingFlags.Public | BindingFlags.Instance);
 
@@ -444,11 +453,11 @@ namespace LightJson
 					if (atrJsonIgnore?.Condition == JsonIgnoreCondition.WhenWritingDefault && v == default)
 						continue;
 
-					JsonValue jsonValue = DetermineSingle(v, deepness + 1, serializeFields, out _);
+					JsonValue jsonValue = DetermineSingle(v, deepness + 1, options, out _);
 					newObj.Add(name, jsonValue);
 				}
 
-				if (serializeFields)
+				if (options.SerializeFields)
 				{
 					FieldInfo[] fields = itemType
 						.GetFields(BindingFlags.Public | BindingFlags.Instance);
@@ -469,23 +478,26 @@ namespace LightJson
 						if (atrJsonIgnore?.Condition == JsonIgnoreCondition.WhenWritingDefault && v == default)
 							continue;
 
-						JsonValue jsonValue = DetermineSingle(v, deepness + 1, serializeFields, out _);
+						JsonValue jsonValue = DetermineSingle(v, deepness + 1, options, out _);
 						newObj.Add(name, jsonValue);
 					}
 				}
 
 				valueType = JsonValueType.Object;
-				return new JsonValue(JsonValueType.Object, 0, newObj);
+				return new JsonValue(JsonValueType.Object, 0, newObj, options);
 			}
 		}
 
 		/// <summary>
-		/// Initializes a new instance of the JsonValue struct, representing a dynamic value.
+		/// Initializes a new instance of the JsonValue struct from the specified object.
 		/// </summary>
-		/// <param name="value">The value to be wrapped.</param>
-		public static JsonValue FromObject(object? value)
+		/// <param name="value">The value to be converted into an <see cref="JsonValue"/>.</param>
+		/// <param name="options">Optional. Determines optional JSON options to handle the serialization.</param>
+		public static JsonValue Serialize(object? value, JsonOptions? options = null)
 		{
-			JsonValue _value = DetermineSingle(value, 0, JsonOptions.SerializeFields, out JsonValueType valueType);
+			JsonOptions _opt = options ?? JsonOptions.Default;
+			JsonValue _value = DetermineSingle(value, 0, _opt, out JsonValueType valueType);
+			_value.options = _opt;
 			return _value;
 		}
 
@@ -493,77 +505,91 @@ namespace LightJson
 		/// Initializes a new instance of the JsonValue struct, representing a Boolean value.
 		/// </summary>
 		/// <param name="value">The value to be wrapped.</param>
-		public JsonValue(bool value)
+		/// <param name="options">Defines the <see cref="JsonOptions"/> instance parameters.</param>
+		public JsonValue(bool value, JsonOptions? options = null)
 		{
 			this.type = JsonValueType.Boolean;
 			this.value = value ? 1 : 0;
-			this.path = "";
+			this.path = "$";
+			this.options = options ?? JsonOptions.Default;
 		}
 
 		/// <summary>
 		/// Initializes a new instance of the JsonValue struct, representing a Number value.
 		/// </summary>
 		/// <param name="value">The value to be wrapped.</param>
-		public JsonValue(double value)
+		/// <param name="options">Defines the <see cref="JsonOptions"/> instance parameters.</param>
+		public JsonValue(double value, JsonOptions? options = null)
 		{
 			this.type = JsonValueType.Number;
 			this.value = value;
-			this.path = "";
+			this.path = "$";
+			this.options = options ?? JsonOptions.Default;
 		}
 
 		/// <summary>
 		/// Initializes a new instance of the JsonValue struct, representing a Number value.
 		/// </summary>
 		/// <param name="value">The value to be wrapped.</param>
-		public JsonValue(int value)
+		/// <param name="options">Defines the <see cref="JsonOptions"/> instance parameters.</param>
+		public JsonValue(int value, JsonOptions? options = null)
 		{
 			this.type = JsonValueType.Number;
 			this.value = value;
-			this.path = "";
+			this.path = "$";
+			this.options = options ?? JsonOptions.Default;
 		}
 
 		/// <summary>
 		/// Initializes a new instance of the JsonValue struct, representing a String value.
 		/// </summary>
 		/// <param name="value">The value to be wrapped.</param>
-		public JsonValue(string value)
+		/// <param name="options">Defines the <see cref="JsonOptions"/> instance parameters.</param>
+		public JsonValue(string value, JsonOptions? options = null)
 		{
 			this.type = JsonValueType.String;
 			this.reference = value;
-			this.path = "";
+			this.path = "$";
+			this.options = options ?? JsonOptions.Default;
 		}
 
 		/// <summary>
 		/// Initializes a new instance of the JsonValue struct, representing a String value.
 		/// </summary>
 		/// <param name="value">The value to be wrapped.</param>
-		public JsonValue(char value)
+		/// <param name="options">Defines the <see cref="JsonOptions"/> instance parameters.</param>
+		public JsonValue(char value, JsonOptions? options = null)
 		{
 			this.type = JsonValueType.String;
 			this.reference = value.ToString();
-			this.path = "";
+			this.path = "$";
+			this.options = options ?? JsonOptions.Default;
 		}
 
 		/// <summary>
 		/// Initializes a new instance of the JsonValue struct, representing a JsonObject.
 		/// </summary>
 		/// <param name="value">The value to be wrapped.</param>
-		public JsonValue(JsonObject value)
+		/// <param name="options">Defines the <see cref="JsonOptions"/> instance parameters.</param>
+		public JsonValue(JsonObject value, JsonOptions? options = null)
 		{
 			this.type = JsonValueType.Object;
 			this.reference = value;
-			this.path = "";
+			this.path = "$";
+			this.options = options ?? JsonOptions.Default;
 		}
 
 		/// <summary>
 		/// Initializes a new instance of the JsonValue struct, representing a Array reference value.
 		/// </summary> 
 		/// <param name="value">The value to be wrapped.</param>
-		public JsonValue(JsonArray value)
+		/// <param name="options">Defines the <see cref="JsonOptions"/> instance parameters.</param>
+		public JsonValue(JsonArray value, JsonOptions? options = null)
 		{
 			this.type = JsonValueType.Array;
 			this.reference = value;
-			this.path = "";
+			this.path = "$";
+			this.options = options ?? JsonOptions.Default;
 		}
 
 		/// <summary>
@@ -589,12 +615,13 @@ namespace LightJson
 		}
 
 		/// <summary>
-		/// Returns a JsonValue by parsing the given string.
+		/// Returns a <see cref="JsonValue"/> by parsing the given string.
 		/// </summary>
-		/// <param name="text">The JSON-formatted string to be parsed.</param>
-		public static JsonValue Parse(string text)
+		/// <param name="jsonText">The JSON-formatted string to be parsed.</param>
+		/// <param name="options">Optional. Sets the JsonOptions instance to deserializing the object.</param>
+		public static JsonValue Deserialize(string jsonText, JsonOptions? options = null)
 		{
-			return JsonReader.Parse(text);
+			return JsonReader.Parse(jsonText, options);
 		}
 
 		/// <summary>
@@ -641,7 +668,7 @@ namespace LightJson
 		/// Returns an string representation of the value of this <see cref="JsonValue"/>,
 		/// regardless of its type.
 		/// </summary>
-		public string? ToValueString()
+		public readonly string? ToValueString()
 		{
 			return reference.ToString() ?? value.ToString();
 		}
@@ -655,7 +682,7 @@ namespace LightJson
 		/// </remarks>
 		public override string ToString()
 		{
-			return ToString(false);
+			return ToString(options);
 		}
 
 		/// <summary>
@@ -665,12 +692,10 @@ namespace LightJson
 		/// The resulting string is safe to be inserted as is into dynamically
 		/// generated JavaScript or JSON code.
 		/// </remarks>
-		/// <param name="pretty">
-		/// Indicates whether the resulting string should be formatted for human-readability.
-		/// </param>
-		public string ToString(bool pretty)
+		/// <param name="options">Specifies the JsonOptions used to render this Json value.</param>
+		public string ToString(JsonOptions options)
 		{
-			return JsonWriter.Serialize(this, pretty);
+			return JsonWriter.Serialize(this, options);
 		}
 
 		private class JsonValueDebugView

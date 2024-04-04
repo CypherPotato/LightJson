@@ -11,6 +11,11 @@ namespace LightJson.Converters;
 public abstract class JsonConverter
 {
 	/// <summary>
+	/// Gets the current <see cref="JsonOptions"/> object.
+	/// </summary>
+	public JsonOptions CurrentOptions { get; internal set; } = null!;
+
+	/// <summary>
 	/// Determines whether the specified type can be converted or not.
 	/// </summary>
 	/// <param name="type">The object type which will be mapped.</param>
