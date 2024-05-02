@@ -1,12 +1,10 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace LightJson.Converters;
 
-/// <inheritdoc/>
+/// <summary>
+/// Represents an <see cref="JsonConverter"/> which can serialize and deserialize <see cref="Guid"/> values.
+/// </summary>
 public class GuidConverter : JsonConverter
 {
 	/// <inheritdoc/>

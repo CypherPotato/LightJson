@@ -10,9 +10,9 @@
 
 		<Nullable>enable</Nullable>
 		<LangVersion>latest</LangVersion>
-		<Version>0.8.0</Version>
+		<Version>0.9.0-beta1</Version>
 		<Authors>CypherPotato</Authors>
-		<Description>A fork from MarcosLopezC.LightJson with some personal tweaks for .NET 6+.</Description>
+		<Description>A fork from MarcosLopezC.LightJson with options, converters, naming policies and JSON5 support.</Description>
 		<Copyright>Copyright © 2023 CypherPotato</Copyright>
 		<PackageLicenseExpression>MIT</PackageLicenseExpression>
 		<PackageId>CypherPotato.LightJson</PackageId>

@@ -1,6 +1,5 @@
 ﻿using System;
 using System.IO;
-using System.Text;
 
 namespace LightJson.Serialization
 {
@@ -43,6 +42,29 @@ namespace LightJson.Serialization
 		public TextScanner(TextReader reader)
 		{
 			this.reader = reader ?? throw new ArgumentNullException(nameof(reader));
+		}
+
+		/// <summary>
+		/// Returns whether the specified char is an value terminator.
+		/// </summary>
+		/// <param name="n">The char to check.</param>
+		public static bool IsValueTerminator(char n)
+			=> n == '\n' || n == '\r' || n == ',' || n == '}' || n == ']' || n == '\0';
+
+		/// <summary>
+		/// Reads the next character in the stream without changing the current position or returns an null character '\0' if the scanner
+		/// reaches the string end.
+		/// </summary>
+		public char PeekOrDefault()
+		{
+			var next = reader.Peek();
+
+			if (next == -1)
+			{
+				return '\0';
+			}
+
+			return (char)next;
 		}
 
 		/// <summary>
@@ -108,6 +130,27 @@ namespace LightJson.Serialization
 			{
 				Read();
 			}
+		}
+
+		/// <summary>
+		/// Verifies that the given character matches the next character in the stream.
+		/// If the characters do not match, an exception will be thrown.
+		/// </summary>
+		/// <param name="next">An array of expected characters.</param>
+		public char AssertAny(params char[] next)
+		{
+			var p = Peek();
+			for (int i = 0; i < next.Length; i++)
+			{
+				if (next[i] == p)
+					return p;
+			}
+
+			throw new JsonParseException(
+				"Parser expected " + string.Join(" or ", next),
+				ErrorType.InvalidOrUnexpectedCharacter,
+				this.position
+			);
 		}
 
 		/// <summary>

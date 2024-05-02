@@ -1,8 +1,4 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace LightJson.Converters;
 
@@ -21,7 +17,7 @@ public class CharConverter : JsonConverter
 	public override object Deserialize(JsonValue value, Type requestedType)
 	{
 		string s = value.GetString();
-		if(s.Length != 1)
+		if (s.Length != 1)
 		{
 			throw new ArgumentException($"The JSON value at {value.Path} expects an string with an 1-char length.");
 		}

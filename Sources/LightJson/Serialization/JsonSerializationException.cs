@@ -85,7 +85,7 @@ namespace LightJson.Serialization
 			/// Indicates that the object been serialized contains a circular reference.
 			/// </summary>
 			CircularReference,
-			
+
 			/// <summary>
 			/// Indicates that an JsonWriter tried to render an undefined JSON value.
 			/// </summary>

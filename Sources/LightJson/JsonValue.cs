@@ -1,14 +1,12 @@
-using System;
-using System.Diagnostics;
-using System.Collections.Generic;
-using LightJson.Serialization;
-using System.Reflection;
-using System.Collections;
-using System.Diagnostics.CodeAnalysis;
-using System.Text.Json.Serialization;
 using LightJson.Converters;
-using System.Reflection.Metadata;
-using System.Drawing;
+using LightJson.Serialization;
+using System;
+using System.Collections;
+using System.Collections.Generic;
+using System.Diagnostics;
+using System.IO;
+using System.Reflection;
+using System.Text.Json.Serialization;
 
 #nullable enable
 
@@ -19,7 +17,7 @@ namespace LightJson
 	/// </summary>
 	[DebuggerDisplay("{ToString(),nq}", Type = "JsonValue({Type})")]
 	[DebuggerTypeProxy(typeof(JsonValueDebugView))]
-	public struct JsonValue
+	public struct JsonValue : IEquatable<JsonValue>
 	{
 		private readonly JsonValueType type = JsonValueType.Undefined;
 		private readonly object reference = null!;
@@ -85,7 +83,7 @@ namespace LightJson
 		}
 
 		/// <summary>
-		/// Gets a value indicating whether this JsonValue is an Integer.
+		/// Gets a value indicating whether this JsonValue is an integer or an long value.
 		/// </summary>
 		public bool IsInteger
 		{
@@ -98,7 +96,7 @@ namespace LightJson
 
 				var value = this.value;
 
-				return (value >= Int32.MinValue) && (value <= Int32.MaxValue) && unchecked((Int32)value) == value;
+				return (value >= Int64.MinValue) && (value <= Int64.MaxValue) && unchecked((Int64)value) == value;
 			}
 		}
 
@@ -205,7 +203,7 @@ namespace LightJson
 						}
 					}
 				}
-			}			
+			}
 
 			throw new InvalidOperationException($"No converter matched the object type {typeof(T).FullName}.");
 		}
@@ -615,6 +613,24 @@ namespace LightJson
 		}
 
 		/// <summary>
+		/// Checks whether an JSON string is valid or not.
+		/// </summary>
+		/// <param name="jsonText">The JSON-formatted string.</param>
+		/// <param name="options">Optional. Sets the JsonOptions instance to deserializing the object.</param>
+		public static bool IsValid(string jsonText, JsonOptions? options = null)
+		{
+			try
+			{
+				JsonReader.Parse(jsonText, options);
+				return true;
+			}
+			catch
+			{
+				return false;
+			}
+		}
+
+		/// <summary>
 		/// Returns a <see cref="JsonValue"/> by parsing the given string.
 		/// </summary>
 		/// <param name="jsonText">The JSON-formatted string to be parsed.</param>
@@ -670,7 +686,14 @@ namespace LightJson
 		/// </summary>
 		public readonly string? ToValueString()
 		{
-			return reference.ToString() ?? value.ToString();
+			if (reference is { } r)
+			{
+				return r.ToString();
+			}
+			else
+			{
+				return value.ToString();
+			}
 		}
 
 		/// <summary>
@@ -696,6 +719,12 @@ namespace LightJson
 		public string ToString(JsonOptions options)
 		{
 			return JsonWriter.Serialize(this, options);
+		}
+
+		/// <inheritdoc/>
+		public bool Equals(JsonValue other)
+		{
+			return this == other;
 		}
 
 		private class JsonValueDebugView

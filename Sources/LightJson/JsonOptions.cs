@@ -1,8 +1,6 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Text;
+﻿using LightJson.Converters;
+using LightJson.Serialization;
 using System.Text.Json;
-using LightJson.Converters;
 
 namespace LightJson;
 
@@ -19,6 +17,11 @@ public class JsonOptions
 	/// Gets or sets the default <see cref="JsonOptions"/> object.
 	/// </summary>
 	public static JsonOptions Default { get; set; } = _default;
+
+	/// <summary>
+	/// Gets or sets serialization flags to the <see cref="Serialization.JsonReader"/>.
+	/// </summary>
+	public JsonSerializationFlags SerializationFlags { get; set; } = default;
 
 	/// <summary>
 	/// Gets or sets whether the JSON serializer should write indentend, pretty formatted
@@ -42,11 +45,16 @@ public class JsonOptions
 	/// Gets or sets an list of <see cref="JsonConverter"/>.
 	/// </summary>
 	public JsonConverterCollection Converters { get; set; }
-	
+
 	/// <summary>
 	/// Gets or sets the function that transforms the property name of a JSON object to JSON output.
 	/// </summary>
 	public JsonNamingPolicy? NamingPolicy { get; set; }
+
+	/// <summary>
+	/// Gets or sets an boolean indicating where the JSON parser should throw on duplicated object keys.
+	/// </summary>
+	public bool ThrowOnDuplicateObjectKeys { get; set; } = false;
 
 	/// <summary>
 	/// Creates an new <see cref="JsonOptions"/> instance with default parameters.
@@ -62,7 +70,8 @@ public class JsonOptions
 			new DateOnlyConverter(),
 			new TimeOnlyConverter(),
 			new TimeSpanConverter(),
-			new CharConverter()
+			new CharConverter(),
+			new DecimalConverter()
 		};
 	}
 

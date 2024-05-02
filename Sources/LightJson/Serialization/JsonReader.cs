@@ -1,7 +1,7 @@
 ﻿using System;
+using System.Globalization;
 using System.IO;
 using System.Text;
-using System.Globalization;
 
 namespace LightJson.Serialization
 {
@@ -24,7 +24,15 @@ namespace LightJson.Serialization
 
 		private string ReadJsonKey()
 		{
-			var read = ReadString();
+			string read;
+			if (options.SerializationFlags.HasFlag(JsonSerializationFlags.AllowUnquotedPropertyNames))
+			{
+				read = ReadUnquotedProperty();
+			}
+			else
+			{
+				read = ReadString();
+			}
 			moutingPath += "." + read;
 			return read;
 		}
@@ -49,9 +57,12 @@ namespace LightJson.Serialization
 					return new JsonValue(ReadArray(), options);
 
 				case '"':
+				case '\'':
 					return new JsonValue(ReadString(), options);
 
 				case '-':
+				case '.':
+				case '+':
 					return ReadNumber();
 
 				case 't':
@@ -97,7 +108,7 @@ namespace LightJson.Serialization
 
 		private void ReadDigits(StringBuilder builder)
 		{
-			while (this.scanner.CanRead && char.IsDigit(this.scanner.Peek()))
+			while (this.scanner.CanRead && !TextScanner.IsValueTerminator(this.scanner.PeekOrDefault()))
 			{
 				builder.Append(this.scanner.Read());
 			}
@@ -106,15 +117,31 @@ namespace LightJson.Serialization
 		private JsonValue ReadNumber()
 		{
 			var builder = new StringBuilder();
+			var peek = this.scanner.Peek();
 
-			if (this.scanner.Peek() == '-')
+			if (peek == '-')
 			{
 				builder.Append(this.scanner.Read());
+				ReadDigits(builder);
 			}
-
-			if (this.scanner.Peek() == '0')
+			else if (peek == '.')
 			{
-				builder.Append(this.scanner.Read());
+				builder.Append("0");
+			}
+			else if (peek == '+')
+			{
+				if (options.SerializationFlags.HasFlag(JsonSerializationFlags.AllowPositiveSign))
+				{
+					builder.Append(this.scanner.Read());
+					ReadDigits(builder);
+				}
+				else
+				{
+					throw new JsonParseException(
+						ErrorType.InvalidOrUnexpectedCharacter,
+						this.scanner.Position
+					);
+				}
 			}
 			else
 			{
@@ -124,7 +151,33 @@ namespace LightJson.Serialization
 			if (this.scanner.CanRead && this.scanner.Peek() == '.')
 			{
 				builder.Append(this.scanner.Read());
-				ReadDigits(builder);
+
+				var n = this.scanner.PeekOrDefault();
+
+				if (char.IsDigit(n))
+				{
+					ReadDigits(builder);
+				}
+				else
+				{
+					if (TextScanner.IsValueTerminator(n))
+					{
+						if (!options.SerializationFlags.HasFlag(JsonSerializationFlags.TrailingDecimalPoint))
+						{
+							throw new JsonParseException(
+								ErrorType.InvalidOrUnexpectedCharacter,
+								this.scanner.Position
+							);
+						}
+					}
+					else
+					{
+						throw new JsonParseException(
+							ErrorType.InvalidOrUnexpectedCharacter,
+							this.scanner.Position
+						);
+					}
+				}
 			}
 
 			if (this.scanner.CanRead && char.ToLowerInvariant(this.scanner.Peek()) == 'e')
@@ -144,15 +197,98 @@ namespace LightJson.Serialization
 				ReadDigits(builder);
 			}
 
-			return new JsonValue(double.Parse(builder.ToString(), CultureInfo.InvariantCulture), options);
+			string s = builder.ToString();
+
+			if (s[0] == '0' && s[1] == 'x' && options.SerializationFlags.HasFlag(JsonSerializationFlags.HexadecimalNumberLiterals))
+			{
+				// hex literal
+				string hex = s[2..];
+
+				if (hex == "")
+				{
+					throw new JsonParseException(
+						ErrorType.InvalidOrUnexpectedCharacter,
+						this.scanner.Position
+					);
+				}
+
+				var num = Convert.ToInt32(hex, 16);
+				return new JsonValue((double)num, options);
+			}
+			else
+			{
+				if (s.IndexOf('_') >= 1 && options.SerializationFlags.HasFlag(JsonSerializationFlags.NumericUnderscoreLiterals))
+				{
+					s = s.Replace("_", "");
+				}
+
+				return new JsonValue(double.Parse(s, CultureInfo.InvariantCulture), options);
+			}
+		}
+
+		private string ReadUnquotedProperty()
+		{
+			var builder = new StringBuilder();
+
+			if (scanner.Peek() == '"')
+			{
+				// it's an quoted string
+				return ReadString();
+			}
+
+			int l = 0;
+			while (true)
+			{
+				var c = this.scanner.Read();
+
+				if (scanner.Peek() == ':')
+				{
+					builder.Append(c);
+					break;
+				}
+
+				// IdentifierName
+
+				if (char.IsLetterOrDigit(c) || c == '_' || c == '-' || c == '$')
+				{
+					builder.Append(c);
+				}
+				else
+				{
+					throw new JsonParseException(
+						ErrorType.InvalidOrUnexpectedCharacter,
+						this.scanner.Position
+					);
+				}
+
+				l++;
+			}
+
+			return builder.ToString();
 		}
 
 		private string ReadString()
 		{
 			var builder = new StringBuilder();
 
-			this.scanner.Assert('"');
+			bool isSingleQuoted = false;
+			char h = this.scanner.AssertAny('"', '\'');
+			this.scanner.Read();
 
+			if (h == '\'')
+			{
+				isSingleQuoted = true;
+				if (!options.SerializationFlags.HasFlag(JsonSerializationFlags.AllowSingleQuotes))
+				{
+					throw new JsonParseException(
+						ErrorType.InvalidOrUnexpectedCharacter,
+						this.scanner.Position
+					);
+				}
+			}
+
+			long lineStartColumn = scanner.Position.column;
+			bool usedNlLiteral = false;
 			while (true)
 			{
 				var c = this.scanner.Read();
@@ -164,6 +300,7 @@ namespace LightJson.Serialization
 					switch (char.ToLower(c))
 					{
 						case '"':  // "
+						case '\'': // '
 						case '\\': // \
 						case '/':  // /
 							builder.Append(c);
@@ -186,6 +323,20 @@ namespace LightJson.Serialization
 						case 'u':
 							builder.Append(ReadUnicodeLiteral());
 							break;
+						case '\n' or '\r':
+							if (options.SerializationFlags.HasFlag(JsonSerializationFlags.AllowStringLineBreaks))
+							{
+								;// do nothing
+							}
+							else
+							{
+								throw new JsonParseException(
+									ErrorType.InvalidOrUnexpectedCharacter,
+									this.scanner.Position
+								);
+							}
+							break;
+
 						default:
 							throw new JsonParseException(
 								ErrorType.InvalidOrUnexpectedCharacter,
@@ -193,7 +344,11 @@ namespace LightJson.Serialization
 							);
 					}
 				}
-				else if (c == '"')
+				else if (!isSingleQuoted && c == '"')
+				{
+					break;
+				}
+				else if (isSingleQuoted && c == '\'')
 				{
 					break;
 				}
@@ -214,7 +369,12 @@ namespace LightJson.Serialization
 					// to get the whole utf-16 codepoint.
 					if (c < '\u0020')
 					{
-						throw new JsonParseException(
+						if ((c == '\n' || c == '\r') && options.SerializationFlags.HasFlag(JsonSerializationFlags.AllowStringLineBreaks))
+						{
+							usedNlLiteral = true;
+							builder.Append(c);
+						}
+						else throw new JsonParseException(
 							ErrorType.InvalidOrUnexpectedCharacter,
 							this.scanner.Position
 						);
@@ -224,6 +384,31 @@ namespace LightJson.Serialization
 						builder.Append(c);
 					}
 				}
+			}
+
+			if (usedNlLiteral && options.SerializationFlags.HasFlag(JsonSerializationFlags.NormalizeStringBreakSpace))
+			{
+				string[] copyLines = builder.ToString().Split('\n');
+				builder.Clear();
+
+				for (int i = 0; i < copyLines.Length; i++)
+				{
+					string line = copyLines[i];
+
+					if (line.Length > lineStartColumn)
+					{
+						int j = 0;
+						while (j < lineStartColumn && char.IsWhiteSpace(line[j]))
+							j++;
+
+						builder.AppendLine(line[j..]);
+					}
+					else
+					{
+						builder.AppendLine(line);
+					}
+				}
+				;
 			}
 
 			return builder.ToString();
@@ -324,14 +509,25 @@ namespace LightJson.Serialization
 				{
 					this.scanner.SkipWhitespace();
 
+					if (options.SerializationFlags.HasFlag(JsonSerializationFlags.IgnoreTrailingComma) && scanner.Peek() == '}')
+					{
+						this.scanner.Read();
+						break;
+					}
+
 					var key = ReadJsonKey();
 
-					if (jsonObject.ContainsKey(key))
+					// https://www.rfc-editor.org/rfc/rfc7159#section-4
+					// JSON should allow duplicate key names by default
+					if (options.ThrowOnDuplicateObjectKeys)
 					{
-						throw new JsonParseException(
-							ErrorType.DuplicateObjectKeys,
-							this.scanner.Position
-						);
+						if (jsonObject.ContainsKey(key))
+						{
+							throw new JsonParseException(
+								ErrorType.DuplicateObjectKeys,
+								this.scanner.Position
+							);
+						}
 					}
 
 					this.scanner.SkipWhitespace();
@@ -344,7 +540,7 @@ namespace LightJson.Serialization
 
 					value.path = moutingPath;
 
-					jsonObject.Add(key, value);
+					jsonObject[key] = value;
 
 					this.scanner.SkipWhitespace();
 
@@ -396,6 +592,22 @@ namespace LightJson.Serialization
 				while (true)
 				{
 					this.scanner.SkipWhitespace();
+
+					if (scanner.Peek() == ']')
+					{
+						if (options.SerializationFlags.HasFlag(JsonSerializationFlags.IgnoreTrailingComma))
+						{
+							scanner.Read();
+							break;
+						}
+						else
+						{
+							throw new JsonParseException(
+								ErrorType.InvalidOrUnexpectedCharacter,
+								this.scanner.Position
+							);
+						}
+					}
 
 					moutingPath += $"[{index}]";
 					var value = ReadJsonValue();
@@ -465,9 +677,13 @@ namespace LightJson.Serialization
 				throw new ArgumentNullException("source");
 			}
 
+			var opt = options ?? JsonOptions.Default;
+			if (opt.SerializationFlags.HasFlag(JsonSerializationFlags.IgnoreComments))
+				source = JsonSanitizer.SanitizeInput(source);
+
 			using (var reader = new StringReader(source))
 			{
-				return new JsonReader(reader, options ?? JsonOptions.Default).Parse();
+				return new JsonReader(reader, opt).Parse();
 			}
 		}
 

@@ -1,9 +1,7 @@
+using LightJson.Serialization;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.Linq;
-using System.Reflection;
-using LightJson.Serialization;
 
 namespace LightJson
 {

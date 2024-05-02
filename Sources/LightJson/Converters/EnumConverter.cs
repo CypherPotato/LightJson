@@ -1,17 +1,14 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Runtime.CompilerServices;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace LightJson.Converters;
 
-/// <inheritdoc/>
+/// <summary>
+/// Represents an Json Converter which can serialize and deserialize enums.
+/// </summary>
 public class EnumConverter : JsonConverter
 {
 	/// <summary>
-	/// Gets or sets whether this converter should convert enum values into their
+	/// Gets or sets whether this converter should serialize enum values into their
 	/// string representation or numeric ones.
 	/// </summary>
 	public static bool EnumToString { get; set; } = false;

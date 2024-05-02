@@ -1,12 +1,11 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace LightJson.Converters;
 
-/// <inheritdoc/>
+/// <summary>
+/// Represents an Json Converter which can serialize and deserialize <see cref="IDictionary{TKey, TValue}"/> values.
+/// </summary>
 public class DictionaryConverter : JsonConverter
 {
 	/// <inheritdoc/>
