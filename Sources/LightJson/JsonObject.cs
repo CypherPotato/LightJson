@@ -2,14 +2,15 @@ using LightJson.Serialization;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
 
 namespace LightJson
 {
 	/// <summary>
-	/// Represents a key-value pair collection of JsonValue objects.
+	/// Represents a key-value pair collection of <see cref="JsonValue"/> objects.
 	/// </summary>
 	[DebuggerDisplay("Count = {Count}")]
-	public sealed class JsonObject : IEnumerable<KeyValuePair<string, JsonValue>>, IEnumerable<JsonValue>
+	public sealed class JsonObject : IEnumerable<KeyValuePair<string, JsonValue>>, IEnumerable<JsonValue>, IDictionary<string, JsonValue>
 	{
 		internal string path;
 		private JsonOptions options;
@@ -30,6 +31,15 @@ namespace LightJson
 				return this.properties.Count;
 			}
 		}
+
+		/// <inheritdoc/>
+		public ICollection<string> Keys => properties.Keys;
+
+		/// <inheritdoc/>
+		public ICollection<JsonValue> Values => properties.Values;
+
+		/// <inheritdoc/>
+		public bool IsReadOnly => false;
 
 		/// <summary>
 		/// Gets or sets the property with the given key.
@@ -84,39 +94,6 @@ namespace LightJson
 		public JsonValue AsJsonValue() => new JsonValue(this, options);
 
 		/// <summary>
-		/// Executes an iterator on this JSON object and returns another one from this.
-		/// </summary>
-		/// <typeparam name="T"></typeparam>
-		/// <param name="selector"></param>
-		/// <returns></returns>
-		public T Select<T>(Func<JsonObject, T> selector)
-		{
-			return selector(this);
-		}
-
-		/// <summary>
-		/// Adds a key with a null value to this collection.
-		/// </summary>
-		/// <param name="key">The key of the property to be added.</param>
-		/// <remarks>Returns this JsonObject.</remarks>
-		public JsonObject Add(string key)
-		{
-			return Add(key, JsonValue.Null);
-		}
-
-		/// <summary>
-		/// Adds a value associated with a key to this collection.
-		/// </summary>
-		/// <param name="key">The key of the property to be added.</param>
-		/// <param name="value">The value of the property to be added.</param>
-		/// <returns>Returns this JsonObject.</returns>
-		public JsonObject Add(string key, JsonValue value)
-		{
-			this.properties.Add(key, value);
-			return this;
-		}
-
-		/// <summary>
 		/// Adds a value associated with a key to this collection only if the value is not null.
 		/// </summary>
 		/// <param name="key">The key of the property to be added.</param>
@@ -132,81 +109,10 @@ namespace LightJson
 			return this;
 		}
 
-		/// <summary>
-		/// Removes a property with the given key.
-		/// </summary>
-		/// <param name="key">The key of the property to be removed.</param>
-		/// <returns>
-		/// Returns true if the given key is found and removed; otherwise, false.
-		/// </returns>
-		public bool Remove(string key)
-		{
-			return this.properties.Remove(key);
-		}
-
-		/// <summary>
-		/// Clears the contents of this collection.
-		/// </summary>
-		/// <returns>Returns this JsonObject.</returns>
-		public JsonObject Clear()
-		{
-			this.properties.Clear();
-			return this;
-		}
-
-		/// <summary>
-		/// Changes the key of one of the items in the collection.
-		/// </summary>
-		/// <remarks>
-		/// This method has no effects if the <i>oldKey</i> does not exists.
-		/// If the <i>newKey</i> already exists, the value will be overwritten.
-		/// </remarks>
-		/// <param name="oldKey">The name of the key to be changed.</param>
-		/// <param name="newKey">The new name of the key.</param>
-		/// <returns>Returns this JsonObject.</returns>
-		public JsonObject Rename(string oldKey, string newKey)
-		{
-			if (this.properties.TryGetValue(oldKey, out var value))
-			{
-				Remove(oldKey);
-				this[newKey] = value;
-			}
-
-			return this;
-		}
-
-		/// <summary>
-		/// Determines whether this collection contains an item assosiated with the given key.
-		/// </summary>
-		/// <param name="key">The key to locate in this collection.</param>
-		/// <returns>Returns true if the key is found; otherwise, false.</returns>
+		/// <inheritdoc/>
 		public bool ContainsKey(string key)
 		{
 			return this.properties.ContainsKey(key);
-		}
-
-		/// <summary>
-		/// Determines whether this collection contains an item assosiated with the given key
-		/// </summary>
-		/// <param name="key">The key to locate in this collection.</param>
-		/// <param name="value">
-		/// When this method returns, this value gets assigned the JsonValue assosiated with
-		/// the key, if the key is found; otherwise, JsonValue.Null is assigned.
-		/// </param>
-		/// <returns>Returns true if the key is found; otherwise, false.</returns>
-		public bool ContainsKey(string key, out JsonValue value)
-		{
-			return this.properties.TryGetValue(key, out value);
-		}
-
-		/// <summary>
-		/// Determines whether this collection contains the given JsonValue.
-		/// </summary>
-		/// <param name="value">The value to locate in this collection.</param>
-		/// <returns>Returns true if the value is found; otherwise, false.</returns>
-		public bool Contains(JsonValue value)
-		{
-			return this.properties.Values.Contains(value);
 		}
 
 		/// <summary>
@@ -256,6 +162,54 @@ namespace LightJson
 		public string ToString(JsonOptions options)
 		{
 			return JsonWriter.Serialize(this.AsJsonValue(), options);
+		}
+
+		/// <inheritdoc/>
+		public void Add(string key, JsonValue value)
+		{
+			properties.Add(key, value);
+		}
+
+		/// <inheritdoc/>
+		public bool TryGetValue(string key, [MaybeNullWhen(false)] out JsonValue value)
+		{
+			return properties.TryGetValue(key, out value);
+		}
+
+		/// <inheritdoc/>
+		public void Add(KeyValuePair<string, JsonValue> item)
+		{
+			properties.Add(item);
+		}
+
+		/// <inheritdoc/>
+		void ICollection<KeyValuePair<string, JsonValue>>.Clear()
+		{
+			properties.Clear();
+		}
+
+		/// <inheritdoc/>
+		public bool Contains(KeyValuePair<string, JsonValue> item)
+		{
+			return properties.Contains(item);
+		}
+
+		/// <inheritdoc/>
+		public void CopyTo(KeyValuePair<string, JsonValue>[] array, int arrayIndex)
+		{
+			properties.CopyTo(array, arrayIndex);
+		}
+
+		/// <inheritdoc/>
+		public bool Remove(KeyValuePair<string, JsonValue> item)
+		{
+			return properties.Remove(item);
+		}
+
+		/// <inheritdoc/>
+		public bool Remove(string key)
+		{
+			return properties.Remove(key);
 		}
 	}
 }

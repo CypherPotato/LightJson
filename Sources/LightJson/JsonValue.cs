@@ -61,7 +61,7 @@ namespace LightJson
 		{
 			get
 			{
-				return this.Type == JsonValueType.Null || this.Type == JsonValueType.Undefined;
+				return this.Type is JsonValueType.Null or JsonValueType.Undefined;
 			}
 		}
 
@@ -795,5 +795,20 @@ namespace LightJson
 				this.jsonValue = jsonValue;
 			}
 		}
+
+		/// <exclude/>
+		public static implicit operator JsonValue(string value) => new JsonValue(value);
+		/// <exclude/>
+		public static implicit operator JsonValue(int value) => new JsonValue(value);
+		/// <exclude/>
+		public static implicit operator JsonValue(bool value) => new JsonValue(value);
+		/// <exclude/>
+		public static implicit operator JsonValue(double value) => new JsonValue(value);
+		/// <exclude/>
+		public static implicit operator JsonValue(char value) => new JsonValue(value);
+		/// <exclude/>
+		public static implicit operator JsonValue(JsonObject value) => value.AsJsonValue();
+		/// <exclude/>
+		public static implicit operator JsonValue(JsonArray value) => value.AsJsonValue();
 	}
 }

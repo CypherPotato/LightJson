@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
+using System.Text.Json;
 
 namespace LightJson.Serialization
 {
@@ -10,11 +11,10 @@ namespace LightJson.Serialization
 	/// <summary>
 	/// Represents a TextWriter adapter that can write string representations of JsonValues.
 	/// </summary>
-	public sealed class JsonWriter
+	public sealed class JsonWriter : IDisposable
 	{
 		private int indent;
 		private bool isNewLine;
-		private JsonOptions options;
 
 		/// <summary>
 		/// A set of containing all the collection objects (JsonObject/JsonArray) being rendered.
@@ -49,6 +49,26 @@ namespace LightJson.Serialization
 		public TextWriter InnerWriter { get; set; }
 
 		/// <summary>
+		/// Gets or sets an boolean indicating whether this <see cref="JsonWriter"/> should
+		/// write unquoted property keys or not.
+		/// </summary>
+		public bool UnquotedPropertyKeys { get; set; } = false;
+
+		/// <summary>
+		/// Gets or sets the <see cref="JsonNamingPolicy"/> policy for this <see cref="JsonWriter"/>.
+		/// </summary>
+		public JsonNamingPolicy? NamingPolicy { get; set; }
+
+		/// <summary>
+		/// Initializes an new instance of <see cref="JsonWriter"/>.
+		/// </summary>
+		public JsonWriter()
+		{
+			InnerWriter = new StringWriter();
+			renderingCollections = new HashSet<IEnumerable<JsonValue>>();
+		}
+
+		/// <summary>
 		/// Initializes a new instance of JsonWriter.
 		/// </summary>
 		/// <param name="innerWriter">The TextWriter used to write JsonValues.</param>
@@ -61,16 +81,12 @@ namespace LightJson.Serialization
 		/// <param name="options">The JsonOptions used to write data.</param>
 		public JsonWriter(TextWriter innerWriter, JsonOptions options)
 		{
-			this.options = options;
 			if (options.WriteIndented)
 			{
-				this.IndentString = new string(' ', 4);
-				this.SpacingString = " ";
-				this.NewLineString = "\n";
+				UseIndentedSyntax();
 			}
-			else
-			{
-			}
+
+			NamingPolicy = options.NamingPolicy;
 
 			renderingCollections = new HashSet<IEnumerable<JsonValue>>();
 			InnerWriter = innerWriter;
@@ -117,6 +133,18 @@ namespace LightJson.Serialization
 
 				default:
 					throw new InvalidOperationException("Invalid value type.");
+			}
+		}
+
+		private void WriteJsonKey(string key)
+		{
+			if (UnquotedPropertyKeys)
+			{
+				Write(key);
+			}
+			else
+			{
+				WriteEncodedString(key);
 			}
 		}
 
@@ -288,11 +316,9 @@ namespace LightJson.Serialization
 				while (hasNext)
 				{
 					string key = enumerator.Current.Key;
+					key = NamingPolicy?.ConvertName(key) ?? key;
 
-					if (options.NamingPolicy != null)
-						key = options.NamingPolicy.ConvertName(key);
-
-					WriteEncodedString(key);
+					WriteJsonKey(key);
 					Write(":");
 					WriteSpacing();
 					Render(enumerator.Current.Value);
@@ -343,6 +369,16 @@ namespace LightJson.Serialization
 		}
 
 		/// <summary>
+		/// Sets this <see cref="JsonWriter"/> to write using an pretty, indented JSON syntax.
+		/// </summary>
+		public void UseIndentedSyntax()
+		{
+			this.IndentString = new string(' ', 4);
+			this.SpacingString = " ";
+			this.NewLineString = "\n";
+		}
+
+		/// <summary>
 		/// Writes the given value to the InnerWriter.
 		/// </summary>
 		/// <param name="jsonValue">The JsonValue to write.</param>
@@ -380,6 +416,20 @@ namespace LightJson.Serialization
 
 				return stringWriter.ToString();
 			}
+		}
+
+		/// <summary>
+		/// Returns a string containing the characters written to the current <see cref="JsonWriter"/> so far.
+		/// </summary>
+		public override string ToString()
+		{
+			return InnerWriter.ToString() ?? "";
+		}
+
+		/// <inheritdoc/>
+		public void Dispose()
+		{
+			InnerWriter?.Dispose();
 		}
 	}
 }
