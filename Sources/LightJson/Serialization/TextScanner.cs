@@ -48,8 +48,8 @@ namespace LightJson.Serialization
 		/// Returns whether the specified char is an value terminator.
 		/// </summary>
 		/// <param name="n">The char to check.</param>
-		public static bool IsValueTerminator(char n)
-			=> n == '\n' || n == '\r' || n == ',' || n == '}' || n == ']' || n == '\0';
+		public static bool IsNumericValueTerminator(char n)
+			=> char.IsWhiteSpace(n) || n == ',' || n == '}' || n == ']' || n == '\0';
 
 		/// <summary>
 		/// Reads the next character in the stream without changing the current position or returns an null character '\0' if the scanner
@@ -126,7 +126,7 @@ namespace LightJson.Serialization
 		/// </summary>
 		public void SkipWhitespace()
 		{
-			while (char.IsWhiteSpace(Peek()))
+			while (char.IsWhiteSpace(PeekOrDefault()))
 			{
 				Read();
 			}

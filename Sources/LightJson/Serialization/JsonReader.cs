@@ -108,7 +108,7 @@ namespace LightJson.Serialization
 
 		private void ReadDigits(StringBuilder builder)
 		{
-			while (this.scanner.CanRead && !TextScanner.IsValueTerminator(this.scanner.PeekOrDefault()))
+			while (this.scanner.CanRead && !TextScanner.IsNumericValueTerminator(this.scanner.PeekOrDefault()))
 			{
 				builder.Append(this.scanner.Read());
 			}
@@ -160,7 +160,7 @@ namespace LightJson.Serialization
 				}
 				else
 				{
-					if (TextScanner.IsValueTerminator(n))
+					if (TextScanner.IsNumericValueTerminator(n))
 					{
 						if (!options.SerializationFlags.HasFlag(JsonSerializationFlags.TrailingDecimalPoint))
 						{
@@ -230,7 +230,8 @@ namespace LightJson.Serialization
 		{
 			var builder = new StringBuilder();
 
-			if (scanner.Peek() == '"')
+			var peek = scanner.Peek();
+			if (peek == '"' || peek == '\'')
 			{
 				// it's an quoted string
 				return ReadString();
@@ -326,7 +327,8 @@ namespace LightJson.Serialization
 						case '\n' or '\r':
 							if (options.SerializationFlags.HasFlag(JsonSerializationFlags.AllowStringLineBreaks))
 							{
-								;// do nothing
+								usedNlLiteral = true;
+								builder.Append("\\\n");
 							}
 							else
 							{
@@ -391,9 +393,17 @@ namespace LightJson.Serialization
 				string[] copyLines = builder.ToString().Split('\n');
 				builder.Clear();
 
+				bool nextIsContinuation = false;
 				for (int i = 0; i < copyLines.Length; i++)
 				{
 					string line = copyLines[i];
+					bool isTerminator = line[Index.FromEnd(1)] == '\\';
+
+					if (isTerminator)
+					{
+						line = line[new Range(0, Index.FromEnd(1))];
+						;
+					}
 
 					if (line.Length > lineStartColumn)
 					{
@@ -401,11 +411,29 @@ namespace LightJson.Serialization
 						while (j < lineStartColumn && char.IsWhiteSpace(line[j]))
 							j++;
 
-						builder.AppendLine(line[j..]);
+						if (nextIsContinuation || isTerminator)
+						{
+							builder.Append(line[j..]);
+						}
+						else
+						{
+							builder.AppendLine(line[j..]);
+						}
+
+						if (nextIsContinuation)
+						{
+							nextIsContinuation = false;
+						}
 					}
 					else
 					{
 						builder.AppendLine(line);
+					}
+
+					if (isTerminator)
+					{
+						nextIsContinuation = true;
+						;
 					}
 				}
 				;
