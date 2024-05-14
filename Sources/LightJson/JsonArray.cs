@@ -10,7 +10,7 @@ namespace LightJson
 	/// Represents an ordered collection of JsonValues.
 	/// </summary>
 	[DebuggerDisplay("Count = {Count}")]
-	public sealed class JsonArray : IEnumerable<JsonValue>, IList<JsonValue>
+	public sealed class JsonArray : IEnumerable<JsonValue>, IList<JsonValue>, IImplicitJsonValue
 	{
 		internal string path = "";
 		private IList<JsonValue> items;
@@ -74,7 +74,25 @@ namespace LightJson
 		}
 
 		/// <summary>
-		/// Returns an <see cref="JsonValue"/> representating this <see cref="JsonObject"/>.
+		/// Initializes a new instance of JsonArray, adding the given values to the collection.
+		/// </summary>
+		/// <param name="options">Specifies the <see cref="JsonOptions"/>.</param>
+		/// <param name="values">The values to be added to this collection.</param>
+		public JsonArray(JsonOptions options, params JsonValue[] values) : this(options)
+		{
+			if (values == null)
+			{
+				throw new ArgumentNullException(nameof(values));
+			}
+
+			foreach (var value in values)
+			{
+				this.items.Add(value);
+			}
+		}
+
+		/// <summary>
+		/// Returns an <see cref="JsonValue"/> representating this <see cref="JsonArray"/>.
 		/// </summary>
 		/// <returns></returns>
 		public JsonValue AsJsonValue() => new JsonValue(this, options);
@@ -138,22 +156,19 @@ namespace LightJson
 			return items.Remove(item);
 		}
 
-		/// <summary>
-		/// Initializes a new instance of JsonArray, adding the given values to the collection.
-		/// </summary>
-		/// <param name="options">Specifies the <see cref="JsonOptions"/>.</param>
-		/// <param name="values">The values to be added to this collection.</param>
-		public JsonArray(JsonOptions options, params JsonValue[] values) : this(options)
-		{
-			if (values == null)
-			{
-				throw new ArgumentNullException(nameof(values));
-			}
 
-			foreach (var value in values)
-			{
-				this.items.Add(value);
-			}
+		/// <summary>
+		/// Returns a JSON string representing the state of this value.
+		/// </summary>
+		public override string ToString()
+		{
+			return ToString(JsonOptions.Default);
+		}
+
+		/// <inheritdoc />
+		public string ToString(JsonOptions options)
+		{
+			return JsonWriter.Serialize(this.AsJsonValue(), options);
 		}
 	}
 }

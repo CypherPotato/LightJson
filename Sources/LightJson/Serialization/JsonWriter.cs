@@ -379,7 +379,7 @@ namespace LightJson.Serialization
 		}
 
 		/// <summary>
-		/// Writes the given value to the InnerWriter.
+		/// Writes the given value to the writer.
 		/// </summary>
 		/// <param name="jsonValue">The JsonValue to write.</param>
 		public void Write(JsonValue jsonValue)
@@ -390,6 +390,37 @@ namespace LightJson.Serialization
 			Render(jsonValue);
 
 			this.renderingCollections.Clear();
+		}
+
+		/// <summary>
+		/// Writes the specified JSON comment into the writer.
+		/// </summary>
+		/// <param name="comment">The comment text.</param>
+		/// <param name="multiLine">Optional. Specifies if the comment should be written using an multi-line syntax or inline syntax.</param>
+		/// <param name="padTopLine">Optional. Specifies if the writer should write and empty line before the comment.</param>
+		public void WriteComment(string comment, bool multiLine = false, bool padTopLine = true)
+		{
+			if (padTopLine)
+				InnerWriter.WriteLine();
+
+			string[] lines = comment.Split('\n');
+
+			if (multiLine)
+			{
+				InnerWriter.WriteLine("/*");
+				for (int i = 0; i < lines.Length; i++)
+				{
+					InnerWriter.WriteLine(IndentString + lines[i]);
+				}
+				InnerWriter.WriteLine("*/");
+			}
+			else
+			{
+				for (int i = 0; i < lines.Length; i++)
+				{
+					InnerWriter.WriteLine("// " + lines[i]);
+				}
+			}
 		}
 
 		/// <summary>

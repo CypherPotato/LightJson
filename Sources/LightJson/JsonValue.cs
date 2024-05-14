@@ -161,51 +161,69 @@ namespace LightJson
 		/// <summary>
 		/// Gets this value as an defined <see cref="JsonConverter"/>.
 		/// </summary>
-		/// <typeparam name="T">The defined mapping type.</typeparam>
-		public T Get<T>()
+		/// <param name="type">The defined converted type.</param>
+		public object Get(Type type)
 		{
-			var tType = typeof(T);
-
 			if (this.IsNull)
 			{
-				return ThrowInvalidCast<T>();
+				return ThrowInvalidCast(type);
 			}
 
-			if (tType == typeof(int) ||
-				tType == typeof(long) ||
-				tType == typeof(double) ||
-				tType == typeof(float) ||
-				tType == typeof(long))
+			if (type == typeof(int) ||
+				type == typeof(long) ||
+				type == typeof(double) ||
+				type == typeof(float) ||
+				type == typeof(long) ||
+				type == typeof(byte) ||
+				type == typeof(sbyte))
 			{
-				return (T)(object)GetNumber();
+				return GetNumber();
 			}
-			else if (tType == typeof(string))
+			else if (type == typeof(string))
 			{
-				return (T)(object)GetString();
+				return GetString();
 			}
-			else if (tType == typeof(bool))
+			else if (type == typeof(bool))
 			{
-				return (T)(object)GetBoolean();
+				return GetBoolean();
+			}
+			else if (type == typeof(JsonObject))
+			{
+				return GetJsonObject();
+			}
+			else if (type == typeof(JsonArray))
+			{
+				return GetJsonArray();
 			}
 			else
 			{
 				foreach (var mapper in options.Converters)
 				{
-					if (mapper.CanSerialize(tType))
+					if (mapper.CanSerialize(type))
 					{
 						try
 						{
-							return (T)mapper.Deserialize(this, tType);
+							return mapper.Deserialize(this, type);
 						}
 						catch (Exception ex)
 						{
-							throw new InvalidOperationException($"Caught exception while trying to map {path} to {typeof(T).Name}: {ex.Message}");
+							throw new InvalidOperationException($"Caught exception while trying to map {path} to {type.Name}: {ex.Message}");
 						}
 					}
 				}
 			}
 
-			throw new InvalidOperationException($"No converter matched the object type {typeof(T).FullName}.");
+			throw new InvalidOperationException($"No converter matched the object type {type.FullName}.");
+		}
+
+		/// <summary>
+		/// Gets this value as an defined <see cref="JsonConverter"/>.
+		/// </summary>
+		/// <typeparam name="T">The defined mapping type.</typeparam>
+		public T Get<T>()
+		{
+			var tType = typeof(T);
+			return (T)Get(tType);
 		}
 
 		/// <summary>
@@ -351,6 +369,15 @@ namespace LightJson
 				throw new InvalidCastException($"At value {path} it is expected to have a {typeof(T).Name}.");
 			}
 			throw new InvalidCastException($"Expected to read the JSON value at {path} as {typeof(T).Name}, but got {Type} instead.");
+		}
+
+		private object ThrowInvalidCast(Type T)
+		{
+			if (!IsDefined)
+			{
+				throw new InvalidCastException($"At value {path} it is expected to have a {T.Name}.");
+			}
+			throw new InvalidCastException($"Expected to read the JSON value at {path} as {T.Name}, but got {Type} instead.");
 		}
 
 		private JsonValue(JsonValueType type, double value, object? reference, JsonOptions options)
@@ -810,5 +837,7 @@ namespace LightJson
 		public static implicit operator JsonValue(JsonObject value) => value.AsJsonValue();
 		/// <exclude/>
 		public static implicit operator JsonValue(JsonArray value) => value.AsJsonValue();
+		/// <exclude/>
+		public static implicit operator JsonValue(JsonValue[] items) => new JsonArray(JsonOptions.Default, items).AsJsonValue();
 	}
 }

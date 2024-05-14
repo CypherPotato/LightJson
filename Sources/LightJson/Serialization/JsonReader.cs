@@ -199,7 +199,7 @@ namespace LightJson.Serialization
 
 			string s = builder.ToString();
 
-			if (s[0] == '0' && s[1] == 'x' && options.SerializationFlags.HasFlag(JsonSerializationFlags.HexadecimalNumberLiterals))
+			if (s.Length > 1 && s[0] == '0' && s[1] == 'x' && options.SerializationFlags.HasFlag(JsonSerializationFlags.HexadecimalNumberLiterals))
 			{
 				// hex literal
 				string hex = s[2..];

@@ -10,7 +10,7 @@ namespace LightJson
 	/// Represents a key-value pair collection of <see cref="JsonValue"/> objects.
 	/// </summary>
 	[DebuggerDisplay("Count = {Count}")]
-	public sealed class JsonObject : IEnumerable<KeyValuePair<string, JsonValue>>, IEnumerable<JsonValue>, IDictionary<string, JsonValue>
+	public sealed class JsonObject : IEnumerable<KeyValuePair<string, JsonValue>>, IEnumerable<JsonValue>, IDictionary<string, JsonValue>, IImplicitJsonValue
 	{
 		internal string path;
 		private JsonOptions options;

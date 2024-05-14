@@ -7,6 +7,11 @@ namespace LightJson.Converters;
 /// </summary>
 public class CharConverter : JsonConverter
 {
+	/// <summary>
+	/// Gets or sets the error message when this converter gets an invalid string.
+	/// </summary>
+	public static string ConvertErrorMessage { get; set; } = "The JSON value at {0} expects an string with an 1-char length.";
+
 	/// <inheritdoc/>
 	public override bool CanSerialize(Type type)
 	{
@@ -19,7 +24,7 @@ public class CharConverter : JsonConverter
 		string s = value.GetString();
 		if (s.Length != 1)
 		{
-			throw new ArgumentException($"The JSON value at {value.Path} expects an string with an 1-char length.");
+			throw new ArgumentException(string.Format(ConvertErrorMessage, value.Path));
 		}
 
 		return s[0];
