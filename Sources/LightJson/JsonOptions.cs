@@ -57,6 +57,11 @@ public class JsonOptions
 	public bool ThrowOnDuplicateObjectKeys { get; set; } = false;
 
 	/// <summary>
+	/// Gets or sets the maximum depth for serializing or deserializing dynamic objects.
+	/// </summary>
+	public int DynamicObjectMaxDepth { get; set; } = 64;
+
+	/// <summary>
 	/// Creates an new <see cref="JsonOptions"/> instance with default parameters.
 	/// </summary>
 	public JsonOptions()

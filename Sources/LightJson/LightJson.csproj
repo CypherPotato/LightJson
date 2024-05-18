@@ -10,7 +10,7 @@
 
 		<Nullable>enable</Nullable>
 		<LangVersion>latest</LangVersion>
-		<Version>0.9.0-beta2</Version>
+		<Version>0.9.0-beta4</Version>
 		<Authors>CypherPotato</Authors>
 		<Description>A fork from MarcosLopezC.LightJson with options, converters, naming policies and JSON5 support.</Description>
 		<Copyright>Copyright © 2023 CypherPotato</Copyright>

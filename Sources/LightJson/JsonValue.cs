@@ -391,9 +391,9 @@ namespace LightJson
 
 		private static JsonValue DetermineSingle(object? value, int deepness, JsonOptions options, out JsonValueType valueType)
 		{
-			if (deepness > 128)
+			if (deepness > options.DynamicObjectMaxDepth)
 			{
-				throw new InvalidOperationException("The maximum JSON depth level has been reached.");
+				throw new InvalidOperationException("The JSON serialization reached it's maximum depth.");
 			}
 			if (value is null)
 			{

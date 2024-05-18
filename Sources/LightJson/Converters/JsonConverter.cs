@@ -33,6 +33,6 @@ public abstract class JsonConverter
 	/// <param name="value">The JsonValue which will be converted to an object.</param>
 	/// <param name="requestedType">The requested object type for deserializing.</param>
 	/// <returns>The converted object.</returns>
-	public abstract object Deserialize(JsonValue value, Type requestedType);
+	public abstract object? Deserialize(JsonValue value, Type requestedType);
 }
 

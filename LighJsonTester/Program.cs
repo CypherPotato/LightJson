@@ -1,6 +1,7 @@
 ﻿using LightJson;
 using LightJson.Converters;
 using LightJson.Serialization;
+using System.Dynamic;
 using System.Text.Json;
 
 namespace LighJsonTester;
@@ -9,25 +10,18 @@ internal class Program
 {
     static void Main(string[] args)
     {
-        JsonValue obj = new JsonObject()
-        {
-            { "foo", "bar" },
-            { "MyArray", new JsonArray() { 24, 52, 66 } }
-        };
+        string foo = """
+            {
+                foo: "baaar"
+            }
+            """;
 
-        string s = "";
-        using (var jw = new JsonWriter())
-        {
-            jw.UseIndentedSyntax();
-            jw.UnquotedPropertyKeys = true;
+        var decoded = JsonValue.Deserialize(foo, new JsonOptions() { SerializationFlags = JsonSerializationFlags.All });
 
-            jw.NamingPolicy = JsonNamingPolicy.KebabCaseLower;
+        dynamic faxa = decoded.Get<ExpandoObject>();
 
-            jw.Write(obj);
-            s = jw.ToString();
-        }
+        Console.WriteLine(faxa.foo);
 
-        var parsed = JsonValue.Deserialize(s, new JsonOptions() { SerializationFlags = JsonSerializationFlags.All });
-        Console.WriteLine(parsed.ToString());
+        ;
     }
 }

@@ -1,5 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Dynamic;
+using System.Linq;
 
 namespace LightJson.Converters;
 
@@ -15,9 +17,16 @@ public class DictionaryConverter : JsonConverter
 	}
 
 	/// <inheritdoc/>
-	public override Object Deserialize(JsonValue value, Type requestedType)
+	public override Object? Deserialize(JsonValue value, Type requestedType)
 	{
-		return value.GetJsonObject().Properties;
+		if (requestedType == typeof(ExpandoObject))
+		{
+			return JsonValueToObject(value, 0);
+		}
+		else
+		{
+			return value.GetJsonObject().Properties;
+		}
 	}
 
 	/// <inheritdoc/>
@@ -32,5 +41,41 @@ public class DictionaryConverter : JsonConverter
 		}
 
 		return result.AsJsonValue();
+	}
+
+	object? JsonValueToObject(JsonValue self, int deepness)
+	{
+		if (deepness > CurrentOptions.DynamicObjectMaxDepth)
+		{
+			throw new ArgumentOutOfRangeException("The JSON deserialization reached it's maximum depth.");
+		}
+
+		switch (self.Type)
+		{
+			case JsonValueType.Array:
+				return self.GetJsonArray()
+					.Select(n => JsonValueToObject(n, deepness + 1));
+
+			case JsonValueType.String:
+				return self.GetString();
+
+			case JsonValueType.Number:
+				return self.GetNumber();
+
+			case JsonValueType.Boolean:
+				return self.GetBoolean();
+
+			case JsonValueType.Object:
+				var jobj = self.GetJsonObject();
+				IDictionary<string, object?> expando = new ExpandoObject();
+				foreach (var kvp in jobj)
+				{
+					expando.Add(kvp.Key, JsonValueToObject(kvp.Value, deepness + 1));
+				}
+				return expando;
+
+			default: // covers null and undefined
+				return null;
+		}
 	}
 }
