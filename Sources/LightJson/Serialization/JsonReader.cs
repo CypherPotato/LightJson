@@ -288,7 +288,7 @@ namespace LightJson.Serialization
 				}
 			}
 
-			long lineStartColumn = scanner.Position.column;
+			int lineStartColumn = (int)scanner.Position.column;
 			bool usedNlLiteral = false;
 			while (true)
 			{
@@ -388,7 +388,7 @@ namespace LightJson.Serialization
 				}
 			}
 
-			if (usedNlLiteral && options.SerializationFlags.HasFlag(JsonSerializationFlags.NormalizeStringBreakSpace))
+			if (usedNlLiteral)
 			{
 				string[] copyLines = builder.ToString().Split('\n');
 				builder.Clear();
@@ -396,47 +396,28 @@ namespace LightJson.Serialization
 				bool nextIsContinuation = false;
 				for (int i = 0; i < copyLines.Length; i++)
 				{
-					string line = copyLines[i];
-					bool isTerminator = line[Index.FromEnd(1)] == '\\';
+					string line = copyLines[i].TrimEnd();
 
-					if (isTerminator)
+					if (nextIsContinuation)
 					{
-						line = line[new Range(0, Index.FromEnd(1))];
-						;
+						line = line.TrimStart();
+						nextIsContinuation = false;
 					}
 
-					if (line.Length > lineStartColumn)
+					if (line.EndsWith('\\'))
 					{
-						int j = 0;
-						while (j < lineStartColumn && char.IsWhiteSpace(line[j]))
-							j++;
-
-						if (nextIsContinuation || isTerminator)
-						{
-							builder.Append(line[j..]);
-						}
-						else
-						{
-							builder.AppendLine(line[j..]);
-						}
-
-						if (nextIsContinuation)
-						{
-							nextIsContinuation = false;
-						}
+						nextIsContinuation = true;
+						builder.Append(line[new Range(0, Index.FromEnd(1))]);
+					}
+					else if (i == copyLines.Length - 1)
+					{
+						builder.Append(line);
 					}
 					else
 					{
 						builder.AppendLine(line);
 					}
-
-					if (isTerminator)
-					{
-						nextIsContinuation = true;
-						;
-					}
 				}
-				;
 			}
 
 			return builder.ToString();

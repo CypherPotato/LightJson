@@ -33,12 +33,6 @@ public enum JsonSerializationFlags
 	AllowStringLineBreaks = 1 << 4,
 
 	/// <summary>
-	/// Defines that the <see cref="JsonReader"/> should normalize multi-line string literals
-	/// start spacing.
-	/// </summary>
-	NormalizeStringBreakSpace = 1 << 5,
-
-	/// <summary>
 	/// Defines that the <see cref="JsonReader"/> should allow leading decimal points.
 	/// </summary>
 	LeadingDecimalPoint = 1 << 6,
@@ -71,12 +65,11 @@ public enum JsonSerializationFlags
 	/// <summary>
 	/// Defines that all flags are defined.
 	/// </summary>
-	All = 
+	Json5 = 
 		IgnoreComments |
 		AllowUnquotedPropertyNames |
 		IgnoreTrailingComma |
 		AllowStringLineBreaks |
-		NormalizeStringBreakSpace |
 		TrailingDecimalPoint |
 		LeadingDecimalPoint |
 		HexadecimalNumberLiterals |
