@@ -4,7 +4,6 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.IO;
 using System.Reflection;
 using System.Text.Json.Serialization;
 
@@ -169,15 +168,12 @@ namespace LightJson
 				return ThrowInvalidCast(type);
 			}
 
-			if (type == typeof(int) ||
-				type == typeof(long) ||
-				type == typeof(double) ||
-				type == typeof(float) ||
-				type == typeof(long) ||
-				type == typeof(byte) ||
-				type == typeof(sbyte))
+			if (type == typeof(int) || type == typeof(uint) ||
+				type == typeof(long) || type == typeof(ulong) ||
+				type == typeof(double) || type == typeof(float) ||
+				type == typeof(byte) || type == typeof(sbyte))
 			{
-				return GetNumber();
+				return Convert.ChangeType(GetNumber(), type);
 			}
 			else if (type == typeof(string))
 			{
@@ -380,137 +376,13 @@ namespace LightJson
 			throw new InvalidCastException($"Expected to read the JSON value at {path} as {T.Name}, but got {Type} instead.");
 		}
 
-		private JsonValue(JsonValueType type, double value, object? reference, JsonOptions options)
+		internal JsonValue(JsonValueType type, double value, object? reference, JsonOptions options)
 		{
 			this.type = type;
 			this.value = value;
 			this.reference = reference!;
 			this.path = "$";
 			this.options = options;
-		}
-
-		private static JsonValue DetermineSingle(object? value, int deepness, JsonOptions options, out JsonValueType valueType)
-		{
-			if (deepness > options.DynamicObjectMaxDepth)
-			{
-				throw new InvalidOperationException("The JSON serialization reached it's maximum depth.");
-			}
-			if (value is null)
-			{
-				valueType = JsonValueType.Null;
-				return new JsonValue(valueType, 0, null, options);
-			}
-
-			var itemType = value.GetType();
-
-			if (value is string || value is char)
-			{
-				valueType = JsonValueType.String;
-				return new JsonValue(valueType, 0, value.ToString(), options);
-			}
-			else if (value is int nint)
-			{
-				valueType = JsonValueType.Number;
-				return new JsonValue(valueType, nint, null, options);
-			}
-			else if (value is byte || value is sbyte || value is uint || value is long || value is ulong)
-			{
-				valueType = JsonValueType.Number;
-				return new JsonValue(valueType, Convert.ToInt64(value), null, options);
-			}
-			else if (value is double ndbl)
-			{
-				valueType = JsonValueType.Number;
-				return new JsonValue(valueType, ndbl, null, options);
-			}
-			else if (value is float || value is decimal)
-			{
-				valueType = JsonValueType.Number;
-				return new JsonValue(valueType, Convert.ToDouble(value), null, options);
-			}
-			else if (value is bool nbool)
-			{
-				valueType = JsonValueType.Boolean;
-				return new JsonValue(valueType, nbool ? 1 : 0, null, options);
-			}
-
-			foreach (var mapper in options.Converters)
-			{
-				if (mapper.CanSerialize(itemType))
-				{
-					var result = mapper.Serialize(value);
-					valueType = result.Type;
-					return result;
-				}
-			}
-
-			if (itemType.IsAssignableTo(typeof(IEnumerable)))
-			{
-				JsonArray arr = new JsonArray(options);
-				foreach (object? item in (IEnumerable)value)
-				{
-					if (item == null) continue;
-					arr.Add(DetermineSingle(item, deepness + 1, options, out _));
-				}
-
-				valueType = JsonValueType.Array;
-				return new JsonValue(valueType, 0, arr, options);
-			}
-			else
-			{
-				JsonObject newObj = new JsonObject(options);
-				PropertyInfo[] valueProperties = itemType
-					.GetProperties(BindingFlags.Public | BindingFlags.Instance);
-
-				foreach (PropertyInfo property in valueProperties)
-				{
-					var atrJsonIgnore = property.GetCustomAttribute<JsonIgnoreAttribute>();
-					var atrJsonProperty = property.GetCustomAttribute<JsonPropertyNameAttribute>();
-
-					if (atrJsonIgnore?.Condition == JsonIgnoreCondition.Always)
-						continue;
-
-					string name = atrJsonProperty?.Name ?? property.Name;
-					object? v = property.GetValue(value);
-
-					if (atrJsonIgnore?.Condition == JsonIgnoreCondition.WhenWritingNull && v is null)
-						continue;
-					if (atrJsonIgnore?.Condition == JsonIgnoreCondition.WhenWritingDefault && v == default)
-						continue;
-
-					JsonValue jsonValue = DetermineSingle(v, deepness + 1, options, out _);
-					newObj.Add(name, jsonValue);
-				}
-
-				if (options.SerializeFields)
-				{
-					FieldInfo[] fields = itemType
-						.GetFields(BindingFlags.Public | BindingFlags.Instance);
-
-					foreach (FieldInfo field in fields)
-					{
-						var atrJsonIgnore = field.GetCustomAttribute<JsonIgnoreAttribute>();
-						var atrJsonProperty = field.GetCustomAttribute<JsonPropertyNameAttribute>();
-
-						if (atrJsonIgnore?.Condition == JsonIgnoreCondition.Always)
-							continue;
-
-						string name = atrJsonProperty?.Name ?? field.Name;
-						object? v = field.GetValue(value);
-
-						if (atrJsonIgnore?.Condition == JsonIgnoreCondition.WhenWritingNull && v is null)
-							continue;
-						if (atrJsonIgnore?.Condition == JsonIgnoreCondition.WhenWritingDefault && v == default)
-							continue;
-
-						JsonValue jsonValue = DetermineSingle(v, deepness + 1, options, out _);
-						newObj.Add(name, jsonValue);
-					}
-				}
-
-				valueType = JsonValueType.Object;
-				return new JsonValue(JsonValueType.Object, 0, newObj, options);
-			}
 		}
 
 		/// <summary>
@@ -521,7 +393,7 @@ namespace LightJson
 		public static JsonValue Serialize(object? value, JsonOptions? options = null)
 		{
 			JsonOptions _opt = options ?? JsonOptions.Default;
-			JsonValue _value = DetermineSingle(value, 0, _opt, out JsonValueType valueType);
+			JsonValue _value = Dynamic.SerializeObject(value, 0, _opt, out JsonValueType valueType);
 			_value.options = _opt;
 			return _value;
 		}

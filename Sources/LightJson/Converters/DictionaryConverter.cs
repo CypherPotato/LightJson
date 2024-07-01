@@ -17,11 +17,11 @@ public class DictionaryConverter : JsonConverter
 	}
 
 	/// <inheritdoc/>
-	public override Object? Deserialize(JsonValue value, Type requestedType)
+	public override object Deserialize(JsonValue value, Type requestedType)
 	{
 		if (requestedType == typeof(ExpandoObject))
 		{
-			return JsonValueToObject(value, 0);
+			return JsonValueToObject(value, 0) !;
 		}
 		else
 		{

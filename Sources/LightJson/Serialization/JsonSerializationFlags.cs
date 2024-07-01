@@ -1,8 +1,4 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace LightJson.Serialization;
 
@@ -65,7 +61,7 @@ public enum JsonSerializationFlags
 	/// <summary>
 	/// Defines that all flags are defined.
 	/// </summary>
-	Json5 = 
+	Json5 =
 		IgnoreComments |
 		AllowUnquotedPropertyNames |
 		IgnoreTrailingComma |

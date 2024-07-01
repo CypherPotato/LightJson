@@ -16,13 +16,13 @@ public sealed class TimeOnlyConverter : JsonConverter
 	/// <inheritdoc/>
 	public override object Deserialize(JsonValue value, Type requestedType)
 	{
-		return new TimeOnly(value.GetLong());
+		return TimeOnly.Parse(value.GetString());
 	}
 
 	/// <inheritdoc/>
 	public override JsonValue Serialize(object value)
 	{
 		TimeOnly d = (TimeOnly)value;
-		return new JsonValue(d.Ticks);
+		return new JsonValue(d.ToLongTimeString());
 	}
 }
