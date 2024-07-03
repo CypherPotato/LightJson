@@ -13,7 +13,7 @@ namespace LightJson;
 
 internal class Dynamic
 {
-	public static JsonValue SerializeObject(object? value, int deepness, JsonOptions options, out JsonValueType valueType)
+	public static JsonValue SerializeObject(object? value, int deepness, bool convertersEnabled, JsonOptions options, out JsonValueType valueType)
 	{
 		if (deepness > options.DynamicObjectMaxDepth)
 		{
@@ -58,15 +58,18 @@ internal class Dynamic
 			return new JsonValue(valueType, nbool ? 1 : 0, null, options);
 		}
 
-		foreach (var mapper in options.Converters)
+		if (convertersEnabled)
 		{
-			if (mapper.CanSerialize(itemType))
+			foreach (var mapper in options.Converters)
 			{
-				var result = mapper.Serialize(value);
-				valueType = result.Type;
-				return result;
+				if (mapper.CanSerialize(itemType))
+				{
+					var result = mapper.Serialize(value);
+					valueType = result.Type;
+					return result;
+				}
 			}
-		}
+		}		
 
 		if (itemType.IsAssignableTo(typeof(IEnumerable)))
 		{
@@ -74,7 +77,7 @@ internal class Dynamic
 			foreach (object? item in (IEnumerable)value)
 			{
 				if (item == null) continue;
-				arr.Add(SerializeObject(item, deepness + 1, options, out _));
+				arr.Add(SerializeObject(item, deepness + 1, convertersEnabled, options, out _));
 			}
 
 			valueType = JsonValueType.Array;
@@ -102,7 +105,7 @@ internal class Dynamic
 				if (atrJsonIgnore?.Condition == JsonIgnoreCondition.WhenWritingDefault && v == default)
 					continue;
 
-				JsonValue jsonValue = SerializeObject(v, deepness + 1, options, out _);
+				JsonValue jsonValue = SerializeObject(v, deepness + 1, convertersEnabled, options, out _);
 				newObj.Add(name, jsonValue);
 			}
 
@@ -127,7 +130,7 @@ internal class Dynamic
 					if (atrJsonIgnore?.Condition == JsonIgnoreCondition.WhenWritingDefault && v == default)
 						continue;
 
-					JsonValue jsonValue = SerializeObject(v, deepness + 1, options, out _);
+					JsonValue jsonValue = SerializeObject(v, deepness + 1, convertersEnabled, options, out _);
 					newObj.Add(name, jsonValue);
 				}
 			}

@@ -386,6 +386,17 @@ namespace LightJson
 		}
 
 		/// <summary>
+		/// Serializes an dynamic object without using any defined <see cref="Converters.JsonConverter"/>.
+		/// </summary>
+		/// <param name="value">The complex object to serialize.</param>
+		/// <param name="options">Optional. Determines optional JSON options to handle the serialization.</param>
+		public static JsonValue SerializeDynamicObject(object value, JsonOptions? options = null)
+		{
+			JsonOptions _opt = options ?? JsonOptions.Default;
+			return Dynamic.SerializeObject(value, 0, true, _opt, out JsonValueType valueType);
+		}
+
+		/// <summary>
 		/// Initializes a new instance of the JsonValue struct from the specified object.
 		/// </summary>
 		/// <param name="value">The value to be converted into an <see cref="JsonValue"/>.</param>
@@ -393,7 +404,7 @@ namespace LightJson
 		public static JsonValue Serialize(object? value, JsonOptions? options = null)
 		{
 			JsonOptions _opt = options ?? JsonOptions.Default;
-			JsonValue _value = Dynamic.SerializeObject(value, 0, _opt, out JsonValueType valueType);
+			JsonValue _value = Dynamic.SerializeObject(value, 0, true, _opt, out JsonValueType valueType);
 			_value.options = _opt;
 			return _value;
 		}
