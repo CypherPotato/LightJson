@@ -62,8 +62,14 @@ public class JsonBox<TValue> : IEquatable<TValue> where TValue : notnull
 		}
 		set
 		{
-			ArgumentNullException.ThrowIfNull(value);
-			jval = JsonValue.Serialize(value);
+			if (value is null)
+			{
+				jval = JsonValue.Null;
+			}
+			else
+			{
+				jval = JsonValue.Serialize(value);
+			}
 		}
 	}
 
@@ -81,6 +87,11 @@ public class JsonBox<TValue> : IEquatable<TValue> where TValue : notnull
 	{
 		return Value?.ToString();
 	}
+
+	/// <summary>
+	/// Gets an JSON string representation of the current value.
+	/// </summary>
+	public string ToJsonString() => jval.ToString();
 
 	/// <inheritdoc/>
 	public override bool Equals(object? obj)

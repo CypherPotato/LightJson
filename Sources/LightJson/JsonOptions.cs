@@ -48,12 +48,6 @@ public class JsonOptions
 	public JsonConverterCollection Converters { get; set; }
 
 	/// <summary>
-	/// Gets or sets whether the <see cref="JsonReader"/> should use the reflection-based automatic
-	/// converter for types which doens't have an specific converter defined.
-	/// </summary>
-	public bool EnableDynamicConverters { get; [RequiresUnreferencedCode("The JSON deserializer should create instances of trimmed code.")] set; } = false;
-
-	/// <summary>
 	/// Gets or sets the function that transforms the property name of a JSON object to JSON output.
 	/// </summary>
 	public JsonNamingPolicy? NamingPolicy { get; set; }
