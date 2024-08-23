@@ -1,8 +1,4 @@
 ﻿using LightJson;
-using LightJson.Converters;
-using LightJson.Serialization;
-using System.Dynamic;
-using System.Text.Json;
 
 namespace LighJsonTester;
 
@@ -10,18 +6,24 @@ internal class Program
 {
     static void Main(string[] args)
     {
-        string foo = """
-            {
-                foo: "baaar"
+        string userJson = """
+            // comments
+            { /* real gorilla */
+                "nameAndSurname": "foo", // make it panda
+                "age" /*international antherm*/: 123 // test
             }
+            // test
             """;
 
-        var decoded = JsonValue.Deserialize(foo, new JsonOptions() { SerializationFlags = JsonSerializationFlags.All });
-
-        dynamic faxa = decoded.Get<ExpandoObject>();
-
-        Console.WriteLine(faxa.foo);
+        JsonOptions.Default.SerializationFlags = LightJson.Serialization.JsonSerializationFlags.IgnoreComments;
+        User n = JsonValue.Deserialize<User>(userJson);
 
         ;
     }
+}
+
+class User
+{
+    public string NameAndSurname { get; set; }
+    public int Age { get; set; }
 }

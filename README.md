@@ -135,7 +135,7 @@ string json = """
     }
     """;
 
-var obj = JsonValue.Parse(json);
+var obj = JsonValue.Deserialize(json);
 
 // $.foobar must be present, non null and carry an string value.
 string stringValue = obj["foobar"].GetString();
