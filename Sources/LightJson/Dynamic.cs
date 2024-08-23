@@ -3,6 +3,7 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
+using System.Runtime.CompilerServices;
 using System.Text.Json.Serialization;
 
 namespace LightJson;
@@ -68,22 +69,44 @@ internal class Dynamic
 
 				if (type.IsAssignableTo(typeof(IEnumerable)))
 				{
-					Type subType = type.GetGenericArguments()[0];
+					Type subType = type.IsArray
+						? type.GetElementType()!
+						: type.GetGenericArguments()[0];
+
 					var arr = value.GetJsonArray();
 
 					ArrayList items = new ArrayList();
 					for (int i = 0; i < arr.Count; i++)
 					{
-						items.Add(DeserializeObjectX(value, subType, deepness + 1, options));
+						var arrItem = arr[i];
+						var obj = DeserializeObjectX(arrItem, subType, deepness + 1, options);
+						items.Add(obj);
 					}
 
-					if (type.IsAssignableTo(typeof(ICollection<>)))
+					if (type.IsGenericType && !type.IsArray)
 					{
-						return items.ToArray().ToList();
+						var genericCollection = typeof(ICollection<>).MakeGenericType(subType);
+						if (type.IsAssignableTo(genericCollection))
+						{
+							dynamic? listInstance = Activator.CreateInstance(type);
+							foreach (dynamic? obj in items)
+							{
+								listInstance?.Add(obj);
+							}
+							return listInstance!;
+						}
+						else
+						{
+							throw new InvalidOperationException($"Unsupported collection type: {type}. The JSON deserializer can only deserialize JsonArrays into arrays or ICollection<> objects.");
+						}
+					}
+					else if (type.IsArray)
+					{
+						return items.ToArray(subType);
 					}
 					else
 					{
-						return items.ToArray();
+						throw new InvalidOperationException($"Unsupported collection type: {type}. The JSON deserializer can only deserialize JsonArrays into arrays or ICollection<> objects.");
 					}
 				}
 				else

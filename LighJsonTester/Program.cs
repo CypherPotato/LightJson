@@ -7,23 +7,28 @@ internal class Program
     static void Main(string[] args)
     {
         string userJson = """
-            // comments
-            { /* real gorilla */
-                "nameAndSurname": "foo", // make it panda
-                "age" /*international antherm*/: 123 // test
+            {
+              "addressBook": [
+                {"lastName": "Average", "firstName": "Joe"},
+                {"lastName": "Doe", "firstName": "Jane"},
+                {"lastName": "Smith", "firstName": "John"}
+              ]
             }
-            // test
             """;
 
-        JsonOptions.Default.SerializationFlags = LightJson.Serialization.JsonSerializationFlags.IgnoreComments;
-        User n = JsonValue.Deserialize<User>(userJson);
+        var n = JsonValue.Deserialize<BookList>(userJson);
 
         ;
     }
 }
 
-class User
+public class BookList
 {
-    public string NameAndSurname { get; set; }
-    public int Age { get; set; }
+    public HashSet<Book> AddressBook { get; set; } = new HashSet<Book>();
+}
+
+public class Book
+{
+    public string? LastName { get; set; }
+    public string? FirstName { get; set; }
 }
