@@ -1,9 +1,11 @@
-﻿using System.Text;
+﻿using System;
+using System.Text;
 
 namespace LightJson.Serialization;
 
 internal class JsonSanitizer
 {
+	[Obsolete]
 	public static string SanitizeInput(string input)
 	{
 		StringBuilder output = new StringBuilder();

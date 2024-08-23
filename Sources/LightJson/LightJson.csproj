@@ -10,10 +10,10 @@
 
 		<Nullable>enable</Nullable>
 		<LangVersion>latest</LangVersion>
-		<Version>0.9.3</Version>
+		<Version>0.10.0-beta1</Version>
 		<Authors>CypherPotato</Authors>
-		<Description>A fork from MarcosLopezC.LightJson with options, converters, naming policies and JSON5 support.</Description>
-		<Copyright>Copyright © 2023 CypherPotato</Copyright>
+		<Description>A maintained fork from MarcosLopezC.LightJson with options, converters, naming policies and JSON5 support.</Description>
+		<Copyright>Copyright © 2024 CypherPotato</Copyright>
 		<PackageLicenseExpression>MIT</PackageLicenseExpression>
 		<PackageId>CypherPotato.LightJson</PackageId>
 		<RepositoryUrl>https://github.com/CypherPotato/LightJson</RepositoryUrl>

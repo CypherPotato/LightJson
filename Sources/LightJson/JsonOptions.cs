@@ -1,6 +1,6 @@
 ﻿using LightJson.Converters;
 using LightJson.Serialization;
-using System.Diagnostics.CodeAnalysis;
+using System;
 using System.Text.Json;
 
 namespace LightJson;
@@ -63,6 +63,11 @@ public class JsonOptions
 	public int DynamicObjectMaxDepth { get; set; } = 64;
 
 	/// <summary>
+	/// Gets or sets the <see cref="DynamicSerializationMode"/> used by the JSON serializer.
+	/// </summary>
+	public DynamicSerializationMode DynamicSerialization { get; set; } = DynamicSerializationMode.Both;
+
+	/// <summary>
 	/// Creates an new <see cref="JsonOptions"/> instance with default parameters.
 	/// </summary>
 	public JsonOptions()
@@ -93,4 +98,26 @@ public class JsonOptions
 	/// options.
 	/// </summary>
 	public JsonArray CreateJsonArray() => new JsonArray(this);
+}
+
+/// <summary>
+/// Represents an JSON dynamic serialization mode.
+/// </summary>
+[Flags]
+public enum DynamicSerializationMode
+{
+	/// <summary>
+	/// Represents that the JSON serializer can write dynamic JSON for non-mapped objects.
+	/// </summary>
+	Write,
+
+	/// <summary>
+	/// Represents that the JSON serializer can read dynamic JSON for non-mapped objects.
+	/// </summary>
+	Read,
+
+	/// <summary>
+	/// Represents that the JSON serializer can read and write dynamic JSON for non-mapped objects.
+	/// </summary>
+	Both = Read | Write
 }

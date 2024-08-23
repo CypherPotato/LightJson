@@ -41,6 +41,8 @@ namespace LightJson.Serialization
 		{
 			this.scanner.SkipWhitespace();
 
+			SkipComments();
+
 			var next = this.scanner.Peek();
 
 			if (char.IsNumber(next))
@@ -371,7 +373,7 @@ namespace LightJson.Serialization
 					// to get the whole utf-16 codepoint.
 					if (c < '\u0020')
 					{
-						if ((c == '\n' || c == '\r') && options.SerializationFlags.HasFlag(JsonSerializationFlags.AllowStringLineBreaks))
+						if ((c is '\n' or '\r') && options.SerializationFlags.HasFlag(JsonSerializationFlags.AllowStringLineBreaks))
 						{
 							usedNlLiteral = true;
 							builder.Append(c);
@@ -507,6 +509,7 @@ namespace LightJson.Serialization
 			this.scanner.Assert('{');
 
 			this.scanner.SkipWhitespace();
+			SkipComments();
 
 			if (this.scanner.Peek() == '}')
 			{
@@ -517,6 +520,7 @@ namespace LightJson.Serialization
 				while (true)
 				{
 					this.scanner.SkipWhitespace();
+					SkipComments();
 
 					if (options.SerializationFlags.HasFlag(JsonSerializationFlags.IgnoreTrailingComma) && scanner.Peek() == '}')
 					{
@@ -540,10 +544,12 @@ namespace LightJson.Serialization
 					}
 
 					this.scanner.SkipWhitespace();
+					SkipComments();
 
 					this.scanner.Assert(':');
 
 					this.scanner.SkipWhitespace();
+					SkipComments();
 
 					var value = ReadJsonValue();
 
@@ -552,6 +558,7 @@ namespace LightJson.Serialization
 					jsonObject[key] = value;
 
 					this.scanner.SkipWhitespace();
+					SkipComments();
 
 					var next = this.scanner.Read();
 					moutingPath = initialPath;
@@ -591,6 +598,7 @@ namespace LightJson.Serialization
 			this.scanner.Assert('[');
 
 			this.scanner.SkipWhitespace();
+			SkipComments();
 
 			if (this.scanner.Peek() == ']')
 			{
@@ -601,6 +609,7 @@ namespace LightJson.Serialization
 				while (true)
 				{
 					this.scanner.SkipWhitespace();
+					SkipComments();
 
 					if (scanner.Peek() == ']')
 					{
@@ -626,6 +635,7 @@ namespace LightJson.Serialization
 					jsonArray.Add(value);
 
 					this.scanner.SkipWhitespace();
+					SkipComments();
 
 					moutingPath = initialPath;
 					var next = this.scanner.Read();
@@ -651,6 +661,48 @@ namespace LightJson.Serialization
 
 			jsonArray.path = moutingPath;
 			return jsonArray;
+		}
+
+		private void SkipComments()
+		{
+			if (!options.SerializationFlags.HasFlag(JsonSerializationFlags.IgnoreComments))
+			{
+				return;
+			}
+		checkNextComment:
+			this.scanner.SkipWhitespace();
+			if (this.scanner.Peek() == '/')
+			{
+				this.scanner.Read();
+				bool isMultilineComment = this.scanner.Peek() == '*';
+
+				while (this.scanner.CanRead)
+				{
+					char c = this.scanner.Read();
+
+					if (isMultilineComment)
+					{
+						if (c == '*' && this.scanner.Peek() == '/')
+						{
+							this.scanner.Read();
+							break;
+						}
+					}
+					else
+					{
+						if (c is '\n' or '\r')
+						{
+							break;
+						}
+					}
+				}
+
+				goto checkNextComment;
+			}
+			else
+			{
+				return;
+			}
 		}
 
 		private JsonValue Parse()
@@ -687,8 +739,8 @@ namespace LightJson.Serialization
 			}
 
 			var opt = options ?? JsonOptions.Default;
-			if (opt.SerializationFlags.HasFlag(JsonSerializationFlags.IgnoreComments))
-				source = JsonSanitizer.SanitizeInput(source);
+			//if (opt.SerializationFlags.HasFlag(JsonSerializationFlags.IgnoreComments))
+			//	source = JsonSanitizer.SanitizeInput(source);
 
 			using (var reader = new StringReader(source))
 			{

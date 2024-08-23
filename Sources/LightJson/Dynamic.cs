@@ -1,5 +1,7 @@
 ﻿using System;
 using System.Collections;
+using System.Collections.Generic;
+using System.Linq;
 using System.Reflection;
 using System.Text.Json.Serialization;
 
@@ -7,6 +9,133 @@ namespace LightJson;
 
 internal class Dynamic
 {
+	public static object DeserializeObject(JsonValue value, Type tinputType, JsonOptions options)
+	{
+		string SanitizeCharcase(string s)
+		{
+			return new string(s.Where(char.IsLetterOrDigit).ToArray());
+		}
+
+		bool ICharcaseCompare(string a, string b)
+		{
+			string A = SanitizeCharcase(a);
+			string B = SanitizeCharcase(b);
+			return string.Compare(A, B, true) == 0;
+		}
+
+		object DeserializeObjectX(JsonValue value, Type type, int deepness, JsonOptions options)
+		{
+			if (type == typeof(int) || type == typeof(uint) ||
+				type == typeof(long) || type == typeof(ulong) ||
+				type == typeof(double) || type == typeof(float) ||
+				type == typeof(byte) || type == typeof(sbyte))
+			{
+				return Convert.ChangeType(value.GetNumber(), type);
+			}
+			else if (type == typeof(string))
+			{
+				return value.GetString();
+			}
+			else if (type == typeof(bool))
+			{
+				return value.GetBoolean();
+			}
+			else if (type == typeof(JsonObject))
+			{
+				return value.GetJsonObject();
+			}
+			else if (type == typeof(JsonArray))
+			{
+				return value.GetJsonArray();
+			}
+			else
+			{
+				for (int i = 0; i < options.Converters.Count; i++)
+				{
+					var mapper = options.Converters[i];
+					if (mapper.CanSerialize(type))
+					{
+						try
+						{
+							return mapper.Deserialize(value, type);
+						}
+						catch (Exception ex)
+						{
+							throw new InvalidOperationException($"Caught exception while trying to map {value.path} to {type.Name}: {ex.Message}");
+						}
+					}
+				}
+
+				if (type.IsAssignableTo(typeof(IEnumerable)))
+				{
+					Type subType = type.GetGenericArguments()[0];
+					var arr = value.GetJsonArray();
+
+					ArrayList items = new ArrayList();
+					for (int i = 0; i < arr.Count; i++)
+					{
+						items.Add(DeserializeObjectX(value, subType, deepness + 1, options));
+					}
+
+					if (type.IsAssignableTo(typeof(ICollection<>)))
+					{
+						return items.ToArray().ToList();
+					}
+					else
+					{
+						return items.ToArray();
+					}
+				}
+				else
+				{
+					PropertyInfo[] properties = type.GetProperties(BindingFlags.Public | BindingFlags.Instance);
+					var jobj = value.GetJsonObject();
+
+					object? objInstance = Activator.CreateInstance(type);
+					if (objInstance is null)
+					{
+						throw new InvalidOperationException($"The JSON deserializer couldn't create an instance of {type.Name}.");
+					}
+
+					for (int i = 0; i < properties.Length; i++)
+					{
+						var prop = properties[i];
+
+						string propName = prop.Name;
+						JsonValue? jobjChild = jobj
+							.Properties
+								.Where(p => ICharcaseCompare(propName, p.Key))
+								.Select(p => p.Value)
+								.Cast<JsonValue?>()
+								.FirstOrDefault();
+
+						if (jobjChild is JsonValue jvalue)
+						{
+							if (prop.GetCustomAttribute<JsonIgnoreAttribute>() is JsonIgnoreAttribute ignore)
+							{
+								if (ignore.Condition == JsonIgnoreCondition.WhenWritingDefault && jvalue.IsNull)
+								{
+									continue;
+								}
+								else if (ignore.Condition == JsonIgnoreCondition.Always)
+								{
+									continue;
+								}
+							}
+
+							object? jsonValueObj = jvalue.MaybeNull()?.Get(prop.PropertyType);
+							prop.SetValue(objInstance, jsonValueObj);
+						}
+					}
+
+					return objInstance;
+				}
+			}
+		}
+
+		return DeserializeObjectX(value, tinputType, 0, options);
+	}
+
 	public static JsonValue SerializeObject(object? value, int deepness, bool convertersEnabled, JsonOptions options, out JsonValueType valueType)
 	{
 		if (deepness > options.DynamicObjectMaxDepth)
@@ -54,8 +183,9 @@ internal class Dynamic
 
 		if (convertersEnabled)
 		{
-			foreach (var mapper in options.Converters)
+			for (int i = 0; i < options.Converters.Count; i++)
 			{
+				Converters.JsonConverter? mapper = options.Converters[i];
 				if (mapper.CanSerialize(itemType))
 				{
 					var result = mapper.Serialize(value);
@@ -63,6 +193,11 @@ internal class Dynamic
 					return result;
 				}
 			}
+		}
+
+		if (!options.DynamicSerialization.HasFlag(DynamicSerializationMode.Write))
+		{
+			throw new InvalidOperationException($"No converter matched the object type {itemType.FullName}.");
 		}
 
 		if (itemType.IsAssignableTo(typeof(IEnumerable)))
@@ -83,8 +218,9 @@ internal class Dynamic
 			PropertyInfo[] valueProperties = itemType
 				.GetProperties(BindingFlags.Public | BindingFlags.Instance);
 
-			foreach (PropertyInfo property in valueProperties)
+			for (int i = 0; i < valueProperties.Length; i++)
 			{
+				PropertyInfo property = valueProperties[i];
 				var atrJsonIgnore = property.GetCustomAttribute<JsonIgnoreAttribute>();
 				var atrJsonProperty = property.GetCustomAttribute<JsonPropertyNameAttribute>();
 
@@ -108,8 +244,9 @@ internal class Dynamic
 				FieldInfo[] fields = itemType
 					.GetFields(BindingFlags.Public | BindingFlags.Instance);
 
-				foreach (FieldInfo field in fields)
+				for (int i = 0; i < fields.Length; i++)
 				{
+					FieldInfo field = fields[i];
 					var atrJsonIgnore = field.GetCustomAttribute<JsonIgnoreAttribute>();
 					var atrJsonProperty = field.GetCustomAttribute<JsonPropertyNameAttribute>();
 

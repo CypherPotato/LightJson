@@ -21,7 +21,7 @@ public class DictionaryConverter : JsonConverter
 	{
 		if (requestedType == typeof(ExpandoObject))
 		{
-			return JsonValueToObject(value, 0) !;
+			return JsonValueToObject(value, 0)!;
 		}
 		else
 		{

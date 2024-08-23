@@ -1,10 +1,7 @@
 using LightJson.Converters;
 using LightJson.Serialization;
 using System;
-using System.Collections;
-using System.Collections.Generic;
 using System.Diagnostics;
-using System.Reflection;
 using System.Text.Json.Serialization;
 
 #nullable enable
@@ -163,7 +160,7 @@ namespace LightJson
 		/// <param name="type">The defined converted type.</param>
 		public object Get(Type type)
 		{
-			if (this.IsNull)
+			if (IsNull)
 			{
 				return ThrowInvalidCast(type);
 			}
@@ -193,8 +190,9 @@ namespace LightJson
 			}
 			else
 			{
-				foreach (var mapper in options.Converters)
+				for (int i = 0; i < options.Converters.Count; i++)
 				{
+					var mapper = options.Converters[i];
 					if (mapper.CanSerialize(type))
 					{
 						try
@@ -207,6 +205,9 @@ namespace LightJson
 						}
 					}
 				}
+
+				if (options.DynamicSerialization.HasFlag(DynamicSerializationMode.Read))
+					return Dynamic.DeserializeObject(this, type, options);
 			}
 
 			throw new InvalidOperationException($"No converter matched the object type {type.FullName}.");
@@ -216,7 +217,7 @@ namespace LightJson
 		/// Gets this value as an defined <see cref="JsonConverter"/>.
 		/// </summary>
 		/// <typeparam name="T">The defined mapping type.</typeparam>
-		public T Get<T>()
+		public T Get<T>() where T : notnull
 		{
 			var tType = typeof(T);
 			return (T)Get(tType);
@@ -507,9 +508,7 @@ namespace LightJson
 		/// <param name="b">A JsonValue to compare.</param>
 		public static bool operator ==(JsonValue a, JsonValue b)
 		{
-			return (a.Type == b.Type)
-				&& (a.value == b.value)
-				&& Equals(a.reference, b.reference);
+			return a.Equals(b);
 		}
 
 		/// <summary>
@@ -541,6 +540,16 @@ namespace LightJson
 		}
 
 		/// <summary>
+		/// Returns an <typeparamref name="T"/> by parsing the given string.
+		/// </summary>
+		/// <param name="jsonText">The JSON-formatted string to be parsed.</param>
+		/// <param name="options">Optional. Sets the JsonOptions instance to deserializing the object.</param>
+		public static T Deserialize<T>(string jsonText, JsonOptions? options = null) where T : notnull
+		{
+			return JsonReader.Parse(jsonText, options).Get<T>();
+		}
+
+		/// <summary>
 		/// Returns a <see cref="JsonValue"/> by parsing the given string.
 		/// </summary>
 		/// <param name="jsonText">The JSON-formatted string to be parsed.</param>
@@ -556,21 +565,19 @@ namespace LightJson
 		/// <param name="obj">The object to test.</param>
 		public override bool Equals(object? obj)
 		{
-			if (obj is null)
+			if (obj is JsonValue jval)
 			{
-				return this.IsNull;
+				return this.Equals(jval);
 			}
-
-			var jsonValue = obj as JsonValue?;
-
-			if (jsonValue.HasValue)
+			else if (obj is JsonObject jobj)
 			{
-				return (this == jsonValue.Value);
+				return this.Equals(jobj.AsJsonValue());
 			}
-			else
+			else if (obj is JsonArray jarr)
 			{
-				return false;
+				return this.Equals(jarr.AsJsonValue());
 			}
+			return false;
 		}
 
 		/// <summary>
@@ -584,10 +591,16 @@ namespace LightJson
 			}
 			else
 			{
-				return this.Type.GetHashCode()
-					^ this.value.GetHashCode()
-					^ EqualityComparer<object>.Default.GetHashCode(this.reference);
+				return HashCode.Combine(this.type, this.value, this.reference);
 			}
+		}
+
+		/// <inheritdoc/>
+		public bool Equals(JsonValue other)
+		{
+			return (this.Type == other.Type)
+				&& (this.value == other.value)
+				&& Equals(this.reference, other.reference);
 		}
 
 		/// <summary>
@@ -629,12 +642,6 @@ namespace LightJson
 		public string ToString(JsonOptions options)
 		{
 			return JsonWriter.Serialize(this, options);
-		}
-
-		/// <inheritdoc/>
-		public bool Equals(JsonValue other)
-		{
-			return this == other;
 		}
 
 		private class JsonValueDebugView

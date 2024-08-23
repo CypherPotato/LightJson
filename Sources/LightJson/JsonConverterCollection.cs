@@ -7,7 +7,7 @@ namespace LightJson;
 /// <summary>
 /// Represents an collection of <see cref="JsonConverter"/>.
 /// </summary>
-public class JsonConverterCollection : ICollection<JsonConverter>
+public class JsonConverterCollection : IList<JsonConverter>
 {
 	private List<JsonConverter> _converters;
 	private JsonOptions parent;
@@ -24,10 +24,17 @@ public class JsonConverterCollection : ICollection<JsonConverter>
 	}
 
 	/// <inheritdoc/>
-	public int Count => ((ICollection<JsonConverter>)_converters).Count;
+	public JsonConverter this[int index]
+	{
+		get => _converters[index];
+		set => _converters[index] = value;
+	}
 
 	/// <inheritdoc/>
-	public bool IsReadOnly => ((ICollection<JsonConverter>)_converters).IsReadOnly;
+	public int Count => _converters.Count;
+
+	/// <inheritdoc/>
+	public bool IsReadOnly => false;
 
 	/// <inheritdoc/>
 	public void Add(JsonConverter item)
@@ -49,36 +56,54 @@ public class JsonConverterCollection : ICollection<JsonConverter>
 	/// <inheritdoc/>
 	public void Clear()
 	{
-		((ICollection<JsonConverter>)_converters).Clear();
+		_converters.Clear();
 	}
 
 	/// <inheritdoc/>
 	public bool Contains(JsonConverter item)
 	{
-		return ((ICollection<JsonConverter>)_converters).Contains(item);
+		return _converters.Contains(item);
 	}
 
 	/// <inheritdoc/>
 	public void CopyTo(JsonConverter[] array, int arrayIndex)
 	{
-		((ICollection<JsonConverter>)_converters).CopyTo(array, arrayIndex);
+		_converters.CopyTo(array, arrayIndex);
 	}
 
 	/// <inheritdoc/>
 	public IEnumerator<JsonConverter> GetEnumerator()
 	{
-		return ((IEnumerable<JsonConverter>)_converters).GetEnumerator();
+		return _converters.GetEnumerator();
+	}
+
+	/// <inheritdoc/>
+	public int IndexOf(JsonConverter item)
+	{
+		return _converters.IndexOf(item);
+	}
+
+	/// <inheritdoc/>
+	public void Insert(int index, JsonConverter item)
+	{
+		_converters.Insert(index, item);
 	}
 
 	/// <inheritdoc/>
 	public bool Remove(JsonConverter item)
 	{
-		return ((ICollection<JsonConverter>)_converters).Remove(item);
+		return _converters.Remove(item);
+	}
+
+	/// <inheritdoc/>
+	public void RemoveAt(int index)
+	{
+		_converters.RemoveAt(index);
 	}
 
 	/// <inheritdoc/>
 	IEnumerator IEnumerable.GetEnumerator()
 	{
-		return ((IEnumerable)_converters).GetEnumerator();
+		return GetEnumerator();
 	}
 }

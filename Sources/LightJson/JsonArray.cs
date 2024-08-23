@@ -156,6 +156,37 @@ namespace LightJson
 			return items.Remove(item);
 		}
 
+		/// <summary>
+		/// Casts every <see cref="JsonValue"/> in this array into an <typeparamref name="T"/>.
+		/// </summary>
+		/// <typeparam name="T">The type to cast the JsonValue into.</typeparam>
+		public IEnumerable<T> EveryAs<T>() where T : notnull
+		{
+			foreach (var jsonitem in items)
+			{
+				yield return jsonitem.Get<T>();
+			}
+		}
+
+		/// <summary>
+		/// Casts every <see cref="JsonValue"/> in this array into an <typeparamref name="T"/>.
+		/// This method also includes null values.
+		/// </summary>
+		/// <typeparam name="T">The type to cast the JsonValue into.</typeparam>
+		public IEnumerable<T?> EveryAsNullable<T>() where T : notnull
+		{
+			foreach (var jsonitem in items)
+			{
+				if (jsonitem.IsNull)
+				{
+					yield return default;
+				}
+				else
+				{
+					yield return jsonitem.Get<T>();
+				}
+			}
+		}
 
 		/// <summary>
 		/// Returns a JSON string representing the state of this value.
