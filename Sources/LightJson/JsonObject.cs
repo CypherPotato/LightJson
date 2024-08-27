@@ -1,5 +1,5 @@
 using LightJson.Serialization;
-using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
@@ -16,7 +16,7 @@ namespace LightJson
 		private JsonOptions options;
 		private IDictionary<string, JsonValue> properties;
 
-		/// <summary>
+		/// <summary> 
 		/// Gets all defined properties in this <see cref="JsonObject"/>.
 		/// </summary>
 		public IDictionary<string, JsonValue> Properties { get => properties; }
@@ -84,7 +84,7 @@ namespace LightJson
 		{
 			path = "$";
 			this.options = options;
-			this.properties = new Dictionary<string, JsonValue>(options.PropertyNameCaseInsensitive ? StringComparer.InvariantCultureIgnoreCase : StringComparer.InvariantCulture);
+			this.properties = new Dictionary<string, JsonValue>(options.PropertyNameComparer);
 		}
 
 		/// <summary>

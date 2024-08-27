@@ -164,53 +164,7 @@ namespace LightJson
 			{
 				return ThrowInvalidCast(type);
 			}
-
-			if (type == typeof(int) || type == typeof(uint) ||
-				type == typeof(long) || type == typeof(ulong) ||
-				type == typeof(double) || type == typeof(float) ||
-				type == typeof(byte) || type == typeof(sbyte))
-			{
-				return Convert.ChangeType(GetNumber(), type);
-			}
-			else if (type == typeof(string))
-			{
-				return GetString();
-			}
-			else if (type == typeof(bool))
-			{
-				return GetBoolean();
-			}
-			else if (type == typeof(JsonObject))
-			{
-				return GetJsonObject();
-			}
-			else if (type == typeof(JsonArray))
-			{
-				return GetJsonArray();
-			}
-			else
-			{
-				for (int i = 0; i < options.Converters.Count; i++)
-				{
-					var mapper = options.Converters[i];
-					if (mapper.CanSerialize(type))
-					{
-						try
-						{
-							return mapper.Deserialize(this, type);
-						}
-						catch (Exception ex)
-						{
-							throw new InvalidOperationException($"Caught exception while trying to map {path} to {type.Name}: {ex.Message}");
-						}
-					}
-				}
-
-				if (options.DynamicSerialization.HasFlag(DynamicSerializationMode.Read))
-					return Dynamic.DeserializeObject(this, type, options);
-			}
-
-			throw new InvalidOperationException($"No converter matched the object type {type.FullName}.");
+			return Dynamic.DeserializeObject(this, type, options);
 		}
 
 		/// <summary>
@@ -463,7 +417,7 @@ namespace LightJson
 		}
 
 		/// <summary>
-		/// Initializes a new instance of the JsonValue struct, representing a String value.
+		/// Initializes a new instance of the JsonValue struct, representing a character value.
 		/// </summary>
 		/// <param name="value">The value to be wrapped.</param>
 		/// <param name="options">Defines the <see cref="JsonOptions"/> instance parameters.</param>
@@ -714,13 +668,19 @@ namespace LightJson
 		}
 
 		/// <exclude/>
-		public static implicit operator JsonValue(string value) => new JsonValue(value);
+		public static implicit operator JsonValue(string? value) => value is null ? JsonValue.Null : new JsonValue(value);
 		/// <exclude/>
 		public static implicit operator JsonValue(int value) => new JsonValue(value);
 		/// <exclude/>
 		public static implicit operator JsonValue(bool value) => new JsonValue(value);
 		/// <exclude/>
 		public static implicit operator JsonValue(double value) => new JsonValue(value);
+		/// <exclude/>
+		public static implicit operator JsonValue(short value) => Serialize(value);
+		/// <exclude/>
+		public static implicit operator JsonValue(decimal value) => Serialize(value);
+		/// <exclude/>
+		public static implicit operator JsonValue(long value) => Serialize(value);
 		/// <exclude/>
 		public static implicit operator JsonValue(char value) => new JsonValue(value);
 		/// <exclude/>

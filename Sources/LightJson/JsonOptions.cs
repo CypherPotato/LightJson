@@ -34,7 +34,13 @@ public class JsonOptions
 	/// Gets or sets a value that indicates whether a property's name uses a case-insensitive comparison when getting
 	/// values.
 	/// </summary>
+	[Obsolete("Use PropertyNameComparer instead.")]
 	public bool PropertyNameCaseInsensitive { get; set; } = false;
+
+	/// <summary>
+	/// Gets or sets the default string comparer used for comparing property values.
+	/// </summary>
+	public StringComparer PropertyNameComparer { get; set; } = StringComparer.Ordinal;
 
 	/// <summary>
 	/// Gets or sets whether the <see cref="JsonValue.Serialize(object?, JsonOptions?)"/> should serialize fields from
@@ -82,7 +88,6 @@ public class JsonOptions
 			new TimeOnlyConverter(),
 			new TimeSpanConverter(),
 			new CharConverter(),
-			new DecimalConverter(),
 			new TupleConverter()
 		};
 	}
