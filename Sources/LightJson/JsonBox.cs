@@ -16,7 +16,7 @@ public class JsonBox<TValue> : IEquatable<TValue> where TValue : notnull
 	/// </summary>
 	public JsonBox()
 	{
-		jval = JsonValue.Null;
+		this.jval = JsonValue.Null;
 	}
 
 	/// <summary>
@@ -26,7 +26,7 @@ public class JsonBox<TValue> : IEquatable<TValue> where TValue : notnull
 	/// <param name="value">The initial value.</param>
 	public JsonBox(TValue value)
 	{
-		Value = value;
+		this.Value = value;
 	}
 
 	/// <summary>
@@ -42,7 +42,7 @@ public class JsonBox<TValue> : IEquatable<TValue> where TValue : notnull
 	/// <summary>
 	/// Gets an boolean indicating if this JSON box value is null.
 	/// </summary>
-	public bool IsNull { get => jval.IsNull; }
+	public bool IsNull { get => this.jval.IsNull; }
 
 	/// <summary>
 	/// Gets or sets the inner <typeparamref name="TValue"/> contained in this <see cref="JsonBox{TValue}"/>.
@@ -51,24 +51,24 @@ public class JsonBox<TValue> : IEquatable<TValue> where TValue : notnull
 	{
 		get
 		{
-			if (IsNull)
+			if (this.IsNull)
 			{
 				return default;
 			}
 			else
 			{
-				return jval.Get<TValue>();
+				return this.jval.Get<TValue>();
 			}
 		}
 		set
 		{
 			if (value is null)
 			{
-				jval = JsonValue.Null;
+				this.jval = JsonValue.Null;
 			}
 			else
 			{
-				jval = JsonValue.Serialize(value);
+				this.jval = JsonValue.Serialize(value);
 			}
 		}
 	}
@@ -78,31 +78,31 @@ public class JsonBox<TValue> : IEquatable<TValue> where TValue : notnull
 	/// </summary>
 	public JsonValue JsonValue
 	{
-		get => jval;
-		set => jval = value;
+		get => this.jval;
+		set => this.jval = value;
 	}
 
 	/// <inheritdoc/>
 	public override string? ToString()
 	{
-		return Value?.ToString();
+		return this.Value?.ToString();
 	}
 
 	/// <summary>
 	/// Gets an JSON string representation of the current value.
 	/// </summary>
-	public string ToJsonString() => jval.ToString();
+	public string ToJsonString() => this.jval.ToString();
 
 	/// <inheritdoc/>
 	public override bool Equals(object? obj)
 	{
 		if (obj is JsonBox<TValue> jbox)
 		{
-			return Value?.Equals(jbox.Value) == true;
+			return this.Value?.Equals(jbox.Value) == true;
 		}
 		else if (obj is TValue tv)
 		{
-			return Value?.Equals(tv) == true;
+			return this.Value?.Equals(tv) == true;
 		}
 		return false;
 	}
@@ -110,13 +110,13 @@ public class JsonBox<TValue> : IEquatable<TValue> where TValue : notnull
 	/// <inheritdoc/>
 	public override int GetHashCode()
 	{
-		return Value?.GetHashCode() ?? 0;
+		return this.Value?.GetHashCode() ?? 0;
 	}
 
 	/// <inheritdoc/>
 	public bool Equals(TValue? other)
 	{
-		return Value?.Equals(other) == true;
+		return this.Value?.Equals(other) == true;
 	}
 
 	/// 

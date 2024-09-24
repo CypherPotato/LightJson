@@ -13,8 +13,8 @@ namespace LightJson
 	public sealed class JsonArray : IEnumerable<JsonValue>, IList<JsonValue>, IImplicitJsonValue
 	{
 		internal string path = "";
-		private IList<JsonValue> items;
-		private JsonOptions options;
+		private readonly IList<JsonValue> items;
+		private readonly JsonOptions options;
 
 		/// <inheritdoc/>
 		public int Count
@@ -26,7 +26,7 @@ namespace LightJson
 		}
 
 		/// <inheritdoc/>
-		public bool IsReadOnly => items.IsReadOnly;
+		public bool IsReadOnly => this.items.IsReadOnly;
 
 		/// <summary>
 		/// Gets or sets the value at the given index.
@@ -95,65 +95,65 @@ namespace LightJson
 		/// Returns an <see cref="JsonValue"/> representating this <see cref="JsonArray"/>.
 		/// </summary>
 		/// <returns></returns>
-		public JsonValue AsJsonValue() => new JsonValue(this, options);
+		public JsonValue AsJsonValue() => new JsonValue(this, this.options);
 
 		/// <inheritdoc/>
 		public IEnumerator<JsonValue> GetEnumerator()
 		{
-			return items.GetEnumerator();
+			return this.items.GetEnumerator();
 		}
 
 		IEnumerator IEnumerable.GetEnumerator()
 		{
-			return ((IEnumerable)items).GetEnumerator();
+			return ((IEnumerable)this.items).GetEnumerator();
 		}
 
 		/// <inheritdoc/>
 		public int IndexOf(JsonValue item)
 		{
-			return items.IndexOf(item);
+			return this.items.IndexOf(item);
 		}
 
 		/// <inheritdoc/>
 		public void Insert(int index, JsonValue item)
 		{
-			items.Insert(index, item);
+			this.items.Insert(index, item);
 		}
 
 		/// <inheritdoc/>
 		public void RemoveAt(int index)
 		{
-			items.RemoveAt(index);
+			this.items.RemoveAt(index);
 		}
 
 		/// <inheritdoc/>
 		public void Add(JsonValue item)
 		{
-			items.Add(item);
+			this.items.Add(item);
 		}
 
 		/// <inheritdoc/>
 		public void Clear()
 		{
-			items.Clear();
+			this.items.Clear();
 		}
 
 		/// <inheritdoc/>
 		public bool Contains(JsonValue item)
 		{
-			return items.Contains(item);
+			return this.items.Contains(item);
 		}
 
 		/// <inheritdoc/>
 		public void CopyTo(JsonValue[] array, int arrayIndex)
 		{
-			items.CopyTo(array, arrayIndex);
+			this.items.CopyTo(array, arrayIndex);
 		}
 
 		/// <inheritdoc/>
 		public bool Remove(JsonValue item)
 		{
-			return items.Remove(item);
+			return this.items.Remove(item);
 		}
 
 		/// <summary>
@@ -162,7 +162,7 @@ namespace LightJson
 		/// <typeparam name="T">The type to cast the JsonValue into.</typeparam>
 		public IEnumerable<T> EveryAs<T>() where T : notnull
 		{
-			foreach (var jsonitem in items)
+			foreach (var jsonitem in this.items)
 			{
 				yield return jsonitem.Get<T>();
 			}
@@ -175,7 +175,7 @@ namespace LightJson
 		/// <typeparam name="T">The type to cast the JsonValue into.</typeparam>
 		public IEnumerable<T?> EveryAsNullable<T>() where T : notnull
 		{
-			foreach (var jsonitem in items)
+			foreach (var jsonitem in this.items)
 			{
 				if (jsonitem.IsNull)
 				{
@@ -193,7 +193,7 @@ namespace LightJson
 		/// </summary>
 		public override string ToString()
 		{
-			return ToString(JsonOptions.Default);
+			return this.ToString(JsonOptions.Default);
 		}
 
 		/// <inheritdoc />

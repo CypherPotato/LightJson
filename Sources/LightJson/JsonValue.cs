@@ -1,8 +1,9 @@
-using LightJson.Converters;
-using LightJson.Serialization;
 using System;
 using System.Diagnostics;
+using System.IO;
 using System.Text.Json.Serialization;
+using LightJson.Converters;
+using LightJson.Serialization;
 
 #nullable enable
 
@@ -46,7 +47,7 @@ namespace LightJson
 		{
 			get
 			{
-				return this.type;
+				return type;
 			}
 		}
 
@@ -57,7 +58,7 @@ namespace LightJson
 		{
 			get
 			{
-				return this.Type is JsonValueType.Null or JsonValueType.Undefined;
+				return Type is JsonValueType.Null or JsonValueType.Undefined;
 			}
 		}
 
@@ -65,7 +66,7 @@ namespace LightJson
 		/// Gets an boolean indicating whether this <see cref="JsonValue"/> is defined or not. Does not match if this value
 		/// is <see cref="JsonValueType.Null"/>.
 		/// </summary>
-		public bool IsDefined => this.Type != JsonValueType.Undefined;
+		public bool IsDefined => Type != JsonValueType.Undefined;
 
 		/// <summary>
 		/// Gets a value indicating whether this JsonValue is a Boolean.
@@ -74,7 +75,7 @@ namespace LightJson
 		{
 			get
 			{
-				return this.Type == JsonValueType.Boolean;
+				return Type == JsonValueType.Boolean;
 			}
 		}
 
@@ -85,7 +86,7 @@ namespace LightJson
 		{
 			get
 			{
-				if (!this.IsNumber)
+				if (!IsNumber)
 				{
 					return false;
 				}
@@ -103,7 +104,7 @@ namespace LightJson
 		{
 			get
 			{
-				return this.Type == JsonValueType.Number;
+				return Type == JsonValueType.Number;
 			}
 		}
 
@@ -114,7 +115,7 @@ namespace LightJson
 		{
 			get
 			{
-				return this.Type == JsonValueType.String;
+				return Type == JsonValueType.String;
 			}
 		}
 
@@ -125,7 +126,7 @@ namespace LightJson
 		{
 			get
 			{
-				return this.Type == JsonValueType.Object;
+				return Type == JsonValueType.Object;
 			}
 		}
 
@@ -136,7 +137,7 @@ namespace LightJson
 		{
 			get
 			{
-				return this.Type == JsonValueType.Array;
+				return Type == JsonValueType.Array;
 			}
 		}
 
@@ -182,7 +183,7 @@ namespace LightJson
 		/// </summary>
 		public bool GetBoolean()
 		{
-			if (this.type == JsonValueType.Boolean) return (this.value == 1);
+			if (type == JsonValueType.Boolean) return (value == 1);
 			return ThrowInvalidCast<bool>(JsonValueType.Boolean);
 		}
 
@@ -191,7 +192,7 @@ namespace LightJson
 		/// </summary>
 		public long GetLong()
 		{
-			return (long)this.GetNumber();
+			return (long)GetNumber();
 		}
 
 		/// <summary>
@@ -199,7 +200,7 @@ namespace LightJson
 		/// </summary>
 		public int GetInteger()
 		{
-			return (int)this.GetNumber();
+			return (int)GetNumber();
 		}
 
 		/// <summary>
@@ -207,7 +208,7 @@ namespace LightJson
 		/// </summary>
 		public double GetNumber()
 		{
-			if (this.type == JsonValueType.Number) return this.value;
+			if (type == JsonValueType.Number) return value;
 			return ThrowInvalidCast<double>(JsonValueType.Number);
 		}
 
@@ -216,7 +217,7 @@ namespace LightJson
 		/// </summary>
 		public string GetString()
 		{
-			if (this.type == JsonValueType.String) return (string)this.reference;
+			if (type == JsonValueType.String) return (string)reference;
 			return ThrowInvalidCast<string>(JsonValueType.String);
 		}
 
@@ -225,7 +226,7 @@ namespace LightJson
 		/// </summary>
 		public JsonObject GetJsonObject()
 		{
-			if (this.type == JsonValueType.Object) return (JsonObject)this.reference;
+			if (type == JsonValueType.Object) return (JsonObject)reference;
 			return ThrowInvalidCast<JsonObject>(JsonValueType.Object);
 		}
 
@@ -234,7 +235,7 @@ namespace LightJson
 		/// </summary>
 		public JsonArray GetJsonArray()
 		{
-			if (this.type == JsonValueType.Array) return (JsonArray)this.reference;
+			if (type == JsonValueType.Array) return (JsonArray)reference;
 			return ThrowInvalidCast<JsonArray>(JsonValueType.Array);
 		}
 
@@ -249,9 +250,9 @@ namespace LightJson
 		{
 			get
 			{
-				if (this.IsJsonObject)
+				if (IsJsonObject)
 				{
-					return ((JsonObject)this.reference)[key];
+					return ((JsonObject)reference)[key];
 				}
 				else
 				{
@@ -260,9 +261,9 @@ namespace LightJson
 			}
 			set
 			{
-				if (this.IsJsonObject)
+				if (IsJsonObject)
 				{
-					var jobj = ((JsonObject)this.reference)[key] = value;
+					var jobj = ((JsonObject)reference)[key] = value;
 				}
 				else
 				{
@@ -282,9 +283,9 @@ namespace LightJson
 		{
 			get
 			{
-				if (this.IsJsonArray)
+				if (IsJsonArray)
 				{
-					return ((JsonArray)this.reference)[index];
+					return ((JsonArray)reference)[index];
 				}
 				else
 				{
@@ -293,9 +294,9 @@ namespace LightJson
 			}
 			set
 			{
-				if (this.IsJsonArray)
+				if (IsJsonArray)
 				{
-					((JsonArray)this.reference)[index] = value;
+					((JsonArray)reference)[index] = value;
 				}
 				else
 				{
@@ -336,7 +337,7 @@ namespace LightJson
 			this.type = type;
 			this.value = value;
 			this.reference = reference!;
-			this.path = "$";
+			path = "$";
 			this.options = options;
 		}
 
@@ -371,9 +372,9 @@ namespace LightJson
 		/// <param name="options">Defines the <see cref="JsonOptions"/> instance parameters.</param>
 		public JsonValue(bool value, JsonOptions? options = null)
 		{
-			this.type = JsonValueType.Boolean;
+			type = JsonValueType.Boolean;
 			this.value = value ? 1 : 0;
-			this.path = "$";
+			path = "$";
 			this.options = options ?? JsonOptions.Default;
 		}
 
@@ -384,9 +385,9 @@ namespace LightJson
 		/// <param name="options">Defines the <see cref="JsonOptions"/> instance parameters.</param>
 		public JsonValue(double value, JsonOptions? options = null)
 		{
-			this.type = JsonValueType.Number;
+			type = JsonValueType.Number;
 			this.value = value;
-			this.path = "$";
+			path = "$";
 			this.options = options ?? JsonOptions.Default;
 		}
 
@@ -397,9 +398,9 @@ namespace LightJson
 		/// <param name="options">Defines the <see cref="JsonOptions"/> instance parameters.</param>
 		public JsonValue(int value, JsonOptions? options = null)
 		{
-			this.type = JsonValueType.Number;
+			type = JsonValueType.Number;
 			this.value = value;
-			this.path = "$";
+			path = "$";
 			this.options = options ?? JsonOptions.Default;
 		}
 
@@ -410,9 +411,9 @@ namespace LightJson
 		/// <param name="options">Defines the <see cref="JsonOptions"/> instance parameters.</param>
 		public JsonValue(string value, JsonOptions? options = null)
 		{
-			this.type = JsonValueType.String;
-			this.reference = value;
-			this.path = "$";
+			type = JsonValueType.String;
+			reference = value;
+			path = "$";
 			this.options = options ?? JsonOptions.Default;
 		}
 
@@ -423,9 +424,9 @@ namespace LightJson
 		/// <param name="options">Defines the <see cref="JsonOptions"/> instance parameters.</param>
 		public JsonValue(char value, JsonOptions? options = null)
 		{
-			this.type = JsonValueType.String;
-			this.reference = value.ToString();
-			this.path = "$";
+			type = JsonValueType.String;
+			reference = value.ToString();
+			path = "$";
 			this.options = options ?? JsonOptions.Default;
 		}
 
@@ -436,9 +437,9 @@ namespace LightJson
 		/// <param name="options">Defines the <see cref="JsonOptions"/> instance parameters.</param>
 		public JsonValue(JsonObject value, JsonOptions? options = null)
 		{
-			this.type = JsonValueType.Object;
-			this.reference = value;
-			this.path = "$";
+			type = JsonValueType.Object;
+			reference = value;
+			path = "$";
 			this.options = options ?? JsonOptions.Default;
 		}
 
@@ -449,9 +450,9 @@ namespace LightJson
 		/// <param name="options">Defines the <see cref="JsonOptions"/> instance parameters.</param>
 		public JsonValue(JsonArray value, JsonOptions? options = null)
 		{
-			this.type = JsonValueType.Array;
-			this.reference = value;
-			this.path = "$";
+			type = JsonValueType.Array;
+			reference = value;
+			path = "$";
 			this.options = options ?? JsonOptions.Default;
 		}
 
@@ -476,19 +477,42 @@ namespace LightJson
 		}
 
 		/// <summary>
-		/// Checks whether an JSON string is valid or not.
+		/// Tries to get an <see cref="JsonValue"/> from the specified input.
 		/// </summary>
 		/// <param name="jsonText">The JSON-formatted string.</param>
-		/// <param name="options">Optional. Sets the JsonOptions instance to deserializing the object.</param>
-		public static bool IsValid(string jsonText, JsonOptions? options = null)
+		/// <param name="options">Optional. The JSON options to use in the deserializer.</param>
+		/// <param name="result">When this method returns, returns an <see cref="JsonValue"/> with the result of the operation.</param>
+		public static bool TryDeserialize(ReadOnlySpan<char> jsonText, JsonOptions? options, out JsonValue result)
 		{
 			try
 			{
-				JsonReader.Parse(jsonText, options);
+				result = JsonReader.Parse(jsonText, options);
 				return true;
 			}
 			catch
 			{
+				result = JsonValue.Undefined;
+				return false;
+			}
+		}
+
+		/// <summary>
+		/// Tries to get an <see cref="JsonValue"/> from the specified input. This method leaves the
+		/// <see cref="TextReader"/> stream open.
+		/// </summary>
+		/// <param name="inputStream">The input stream where the JSON input is.</param>
+		/// <param name="options">Optional. The JSON options to use in the deserializer.</param>
+		/// <param name="result">When this method returns, returns an <see cref="JsonValue"/> with the result of the operation.</param>
+		public static bool TryDeserialize(TextReader inputStream, JsonOptions? options, out JsonValue result)
+		{
+			try
+			{
+				result = JsonReader.Parse(inputStream, options);
+				return true;
+			}
+			catch
+			{
+				result = JsonValue.Undefined;
 				return false;
 			}
 		}
@@ -498,7 +522,7 @@ namespace LightJson
 		/// </summary>
 		/// <param name="jsonText">The JSON-formatted string to be parsed.</param>
 		/// <param name="options">Optional. Sets the JsonOptions instance to deserializing the object.</param>
-		public static T Deserialize<T>(string jsonText, JsonOptions? options = null) where T : notnull
+		public static T Deserialize<T>(ReadOnlySpan<char> jsonText, JsonOptions? options = null) where T : notnull
 		{
 			return JsonReader.Parse(jsonText, options).Get<T>();
 		}
@@ -521,15 +545,15 @@ namespace LightJson
 		{
 			if (obj is JsonValue jval)
 			{
-				return this.Equals(jval);
+				return Equals(jval);
 			}
 			else if (obj is JsonObject jobj)
 			{
-				return this.Equals(jobj.AsJsonValue());
+				return Equals(jobj.AsJsonValue());
 			}
 			else if (obj is JsonArray jarr)
 			{
-				return this.Equals(jarr.AsJsonValue());
+				return Equals(jarr.AsJsonValue());
 			}
 			return false;
 		}
@@ -539,22 +563,22 @@ namespace LightJson
 		/// </summary>
 		public override int GetHashCode()
 		{
-			if (this.IsNull)
+			if (IsNull)
 			{
-				return this.Type.GetHashCode();
+				return Type.GetHashCode();
 			}
 			else
 			{
-				return HashCode.Combine(this.type, this.value, this.reference);
+				return HashCode.Combine(type, value, reference);
 			}
 		}
 
 		/// <inheritdoc/>
 		public bool Equals(JsonValue other)
 		{
-			return (this.Type == other.Type)
-				&& (this.value == other.value)
-				&& Equals(this.reference, other.reference);
+			return (Type == other.Type)
+				&& (value == other.value)
+				&& Equals(reference, other.reference);
 		}
 
 		/// <summary>

@@ -1,4 +1,6 @@
 ﻿using LightJson;
+using System.Text.Json;
+using System.Text.Json.Serialization;
 
 namespace LighJsonTester;
 
@@ -6,29 +8,20 @@ internal class Program
 {
     static void Main(string[] args)
     {
-        string userJson = """
-            {
-              "addressBook": [
-                {"lastName": "Average", "firstName": "Joe"},
-                {"lastName": "Doe", "firstName": "Jane"},
-                {"lastName": "Smith", "firstName": "John"}
-              ]
-            }
-            """;
+        JsonValue val = JsonValue.Serialize(new { batata = true });
 
-        var n = JsonValue.Deserialize<BookList>(userJson);
+        var n = val.Get<JsonValue>();
 
-        ;
+        Console.WriteLine(n.ToString());
+
     }
 }
 
-public class BookList
+public class PatientOccupationData
 {
-    public HashSet<Book> AddressBook { get; set; } = new HashSet<Book>();
-}
-
-public class Book
-{
-    public string? LastName { get; set; }
-    public string? FirstName { get; set; }
+    public required string Occupation { get; set; }
+    public required string Profession { get; set; }
+    public int EmploymentYears { get; set; }
+    public required string CompanyCNPJ { get; set; }
+    public required string CompanyCEP { get; set; }
 }

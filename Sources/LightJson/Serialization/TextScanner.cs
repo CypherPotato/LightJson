@@ -10,7 +10,7 @@ namespace LightJson.Serialization
 	/// </summary>
 	public sealed class TextScanner
 	{
-		private TextReader reader;
+		private readonly TextReader reader;
 		private TextPosition position;
 
 		/// <summary>
@@ -57,7 +57,7 @@ namespace LightJson.Serialization
 		/// </summary>
 		public char PeekOrDefault()
 		{
-			var next = reader.Peek();
+			var next = this.reader.Peek();
 
 			if (next == -1)
 			{
@@ -72,7 +72,7 @@ namespace LightJson.Serialization
 		/// </summary>
 		public char Peek()
 		{
-			var next = reader.Peek();
+			var next = this.reader.Peek();
 
 			if (next == -1)
 			{
@@ -90,7 +90,7 @@ namespace LightJson.Serialization
 		/// </summary>
 		public char Read()
 		{
-			var next = reader.Read();
+			var next = this.reader.Read();
 
 			if (next == -1)
 			{
@@ -104,9 +104,9 @@ namespace LightJson.Serialization
 			{
 				case '\r':
 					// Normalize '\r\n' line encoding to '\n'.
-					if (reader.Peek() == '\n')
+					if (this.reader.Peek() == '\n')
 					{
-						reader.Read();
+						this.reader.Read();
 					}
 					goto case '\n';
 
@@ -126,9 +126,9 @@ namespace LightJson.Serialization
 		/// </summary>
 		public void SkipWhitespace()
 		{
-			while (char.IsWhiteSpace(PeekOrDefault()))
+			while (char.IsWhiteSpace(this.PeekOrDefault()))
 			{
-				Read();
+				this.Read();
 			}
 		}
 
@@ -139,7 +139,7 @@ namespace LightJson.Serialization
 		/// <param name="next">An array of expected characters.</param>
 		public char AssertAny(params char[] next)
 		{
-			var p = Peek();
+			var p = this.Peek();
 			for (int i = 0; i < next.Length; i++)
 			{
 				if (next[i] == p)
@@ -160,9 +160,9 @@ namespace LightJson.Serialization
 		/// <param name="next">The expected character.</param>
 		public void Assert(char next)
 		{
-			if (Peek() == next)
+			if (this.Peek() == next)
 			{
-				Read();
+				this.Read();
 			}
 			else
 			{
@@ -185,7 +185,7 @@ namespace LightJson.Serialization
 			{
 				for (var i = 0; i < next.Length; i += 1)
 				{
-					Assert(next[i]);
+					this.Assert(next[i]);
 				}
 			}
 			catch (JsonParseException e) when (e.Type == ErrorType.InvalidOrUnexpectedCharacter)

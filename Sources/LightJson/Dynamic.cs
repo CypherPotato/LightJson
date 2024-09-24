@@ -1,10 +1,11 @@
-﻿using LightJson.Serialization;
-using System;
+﻿using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Reflection;
 using System.Text.Json.Serialization;
+using LightJson.Serialization;
 
 namespace LightJson;
 
@@ -15,159 +16,169 @@ internal class Dynamic
 		if (value.IsNull)
 			throw new InvalidOperationException($"Cannot deserialize the JSON value at {value.Path} into {tinputType.Name} because it is null or undefined.");
 
-		object DeserializeObjectX(JsonValue value, Type type, int deepness, JsonOptions options)
+		return DeserializeObjectX(value, tinputType, 0, options);
+	}
+
+	[UnconditionalSuppressMessage("AOT", "IL3050:Calling members annotated with 'RequiresDynamicCodeAttribute' may break functionality when AOT compiling.", Justification = "<Pending>")]
+	static object DeserializeObjectX(JsonValue value, Type type, int deepness, JsonOptions options)
+	{
+		if (type == typeof(JsonValue))
 		{
-			if (type == typeof(JsonValue))
+			return value;
+		}
+		else if (type == typeof(int) || type == typeof(uint) ||
+				 type == typeof(long) || type == typeof(ulong) ||
+				 type == typeof(double) || type == typeof(float) ||
+				 type == typeof(byte) || type == typeof(sbyte) ||
+				 type == typeof(decimal))
+		{
+			return Convert.ChangeType(value.GetNumber(), type);
+		}
+		else if (type == typeof(string))
+		{
+			return value.GetString();
+		}
+		else if (type == typeof(bool))
+		{
+			return value.GetBoolean();
+		}
+		else if (type == typeof(JsonObject))
+		{
+			return value.GetJsonObject();
+		}
+		else if (type == typeof(JsonArray))
+		{
+			return value.GetJsonArray();
+		}
+		else
+		{
+			for (int i = 0; i < options.Converters.Count; i++)
 			{
-				return value;
+				var mapper = options.Converters[i];
+				if (mapper.CanSerialize(type))
+				{
+					try
+					{
+						return mapper.Deserialize(value, type);
+					}
+					catch (Exception ex)
+					{
+						throw new InvalidOperationException($"Caught exception while trying to convert {value.path} to {type.Name}: {ex.Message}");
+					}
+				}
 			}
-			else if (type == typeof(int) || type == typeof(uint) ||
-					 type == typeof(long) || type == typeof(ulong) ||
-					 type == typeof(double) || type == typeof(float) ||
-					 type == typeof(byte) || type == typeof(sbyte) ||
-					 type == typeof(decimal))
+
+			if (options.DynamicSerialization.HasFlag(DynamicSerializationMode.Read))
 			{
-				return Convert.ChangeType(value.GetNumber(), type);
-			}
-			else if (type == typeof(string))
-			{
-				return value.GetString();
-			}
-			else if (type == typeof(bool))
-			{
-				return value.GetBoolean();
-			}
-			else if (type == typeof(JsonObject))
-			{
-				return value.GetJsonObject();
-			}
-			else if (type == typeof(JsonArray))
-			{
-				return value.GetJsonArray();
+				return DeserializeDynamicObject(value, type, deepness + 1, options);
 			}
 			else
 			{
-				for (int i = 0; i < options.Converters.Count; i++)
+				throw new InvalidOperationException($"No converter matched the object type {type.FullName}.");
+			}
+		}
+	}
+
+	[RequiresDynamicCode("This method requires dynamic-code to deserialize into dynamic objects.")]
+	[SuppressMessage("Trimming", "IL2067:Target parameter argument does not satisfy 'DynamicallyAccessedMembersAttribute' in call to target method. The parameter of method does not have matching annotations.", Justification = "<Pendente>")]
+	[SuppressMessage("Trimming", "IL2070:'this' argument does not satisfy 'DynamicallyAccessedMembersAttribute' in call to target method. The parameter of method does not have matching annotations.", Justification = "<Pendente>")]
+	[SuppressMessage("Trimming", "IL2026:Using dynamic types might cause types or members to be removed by trimmer.", Justification = "<Pendente>")]
+	static object DeserializeDynamicObject(JsonValue value, Type type, int deepness, JsonOptions options)
+	{
+		if (type.IsAssignableTo(typeof(IEnumerable)))
+		{
+			Type subType = type.IsArray
+				? type.GetElementType()!
+				: type.GetGenericArguments()[0];
+
+			var arr = value.GetJsonArray();
+
+			ArrayList items = new ArrayList();
+			for (int i = 0; i < arr.Count; i++)
+			{
+				var arrItem = arr[i];
+				var obj = DeserializeObjectX(arrItem, subType, deepness + 1, options);
+				items.Add(obj);
+			}
+
+			if (type.IsGenericType && !type.IsArray)
+			{
+				var genericCollection = typeof(ICollection<>).MakeGenericType(subType);
+				if (type.IsAssignableTo(genericCollection))
 				{
-					var mapper = options.Converters[i];
-					if (mapper.CanSerialize(type))
+					dynamic? listInstance = Activator.CreateInstance(type);
+					foreach (dynamic? obj in items)
 					{
-						try
-						{
-							return mapper.Deserialize(value, type);
-						}
-						catch (Exception ex)
-						{
-							throw new InvalidOperationException($"Caught exception while trying to convert {value.path} to {type.Name}: {ex.Message}");
-						}
+						listInstance?.Add(obj);
 					}
-				}
-
-				if (options.DynamicSerialization.HasFlag(DynamicSerializationMode.Read))
-				{
-					if (type.IsAssignableTo(typeof(IEnumerable)))
-					{
-						Type subType = type.IsArray
-							? type.GetElementType()!
-							: type.GetGenericArguments()[0];
-
-						var arr = value.GetJsonArray();
-
-						ArrayList items = new ArrayList();
-						for (int i = 0; i < arr.Count; i++)
-						{
-							var arrItem = arr[i];
-							var obj = DeserializeObjectX(arrItem, subType, deepness + 1, options);
-							items.Add(obj);
-						}
-
-						if (type.IsGenericType && !type.IsArray)
-						{
-							var genericCollection = typeof(ICollection<>).MakeGenericType(subType);
-							if (type.IsAssignableTo(genericCollection))
-							{
-								dynamic? listInstance = Activator.CreateInstance(type);
-								foreach (dynamic? obj in items)
-								{
-									listInstance?.Add(obj);
-								}
-								return listInstance!;
-							}
-							else
-							{
-								throw new InvalidOperationException($"Unsupported collection type: {type}. The JSON deserializer can only deserialize JsonArrays into arrays or ICollection<> objects.");
-							}
-						}
-						else if (type.IsArray)
-						{
-							return items.ToArray(subType);
-						}
-						else
-						{
-							throw new InvalidOperationException($"Unsupported collection type: {type}. The JSON deserializer can only deserialize JsonArrays into arrays or ICollection<> objects.");
-						}
-					}
-					else
-					{
-						PropertyInfo[] properties = type.GetProperties(BindingFlags.Public | BindingFlags.Instance);
-						var jobj = value.GetJsonObject();
-
-						object? objInstance = Activator.CreateInstance(type);
-						if (objInstance is null)
-						{
-							throw new InvalidOperationException($"The JSON deserializer couldn't create an instance of {type.Name}.");
-						}
-
-						for (int i = 0; i < properties.Length; i++)
-						{
-							var prop = properties[i];
-
-							string propName = prop.Name;
-							JsonValue? jobjChild = jobj
-								.Properties
-									.Where(p => options.PropertyNameComparer.Equals(propName, p.Key))
-									.Select(p => p.Value)
-									.Cast<JsonValue?>()
-									.FirstOrDefault();
-
-							if (jobjChild is JsonValue jvalue)
-							{
-								if (prop.GetCustomAttribute<JsonIgnoreAttribute>() is JsonIgnoreAttribute ignore)
-								{
-									if (ignore.Condition == JsonIgnoreCondition.WhenWritingDefault && jvalue.IsNull)
-									{
-										continue;
-									}
-									else if (ignore.Condition == JsonIgnoreCondition.Always)
-									{
-										continue;
-									}
-								}
-
-								object? jsonValueObj = jvalue.MaybeNull()?.Get(prop.PropertyType);
-								prop.SetValue(objInstance, jsonValueObj);
-							}
-							else
-							{
-								if (prop.GetCustomAttribute<JsonRequiredAttribute>(true) is JsonRequiredAttribute jrequired)
-								{
-									throw new JsonSerializationException($"At value {jobj.path}.{prop.Name} it is expected to have a {prop.PropertyType}.",
-										JsonSerializationException.ErrorType.Unknown);
-								}
-							}
-						}
-
-						return objInstance;
-					}
+					return listInstance!;
 				}
 				else
 				{
-					throw new InvalidOperationException($"No converter matched the object type {type.FullName}.");
+					throw new InvalidOperationException($"Unsupported collection type: {type}. The JSON deserializer can only deserialize JsonArrays into arrays or ICollection<> objects.");
 				}
 			}
+			else if (type.IsArray)
+			{
+				return items.ToArray(subType);
+			}
+			else
+			{
+				throw new InvalidOperationException($"Unsupported collection type: {type}. The JSON deserializer can only deserialize JsonArrays into arrays or ICollection<> objects.");
+			}
 		}
+		else
+		{
+			PropertyInfo[] properties = type.GetProperties(BindingFlags.Public | BindingFlags.Instance);
+			var jobj = value.GetJsonObject();
 
-		return DeserializeObjectX(value, tinputType, 0, options);
+			object? objInstance = Activator.CreateInstance(type);
+			if (objInstance is null)
+			{
+				throw new InvalidOperationException($"The JSON deserializer couldn't create an instance of {type.Name}.");
+			}
+
+			for (int i = 0; i < properties.Length; i++)
+			{
+				var prop = properties[i];
+
+				string propName = prop.Name;
+				JsonValue? jobjChild = jobj
+					.Properties
+						.Where(p => options.PropertyNameComparer.Equals(propName, p.Key))
+						.Select(p => p.Value)
+						.Cast<JsonValue?>()
+						.FirstOrDefault();
+
+				if (jobjChild is JsonValue jvalue)
+				{
+					if (prop.GetCustomAttribute<JsonIgnoreAttribute>() is JsonIgnoreAttribute ignore)
+					{
+						if (ignore.Condition == JsonIgnoreCondition.WhenWritingDefault && jvalue.IsNull)
+						{
+							continue;
+						}
+						else if (ignore.Condition == JsonIgnoreCondition.Always)
+						{
+							continue;
+						}
+					}
+
+					object? jsonValueObj = jvalue.MaybeNull()?.Get(prop.PropertyType);
+					prop.SetValue(objInstance, jsonValueObj);
+				}
+				else
+				{
+					if (prop.GetCustomAttribute<JsonRequiredAttribute>(true) is JsonRequiredAttribute jrequired)
+					{
+						throw new JsonSerializationException($"At value {jobj.path}.{prop.Name} it is expected to have a {prop.PropertyType}.",
+							JsonSerializationException.ErrorType.Unknown);
+					}
+				}
+			}
+
+			return objInstance;
+		}
 	}
 
 	public static JsonValue SerializeObject(object? value, int deepness, bool convertersEnabled, JsonOptions options, out JsonValueType valueType)

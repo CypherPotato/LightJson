@@ -1,5 +1,4 @@
 using LightJson.Serialization;
-using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
@@ -13,13 +12,13 @@ namespace LightJson
 	public sealed class JsonObject : IEnumerable<KeyValuePair<string, JsonValue>>, IEnumerable<JsonValue>, IDictionary<string, JsonValue>, IImplicitJsonValue
 	{
 		internal string path;
-		private JsonOptions options;
-		private IDictionary<string, JsonValue> properties;
+		private readonly JsonOptions options;
+		private readonly IDictionary<string, JsonValue> properties;
 
 		/// <summary> 
 		/// Gets all defined properties in this <see cref="JsonObject"/>.
 		/// </summary>
-		public IDictionary<string, JsonValue> Properties { get => properties; }
+		public IDictionary<string, JsonValue> Properties { get => this.properties; }
 
 		/// <summary>
 		/// Gets the number of properties in this JsonObject.
@@ -33,10 +32,10 @@ namespace LightJson
 		}
 
 		/// <inheritdoc/>
-		public ICollection<string> Keys => properties.Keys;
+		public ICollection<string> Keys => this.properties.Keys;
 
 		/// <inheritdoc/>
-		public ICollection<JsonValue> Values => properties.Values;
+		public ICollection<JsonValue> Values => this.properties.Values;
 
 		/// <inheritdoc/>
 		public bool IsReadOnly => false;
@@ -82,7 +81,7 @@ namespace LightJson
 		/// <param name="options">Specifies the JsonOptions used to compare values.</param>
 		public JsonObject(JsonOptions options)
 		{
-			path = "$";
+			this.path = "$";
 			this.options = options;
 			this.properties = new Dictionary<string, JsonValue>(options.PropertyNameComparer);
 		}
@@ -91,7 +90,7 @@ namespace LightJson
 		/// Returns an <see cref="JsonValue"/> representating this <see cref="JsonObject"/>.
 		/// </summary>
 		/// <returns></returns>
-		public JsonValue AsJsonValue() => new JsonValue(this, options);
+		public JsonValue AsJsonValue() => new JsonValue(this, this.options);
 
 		/// <summary>
 		/// Adds a value associated with a key to this collection only if the value is not null.
@@ -103,7 +102,7 @@ namespace LightJson
 		{
 			if (!value.IsNull)
 			{
-				Add(key, value);
+				this.Add(key, value);
 			}
 
 			return this;
@@ -148,7 +147,7 @@ namespace LightJson
 		/// </remarks>
 		public override string ToString()
 		{
-			return ToString(options);
+			return this.ToString(this.options);
 		}
 
 		/// <summary>
@@ -167,49 +166,49 @@ namespace LightJson
 		/// <inheritdoc/>
 		public void Add(string key, JsonValue value)
 		{
-			properties.Add(key, value);
+			this.properties.Add(key, value);
 		}
 
 		/// <inheritdoc/>
 		public bool TryGetValue(string key, [MaybeNullWhen(false)] out JsonValue value)
 		{
-			return properties.TryGetValue(key, out value);
+			return this.properties.TryGetValue(key, out value);
 		}
 
 		/// <inheritdoc/>
 		public void Add(KeyValuePair<string, JsonValue> item)
 		{
-			properties.Add(item);
+			this.properties.Add(item);
 		}
 
 		/// <inheritdoc/>
 		void ICollection<KeyValuePair<string, JsonValue>>.Clear()
 		{
-			properties.Clear();
+			this.properties.Clear();
 		}
 
 		/// <inheritdoc/>
 		public bool Contains(KeyValuePair<string, JsonValue> item)
 		{
-			return properties.Contains(item);
+			return this.properties.Contains(item);
 		}
 
 		/// <inheritdoc/>
 		public void CopyTo(KeyValuePair<string, JsonValue>[] array, int arrayIndex)
 		{
-			properties.CopyTo(array, arrayIndex);
+			this.properties.CopyTo(array, arrayIndex);
 		}
 
 		/// <inheritdoc/>
 		public bool Remove(KeyValuePair<string, JsonValue> item)
 		{
-			return properties.Remove(item);
+			return this.properties.Remove(item);
 		}
 
 		/// <inheritdoc/>
 		public bool Remove(string key)
 		{
-			return properties.Remove(key);
+			return this.properties.Remove(key);
 		}
 	}
 }

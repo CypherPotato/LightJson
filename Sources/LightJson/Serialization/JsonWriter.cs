@@ -21,7 +21,7 @@ namespace LightJson.Serialization
 		/// It is used to prevent circular references; since collections that contain themselves
 		/// will never finish rendering.
 		/// </summary>
-		private HashSet<IEnumerable<JsonValue>> renderingCollections;
+		private readonly HashSet<IEnumerable<JsonValue>> renderingCollections;
 
 		/// <summary>
 		/// Gets or sets the string representing a indent in the output.
@@ -64,8 +64,8 @@ namespace LightJson.Serialization
 		/// </summary>
 		public JsonWriter()
 		{
-			InnerWriter = new StringWriter();
-			renderingCollections = new HashSet<IEnumerable<JsonValue>>();
+			this.InnerWriter = new StringWriter();
+			this.renderingCollections = new HashSet<IEnumerable<JsonValue>>();
 		}
 
 		/// <summary>
@@ -83,13 +83,13 @@ namespace LightJson.Serialization
 		{
 			if (options.WriteIndented)
 			{
-				UseIndentedSyntax();
+				this.UseIndentedSyntax();
 			}
 
-			NamingPolicy = options.NamingPolicy;
+			this.NamingPolicy = options.NamingPolicy;
 
-			renderingCollections = new HashSet<IEnumerable<JsonValue>>();
-			InnerWriter = innerWriter;
+			this.renderingCollections = new HashSet<IEnumerable<JsonValue>>();
+			this.InnerWriter = innerWriter;
 		}
 
 		private void Write(string? text)
@@ -97,10 +97,10 @@ namespace LightJson.Serialization
 			if (this.isNewLine)
 			{
 				this.isNewLine = false;
-				WriteIndentation();
+				this.WriteIndentation();
 			}
 
-			InnerWriter.Write(text);
+			this.InnerWriter.Write(text);
 		}
 
 		private void WriteEncodedJsonValue(JsonValue value)
@@ -108,27 +108,27 @@ namespace LightJson.Serialization
 			switch (value.Type)
 			{
 				case JsonValueType.Null:
-					Write("null");
+					this.Write("null");
 					break;
 
 				case JsonValueType.Boolean:
-					Write(value.GetBoolean() ? "true" : "false");
+					this.Write(value.GetBoolean() ? "true" : "false");
 					break;
 
 				case JsonValueType.Number:
-					Write(value.GetNumber().ToString(CultureInfo.InvariantCulture));
+					this.Write(value.GetNumber().ToString(CultureInfo.InvariantCulture));
 					break;
 
 				case JsonValueType.String:
-					WriteEncodedString(value.GetString());
+					this.WriteEncodedString(value.GetString());
 					break;
 
 				case JsonValueType.Object:
-					Write(string.Format("JsonObject[{0}]", value.GetJsonObject().Count));
+					this.Write(string.Format("JsonObject[{0}]", value.GetJsonObject().Count));
 					break;
 
 				case JsonValueType.Array:
-					Write(string.Format("JsonArray[{0}]", value.GetJsonArray().Count));
+					this.Write(string.Format("JsonArray[{0}]", value.GetJsonArray().Count));
 					break;
 
 				default:
@@ -138,19 +138,19 @@ namespace LightJson.Serialization
 
 		private void WriteJsonKey(string key)
 		{
-			if (UnquotedPropertyKeys)
+			if (this.UnquotedPropertyKeys)
 			{
-				Write(key);
+				this.Write(key);
 			}
 			else
 			{
-				WriteEncodedString(key);
+				this.WriteEncodedString(key);
 			}
 		}
 
 		private void WriteEncodedString(string text)
 		{
-			Write("\"");
+			this.Write("\"");
 
 			for (int i = 0; i < text.Length; i += 1)
 			{
@@ -160,74 +160,74 @@ namespace LightJson.Serialization
 				switch (currentChar)
 				{
 					case '\\':
-						InnerWriter.Write("\\\\");
+						this.InnerWriter.Write("\\\\");
 						break;
 
 					case '\"':
-						InnerWriter.Write("\\\"");
+						this.InnerWriter.Write("\\\"");
 						break;
 
 					case '/':
-						InnerWriter.Write("\\/");
+						this.InnerWriter.Write("\\/");
 						break;
 
 					case '\b':
-						InnerWriter.Write("\\b");
+						this.InnerWriter.Write("\\b");
 						break;
 
 					case '\f':
-						InnerWriter.Write("\\f");
+						this.InnerWriter.Write("\\f");
 						break;
 
 					case '\n':
-						InnerWriter.Write("\\n");
+						this.InnerWriter.Write("\\n");
 						break;
 
 					case '\r':
-						InnerWriter.Write("\\r");
+						this.InnerWriter.Write("\\r");
 						break;
 
 					case '\t':
-						InnerWriter.Write("\\t");
+						this.InnerWriter.Write("\\t");
 						break;
 
 					default:
-						InnerWriter.Write(currentChar);
+						this.InnerWriter.Write(currentChar);
 						break;
 				}
 			}
 
-			InnerWriter.Write("\"");
+			this.InnerWriter.Write("\"");
 		}
 
 		private void WriteIndentation()
 		{
 			for (var i = 0; i < this.indent; i += 1)
 			{
-				Write(this.IndentString);
+				this.Write(this.IndentString);
 			}
 		}
 
 		private void WriteSpacing()
 		{
-			Write(this.SpacingString);
+			this.Write(this.SpacingString);
 		}
 
 		private void WriteLine()
 		{
-			Write(this.NewLineString);
+			this.Write(this.NewLineString);
 			this.isNewLine = true;
 		}
 
 		private void WriteLine(string line)
 		{
-			Write(line);
-			WriteLine();
+			this.Write(line);
+			this.WriteLine();
 		}
 
 		private void AddRenderingCollection(IEnumerable<JsonValue> value)
 		{
-			if (!renderingCollections.Add(value))
+			if (!this.renderingCollections.Add(value))
 			{
 				throw new JsonSerializationException(ErrorType.CircularReference);
 			}
@@ -235,7 +235,7 @@ namespace LightJson.Serialization
 
 		private void RemoveRenderingCollection(IEnumerable<JsonValue> value)
 		{
-			renderingCollections.Remove(value);
+			this.renderingCollections.Remove(value);
 		}
 
 		private void Render(JsonValue value)
@@ -246,15 +246,15 @@ namespace LightJson.Serialization
 				case JsonValueType.Boolean:
 				case JsonValueType.Number:
 				case JsonValueType.String:
-					WriteEncodedJsonValue(value);
+					this.WriteEncodedJsonValue(value);
 					break;
 
 				case JsonValueType.Object:
-					Render(value.GetJsonObject());
+					this.Render(value.GetJsonObject());
 					break;
 
 				case JsonValueType.Array:
-					Render(value.GetJsonArray());
+					this.Render(value.GetJsonArray());
 					break;
 
 				case JsonValueType.Undefined:
@@ -267,11 +267,11 @@ namespace LightJson.Serialization
 
 		private void Render(JsonArray value)
 		{
-			AddRenderingCollection(value);
+			this.AddRenderingCollection(value);
 
-			WriteLine("[");
+			this.WriteLine("[");
 
-			indent += 1;
+			this.indent += 1;
 
 			using (var enumerator = value.GetEnumerator())
 			{
@@ -279,68 +279,68 @@ namespace LightJson.Serialization
 
 				while (hasNext)
 				{
-					Render(enumerator.Current);
+					this.Render(enumerator.Current);
 
 					hasNext = enumerator.MoveNext();
 
 					if (hasNext)
 					{
-						WriteLine(",");
+						this.WriteLine(",");
 					}
 					else
 					{
-						WriteLine();
+						this.WriteLine();
 					}
 				}
 			}
 
-			indent -= 1;
+			this.indent -= 1;
 
-			Write("]");
+			this.Write("]");
 
-			RemoveRenderingCollection(value);
+			this.RemoveRenderingCollection(value);
 		}
 
 		private void Render(JsonObject value)
 		{
-			AddRenderingCollection(value);
+			this.AddRenderingCollection(value);
 
-			WriteLine("{");
+			this.WriteLine("{");
 
-			indent += 1;
+			this.indent += 1;
 
-			using (var enumerator = GetJsonObjectEnumerator(value))
+			using (var enumerator = this.GetJsonObjectEnumerator(value))
 			{
 				var hasNext = enumerator.MoveNext();
 
 				while (hasNext)
 				{
 					string key = enumerator.Current.Key;
-					key = NamingPolicy?.ConvertName(key) ?? key;
+					key = this.NamingPolicy?.ConvertName(key) ?? key;
 
-					WriteJsonKey(key);
-					Write(":");
-					WriteSpacing();
-					Render(enumerator.Current.Value);
+					this.WriteJsonKey(key);
+					this.Write(":");
+					this.WriteSpacing();
+					this.Render(enumerator.Current.Value);
 
 					hasNext = enumerator.MoveNext();
 
 					if (hasNext)
 					{
-						WriteLine(",");
+						this.WriteLine(",");
 					}
 					else
 					{
-						WriteLine();
+						this.WriteLine();
 					}
 				}
 			}
 
-			indent -= 1;
+			this.indent -= 1;
 
-			Write("}");
+			this.Write("}");
 
-			RemoveRenderingCollection(value);
+			this.RemoveRenderingCollection(value);
 		}
 
 		/// <summary>
@@ -387,7 +387,7 @@ namespace LightJson.Serialization
 			this.indent = 0;
 			this.isNewLine = true;
 
-			Render(jsonValue);
+			this.Render(jsonValue);
 
 			this.renderingCollections.Clear();
 		}
@@ -401,24 +401,24 @@ namespace LightJson.Serialization
 		public void WriteComment(string comment, bool multiLine = false, bool padTopLine = true)
 		{
 			if (padTopLine)
-				InnerWriter.WriteLine();
+				this.InnerWriter.WriteLine();
 
 			string[] lines = comment.Split('\n');
 
 			if (multiLine)
 			{
-				InnerWriter.WriteLine("/*");
+				this.InnerWriter.WriteLine("/*");
 				for (int i = 0; i < lines.Length; i++)
 				{
-					InnerWriter.WriteLine(IndentString + lines[i]);
+					this.InnerWriter.WriteLine(this.IndentString + lines[i]);
 				}
-				InnerWriter.WriteLine("*/");
+				this.InnerWriter.WriteLine("*/");
 			}
 			else
 			{
 				for (int i = 0; i < lines.Length; i++)
 				{
-					InnerWriter.WriteLine("// " + lines[i]);
+					this.InnerWriter.WriteLine("// " + lines[i]);
 				}
 			}
 		}
@@ -454,13 +454,13 @@ namespace LightJson.Serialization
 		/// </summary>
 		public override string ToString()
 		{
-			return InnerWriter.ToString() ?? "";
+			return this.InnerWriter.ToString() ?? "";
 		}
 
 		/// <inheritdoc/>
 		public void Dispose()
 		{
-			InnerWriter?.Dispose();
+			this.InnerWriter?.Dispose();
 		}
 	}
 }

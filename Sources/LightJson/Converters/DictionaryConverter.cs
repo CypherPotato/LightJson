@@ -21,7 +21,7 @@ public class DictionaryConverter : JsonConverter
 	{
 		if (requestedType == typeof(ExpandoObject))
 		{
-			return JsonValueToObject(value, 0)!;
+			return this.JsonValueToObject(value, 0)!;
 		}
 		else
 		{
@@ -45,7 +45,7 @@ public class DictionaryConverter : JsonConverter
 
 	object? JsonValueToObject(JsonValue self, int deepness)
 	{
-		if (deepness > CurrentOptions.DynamicObjectMaxDepth)
+		if (deepness > this.CurrentOptions.DynamicObjectMaxDepth)
 		{
 			throw new ArgumentOutOfRangeException("The JSON deserialization reached it's maximum depth.");
 		}
@@ -54,7 +54,7 @@ public class DictionaryConverter : JsonConverter
 		{
 			case JsonValueType.Array:
 				return self.GetJsonArray()
-					.Select(n => JsonValueToObject(n, deepness + 1));
+					.Select(n => this.JsonValueToObject(n, deepness + 1));
 
 			case JsonValueType.String:
 				return self.GetString();
@@ -70,7 +70,7 @@ public class DictionaryConverter : JsonConverter
 				IDictionary<string, object?> expando = new ExpandoObject();
 				foreach (var kvp in jobj)
 				{
-					expando.Add(kvp.Key, JsonValueToObject(kvp.Value, deepness + 1));
+					expando.Add(kvp.Key, this.JsonValueToObject(kvp.Value, deepness + 1));
 				}
 				return expando;
 

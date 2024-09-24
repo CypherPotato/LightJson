@@ -1,7 +1,8 @@
-﻿using LightJson.Converters;
-using LightJson.Serialization;
-using System;
+﻿using System;
+using System.Runtime.CompilerServices;
 using System.Text.Json;
+using LightJson.Converters;
+using LightJson.Serialization;
 
 namespace LightJson;
 
@@ -71,7 +72,7 @@ public class JsonOptions
 	/// <summary>
 	/// Gets or sets the <see cref="DynamicSerializationMode"/> used by the JSON serializer.
 	/// </summary>
-	public DynamicSerializationMode DynamicSerialization { get; set; } = DynamicSerializationMode.Both;
+	public DynamicSerializationMode DynamicSerialization { get; set; }
 
 	/// <summary>
 	/// Creates an new <see cref="JsonOptions"/> instance with default parameters.
@@ -87,9 +88,17 @@ public class JsonOptions
 			new DateOnlyConverter(),
 			new TimeOnlyConverter(),
 			new TimeSpanConverter(),
-			new CharConverter(),
-			new TupleConverter()
+			new CharConverter()
 		};
+
+		if (RuntimeFeature.IsDynamicCodeSupported)
+		{
+			DynamicSerialization = DynamicSerializationMode.Both;
+		}
+		else
+		{
+			DynamicSerialization = DynamicSerializationMode.Write;
+		}
 	}
 
 	/// <summary>

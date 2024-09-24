@@ -26,8 +26,8 @@ public sealed class JsonConverter<T> : JsonConverter where T : notnull
 	/// <param name="onSerialize">Represents the serializer function of the converter.</param>
 	public JsonConverter(Func<JsonValue, T>? onDeserialize, Func<T, JsonValue>? onSerialize)
 	{
-		DeserializerCallback = onDeserialize;
-		SerializerCallback = onSerialize;
+		this.DeserializerCallback = onDeserialize;
+		this.SerializerCallback = onSerialize;
 	}
 
 	/// <inheritdoc/>
@@ -39,9 +39,9 @@ public sealed class JsonConverter<T> : JsonConverter where T : notnull
 	/// <inheritdoc/>
 	public override object Deserialize(JsonValue value, Type requestedType)
 	{
-		if (DeserializerCallback is not null)
+		if (this.DeserializerCallback is not null)
 		{
-			return DeserializerCallback(value);
+			return this.DeserializerCallback(value);
 		}
 		else
 		{
@@ -52,9 +52,9 @@ public sealed class JsonConverter<T> : JsonConverter where T : notnull
 	/// <inheritdoc/>
 	public override JsonValue Serialize(object value)
 	{
-		if (SerializerCallback is not null)
+		if (this.SerializerCallback is not null)
 		{
-			return SerializerCallback((T)value);
+			return this.SerializerCallback((T)value);
 		}
 		else
 		{

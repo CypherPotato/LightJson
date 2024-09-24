@@ -9,8 +9,8 @@ namespace LightJson;
 /// </summary>
 public class JsonConverterCollection : IList<JsonConverter>
 {
-	private List<JsonConverter> _converters;
-	private JsonOptions parent;
+	private readonly List<JsonConverter> _converters;
+	private readonly JsonOptions parent;
 
 	/// <summary>
 	/// Creates an new <see cref="JsonConverterCollection"/> with the specified
@@ -19,19 +19,19 @@ public class JsonConverterCollection : IList<JsonConverter>
 	/// <param name="parent">The parent JsonOptions object.</param>
 	public JsonConverterCollection(JsonOptions parent)
 	{
-		_converters = new List<JsonConverter>();
+		this._converters = new List<JsonConverter>();
 		this.parent = parent;
 	}
 
 	/// <inheritdoc/>
 	public JsonConverter this[int index]
 	{
-		get => _converters[index];
-		set => _converters[index] = value;
+		get => this._converters[index];
+		set => this._converters[index] = value;
 	}
 
 	/// <inheritdoc/>
-	public int Count => _converters.Count;
+	public int Count => this._converters.Count;
 
 	/// <inheritdoc/>
 	public bool IsReadOnly => false;
@@ -39,8 +39,8 @@ public class JsonConverterCollection : IList<JsonConverter>
 	/// <inheritdoc/>
 	public void Add(JsonConverter item)
 	{
-		item.CurrentOptions = parent;
-		_converters.Add(item);
+		item.CurrentOptions = this.parent;
+		this._converters.Add(item);
 	}
 
 	/// <summary>
@@ -50,60 +50,60 @@ public class JsonConverterCollection : IList<JsonConverter>
 	public void AddRange(IEnumerable<JsonConverter> items)
 	{
 		foreach (var item in items)
-			Add(item);
+			this.Add(item);
 	}
 
 	/// <inheritdoc/>
 	public void Clear()
 	{
-		_converters.Clear();
+		this._converters.Clear();
 	}
 
 	/// <inheritdoc/>
 	public bool Contains(JsonConverter item)
 	{
-		return _converters.Contains(item);
+		return this._converters.Contains(item);
 	}
 
 	/// <inheritdoc/>
 	public void CopyTo(JsonConverter[] array, int arrayIndex)
 	{
-		_converters.CopyTo(array, arrayIndex);
+		this._converters.CopyTo(array, arrayIndex);
 	}
 
 	/// <inheritdoc/>
 	public IEnumerator<JsonConverter> GetEnumerator()
 	{
-		return _converters.GetEnumerator();
+		return this._converters.GetEnumerator();
 	}
 
 	/// <inheritdoc/>
 	public int IndexOf(JsonConverter item)
 	{
-		return _converters.IndexOf(item);
+		return this._converters.IndexOf(item);
 	}
 
 	/// <inheritdoc/>
 	public void Insert(int index, JsonConverter item)
 	{
-		_converters.Insert(index, item);
+		this._converters.Insert(index, item);
 	}
 
 	/// <inheritdoc/>
 	public bool Remove(JsonConverter item)
 	{
-		return _converters.Remove(item);
+		return this._converters.Remove(item);
 	}
 
 	/// <inheritdoc/>
 	public void RemoveAt(int index)
 	{
-		_converters.RemoveAt(index);
+		this._converters.RemoveAt(index);
 	}
 
 	/// <inheritdoc/>
 	IEnumerator IEnumerable.GetEnumerator()
 	{
-		return GetEnumerator();
+		return this.GetEnumerator();
 	}
 }

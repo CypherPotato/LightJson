@@ -12,13 +12,13 @@ namespace LightJson.Serialization
 	/// </summary>
 	public sealed class JsonReader
 	{
-		private TextScanner scanner;
+		private readonly TextScanner scanner;
 		private string moutingPath = "$";
-		private JsonOptions options;
+		private readonly JsonOptions options;
 
 		private JsonReader(TextReader reader, JsonOptions options)
 		{
-			this.scanner = new TextScanner(reader);
+			scanner = new TextScanner(reader);
 			this.options = options;
 		}
 
@@ -39,11 +39,11 @@ namespace LightJson.Serialization
 
 		private JsonValue ReadJsonValue()
 		{
-			this.scanner.SkipWhitespace();
+			scanner.SkipWhitespace();
 
 			SkipComments();
 
-			var next = this.scanner.Peek();
+			var next = scanner.Peek();
 
 			if (char.IsNumber(next))
 			{
@@ -77,53 +77,53 @@ namespace LightJson.Serialization
 				default:
 					throw new JsonParseException(
 						ErrorType.InvalidOrUnexpectedCharacter,
-						this.scanner.Position
+						scanner.Position
 					);
 			}
 		}
 
 		private JsonValue ReadNull()
 		{
-			this.scanner.Assert("null");
+			scanner.Assert("null");
 			return JsonValue.Null;
 		}
 
 		private JsonValue ReadBoolean()
 		{
-			switch (this.scanner.Peek())
+			switch (scanner.Peek())
 			{
 				case 't':
-					this.scanner.Assert("true");
+					scanner.Assert("true");
 					return new JsonValue(true, options);
 
 				case 'f':
-					this.scanner.Assert("false");
+					scanner.Assert("false");
 					return new JsonValue(false, options);
 
 				default:
 					throw new JsonParseException(
 						ErrorType.InvalidOrUnexpectedCharacter,
-						this.scanner.Position
+						scanner.Position
 					);
 			}
 		}
 
 		private void ReadDigits(StringBuilder builder)
 		{
-			while (this.scanner.CanRead && !TextScanner.IsNumericValueTerminator(this.scanner.PeekOrDefault()))
+			while (scanner.CanRead && !TextScanner.IsNumericValueTerminator(scanner.PeekOrDefault()))
 			{
-				builder.Append(this.scanner.Read());
+				builder.Append(scanner.Read());
 			}
 		}
 
 		private JsonValue ReadNumber()
 		{
 			var builder = new StringBuilder();
-			var peek = this.scanner.Peek();
+			var peek = scanner.Peek();
 
 			if (peek == '-')
 			{
-				builder.Append(this.scanner.Read());
+				builder.Append(scanner.Read());
 				ReadDigits(builder);
 			}
 			else if (peek == '.')
@@ -134,14 +134,14 @@ namespace LightJson.Serialization
 			{
 				if (options.SerializationFlags.HasFlag(JsonSerializationFlags.AllowPositiveSign))
 				{
-					builder.Append(this.scanner.Read());
+					builder.Append(scanner.Read());
 					ReadDigits(builder);
 				}
 				else
 				{
 					throw new JsonParseException(
 						ErrorType.InvalidOrUnexpectedCharacter,
-						this.scanner.Position
+						scanner.Position
 					);
 				}
 			}
@@ -150,11 +150,11 @@ namespace LightJson.Serialization
 				ReadDigits(builder);
 			}
 
-			if (this.scanner.CanRead && this.scanner.Peek() == '.')
+			if (scanner.CanRead && scanner.Peek() == '.')
 			{
-				builder.Append(this.scanner.Read());
+				builder.Append(scanner.Read());
 
-				var n = this.scanner.PeekOrDefault();
+				var n = scanner.PeekOrDefault();
 
 				if (char.IsDigit(n))
 				{
@@ -168,7 +168,7 @@ namespace LightJson.Serialization
 						{
 							throw new JsonParseException(
 								ErrorType.InvalidOrUnexpectedCharacter,
-								this.scanner.Position
+								scanner.Position
 							);
 						}
 					}
@@ -176,23 +176,23 @@ namespace LightJson.Serialization
 					{
 						throw new JsonParseException(
 							ErrorType.InvalidOrUnexpectedCharacter,
-							this.scanner.Position
+							scanner.Position
 						);
 					}
 				}
 			}
 
-			if (this.scanner.CanRead && char.ToLowerInvariant(this.scanner.Peek()) == 'e')
+			if (scanner.CanRead && char.ToLowerInvariant(scanner.Peek()) == 'e')
 			{
-				builder.Append(this.scanner.Read());
+				builder.Append(scanner.Read());
 
-				var next = this.scanner.Peek();
+				var next = scanner.Peek();
 
 				switch (next)
 				{
 					case '+':
 					case '-':
-						builder.Append(this.scanner.Read());
+						builder.Append(scanner.Read());
 						break;
 				}
 
@@ -210,7 +210,7 @@ namespace LightJson.Serialization
 				{
 					throw new JsonParseException(
 						ErrorType.InvalidOrUnexpectedCharacter,
-						this.scanner.Position
+						scanner.Position
 					);
 				}
 
@@ -242,7 +242,7 @@ namespace LightJson.Serialization
 			int l = 0;
 			while (true)
 			{
-				var c = this.scanner.Read();
+				var c = scanner.Read();
 
 				if (scanner.Peek() == ':')
 				{
@@ -260,7 +260,7 @@ namespace LightJson.Serialization
 				{
 					throw new JsonParseException(
 						ErrorType.InvalidOrUnexpectedCharacter,
-						this.scanner.Position
+						scanner.Position
 					);
 				}
 
@@ -275,8 +275,8 @@ namespace LightJson.Serialization
 			var builder = new StringBuilder();
 
 			bool isSingleQuoted = false;
-			char h = this.scanner.AssertAny('"', '\'');
-			this.scanner.Read();
+			char h = scanner.AssertAny('"', '\'');
+			scanner.Read();
 
 			if (h == '\'')
 			{
@@ -285,7 +285,7 @@ namespace LightJson.Serialization
 				{
 					throw new JsonParseException(
 						ErrorType.InvalidOrUnexpectedCharacter,
-						this.scanner.Position
+						scanner.Position
 					);
 				}
 			}
@@ -294,11 +294,11 @@ namespace LightJson.Serialization
 			bool usedNlLiteral = false;
 			while (true)
 			{
-				var c = this.scanner.Read();
+				var c = scanner.Read();
 
 				if (c == '\\')
 				{
-					c = this.scanner.Read();
+					c = scanner.Read();
 
 					switch (char.ToLower(c))
 					{
@@ -336,7 +336,7 @@ namespace LightJson.Serialization
 							{
 								throw new JsonParseException(
 									ErrorType.InvalidOrUnexpectedCharacter,
-									this.scanner.Position
+									scanner.Position
 								);
 							}
 							break;
@@ -344,7 +344,7 @@ namespace LightJson.Serialization
 						default:
 							throw new JsonParseException(
 								ErrorType.InvalidOrUnexpectedCharacter,
-								this.scanner.Position
+								scanner.Position
 							);
 					}
 				}
@@ -380,7 +380,7 @@ namespace LightJson.Serialization
 						}
 						else throw new JsonParseException(
 							ErrorType.InvalidOrUnexpectedCharacter,
-							this.scanner.Position
+							scanner.Position
 						);
 					}
 					else
@@ -427,7 +427,7 @@ namespace LightJson.Serialization
 
 		private int ReadHexDigit()
 		{
-			switch (char.ToUpper(this.scanner.Read()))
+			switch (char.ToUpper(scanner.Read()))
 			{
 				case '0':
 					return 0;
@@ -480,7 +480,7 @@ namespace LightJson.Serialization
 				default:
 					throw new JsonParseException(
 						ErrorType.InvalidOrUnexpectedCharacter,
-						this.scanner.Position
+						scanner.Position
 					);
 			}
 		}
@@ -506,25 +506,25 @@ namespace LightJson.Serialization
 		{
 			string initialPath = moutingPath;
 
-			this.scanner.Assert('{');
+			scanner.Assert('{');
 
-			this.scanner.SkipWhitespace();
+			scanner.SkipWhitespace();
 			SkipComments();
 
-			if (this.scanner.Peek() == '}')
+			if (scanner.Peek() == '}')
 			{
-				this.scanner.Read();
+				scanner.Read();
 			}
 			else
 			{
 				while (true)
 				{
-					this.scanner.SkipWhitespace();
+					scanner.SkipWhitespace();
 					SkipComments();
 
 					if (options.SerializationFlags.HasFlag(JsonSerializationFlags.IgnoreTrailingComma) && scanner.Peek() == '}')
 					{
-						this.scanner.Read();
+						scanner.Read();
 						break;
 					}
 
@@ -538,17 +538,17 @@ namespace LightJson.Serialization
 						{
 							throw new JsonParseException(
 								ErrorType.DuplicateObjectKeys,
-								this.scanner.Position
+								scanner.Position
 							);
 						}
 					}
 
-					this.scanner.SkipWhitespace();
+					scanner.SkipWhitespace();
 					SkipComments();
 
-					this.scanner.Assert(':');
+					scanner.Assert(':');
 
-					this.scanner.SkipWhitespace();
+					scanner.SkipWhitespace();
 					SkipComments();
 
 					var value = ReadJsonValue();
@@ -557,10 +557,10 @@ namespace LightJson.Serialization
 
 					jsonObject[key] = value;
 
-					this.scanner.SkipWhitespace();
+					scanner.SkipWhitespace();
 					SkipComments();
 
-					var next = this.scanner.Read();
+					var next = scanner.Read();
 					moutingPath = initialPath;
 
 					if (next == '}')
@@ -575,7 +575,7 @@ namespace LightJson.Serialization
 					{
 						throw new JsonParseException(
 							ErrorType.InvalidOrUnexpectedCharacter,
-							this.scanner.Position
+							scanner.Position
 						);
 					}
 				}
@@ -595,20 +595,20 @@ namespace LightJson.Serialization
 			string initialPath = moutingPath;
 			int index = 0;
 
-			this.scanner.Assert('[');
+			scanner.Assert('[');
 
-			this.scanner.SkipWhitespace();
+			scanner.SkipWhitespace();
 			SkipComments();
 
-			if (this.scanner.Peek() == ']')
+			if (scanner.Peek() == ']')
 			{
-				this.scanner.Read();
+				scanner.Read();
 			}
 			else
 			{
 				while (true)
 				{
-					this.scanner.SkipWhitespace();
+					scanner.SkipWhitespace();
 					SkipComments();
 
 					if (scanner.Peek() == ']')
@@ -622,7 +622,7 @@ namespace LightJson.Serialization
 						{
 							throw new JsonParseException(
 								ErrorType.InvalidOrUnexpectedCharacter,
-								this.scanner.Position
+								scanner.Position
 							);
 						}
 					}
@@ -634,11 +634,11 @@ namespace LightJson.Serialization
 
 					jsonArray.Add(value);
 
-					this.scanner.SkipWhitespace();
+					scanner.SkipWhitespace();
 					SkipComments();
 
 					moutingPath = initialPath;
-					var next = this.scanner.Read();
+					var next = scanner.Read();
 
 					if (next == ']')
 					{
@@ -653,7 +653,7 @@ namespace LightJson.Serialization
 					{
 						throw new JsonParseException(
 							ErrorType.InvalidOrUnexpectedCharacter,
-							this.scanner.Position
+							scanner.Position
 						);
 					}
 				}
@@ -670,21 +670,21 @@ namespace LightJson.Serialization
 				return;
 			}
 		checkNextComment:
-			this.scanner.SkipWhitespace();
-			if (this.scanner.Peek() == '/')
+			scanner.SkipWhitespace();
+			if (scanner.Peek() == '/')
 			{
-				this.scanner.Read();
-				bool isMultilineComment = this.scanner.Peek() == '*';
+				scanner.Read();
+				bool isMultilineComment = scanner.Peek() == '*';
 
-				while (this.scanner.CanRead)
+				while (scanner.CanRead)
 				{
-					char c = this.scanner.Read();
+					char c = scanner.Read();
 
 					if (isMultilineComment)
 					{
-						if (c == '*' && this.scanner.Peek() == '/')
+						if (c == '*' && scanner.Peek() == '/')
 						{
-							this.scanner.Read();
+							scanner.Read();
 							break;
 						}
 					}
@@ -707,7 +707,7 @@ namespace LightJson.Serialization
 
 		private JsonValue Parse()
 		{
-			this.scanner.SkipWhitespace();
+			scanner.SkipWhitespace();
 			return ReadJsonValue();
 		}
 
@@ -747,6 +747,14 @@ namespace LightJson.Serialization
 				return new JsonReader(reader, opt).Parse();
 			}
 		}
+
+		/// <summary>
+		/// Creates a JsonValue by reader the JSON message in the given string.
+		/// </summary>
+		/// <param name="source">The string containing the JSON message.</param>
+		/// <param name="options">Optional. Specifies the JsonOptions used to read values.</param>
+		public static JsonValue Parse(ReadOnlySpan<char> source, JsonOptions? options = null)
+			=> Parse(source, options);
 
 		/// <summary>
 		/// Creates a JsonValue by reading the given file.
