@@ -12,6 +12,21 @@ namespace LightJson.Serialization
 	{
 		private readonly TextReader reader;
 		private TextPosition position;
+		internal bool CanThrowExceptions;
+		internal Exception? Exception;
+
+		T ThrowParseException<T>(Exception ex)
+		{
+			if (this.CanThrowExceptions)
+			{
+				throw ex;
+			}
+			else
+			{
+				this.Exception = ex;
+				return default(T)!;
+			}
+		}
 
 		/// <summary>
 		/// Gets the position of the scanner within the text.
@@ -76,10 +91,10 @@ namespace LightJson.Serialization
 
 			if (next == -1)
 			{
-				throw new JsonParseException(
+				return this.ThrowParseException<char>(new JsonParseException(
 					ErrorType.IncompleteMessage,
 					this.position
-				);
+				));
 			}
 
 			return (char)next;
@@ -94,10 +109,10 @@ namespace LightJson.Serialization
 
 			if (next == -1)
 			{
-				throw new JsonParseException(
+				return this.ThrowParseException<char>(new JsonParseException(
 					ErrorType.IncompleteMessage,
 					this.position
-				);
+				));
 			}
 
 			switch (next)
@@ -146,11 +161,11 @@ namespace LightJson.Serialization
 					return p;
 			}
 
-			throw new JsonParseException(
+			return this.ThrowParseException<char>(new JsonParseException(
 				"Parser expected " + string.Join(" or ", next),
 				ErrorType.InvalidOrUnexpectedCharacter,
 				this.position
-			);
+			));
 		}
 
 		/// <summary>
@@ -166,11 +181,11 @@ namespace LightJson.Serialization
 			}
 			else
 			{
-				throw new JsonParseException(
+				this.ThrowParseException<object>(new JsonParseException(
 					string.Format("Parser expected '{0}'", next),
 					ErrorType.InvalidOrUnexpectedCharacter,
 					this.position
-				);
+				));
 			}
 		}
 
@@ -190,11 +205,11 @@ namespace LightJson.Serialization
 			}
 			catch (JsonParseException e) when (e.Type == ErrorType.InvalidOrUnexpectedCharacter)
 			{
-				throw new JsonParseException(
+				this.ThrowParseException<object>(new JsonParseException(
 					string.Format("Parser expected '{0}'", next),
 					ErrorType.InvalidOrUnexpectedCharacter,
 					this.position
-				);
+				));
 			}
 		}
 	}
