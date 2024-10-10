@@ -8,7 +8,7 @@ namespace LightJson;
 /// Provides an string comparer for comparing similar JSON values, which are case-insensitive and only
 /// considers alpha-numeric characters between the strings.
 /// </summary>
-public class JsonSanitizedComparer : StringComparer
+public sealed class JsonSanitizedComparer : StringComparer
 {
 	/// <summary>
 	/// Creates an new instance of the <see cref="JsonSanitizedComparer"/> class.
@@ -32,24 +32,24 @@ public class JsonSanitizedComparer : StringComparer
 			}
 		}
 
-		return sb.ToString();
+		return sb.ToString().ToLowerInvariant();
 	}
 
 	/// <inheritdoc/>
 	public override int Compare(string? x, string? y)
 	{
-		return string.Compare(this.Sanitize(x), this.Sanitize(y), true);
+		return string.Compare(Sanitize(x), Sanitize(y), true);
 	}
 
 	/// <inheritdoc/>
 	public override bool Equals(string? x, string? y)
 	{
-		return this.Compare(x, y) == 0;
+		return Compare(x, y) == 0;
 	}
 
 	/// <inheritdoc/>
 	public override int GetHashCode(string obj)
 	{
-		return this.Sanitize(obj).GetHashCode();
+		return Sanitize(obj).GetHashCode();
 	}
 }

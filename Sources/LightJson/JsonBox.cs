@@ -6,7 +6,7 @@ namespace LightJson;
 /// Represents a value box where it's value is serialized and deserialized as an Json value.
 /// </summary>
 /// <typeparam name="TValue">The value type. This type cannot be null.</typeparam>
-public class JsonBox<TValue> : IEquatable<TValue> where TValue : notnull
+public sealed class JsonBox<TValue> : IEquatable<TValue>, IJsonBox where TValue : notnull
 {
 	private JsonValue jval;
 

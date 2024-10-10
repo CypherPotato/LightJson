@@ -471,8 +471,13 @@ namespace LightJson
 		/// <param name="jsonText">The JSON-formatted string.</param>
 		/// <param name="options">Optional. The JSON options to use in the deserializer.</param>
 		/// <param name="result">When this method returns, returns an <see cref="JsonValue"/> with the result of the operation.</param>
-		public static bool TryDeserialize(string jsonText, JsonOptions? options, out JsonValue result)
+		public static bool TryDeserialize(string? jsonText, JsonOptions? options, out JsonValue result)
 		{
+			if (jsonText is null)
+			{
+				result = JsonValue.Undefined;
+				return false;
+			}
 			return JsonReader.TryParse(jsonText, options, out result);
 		}
 
