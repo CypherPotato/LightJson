@@ -1,11 +1,11 @@
-﻿using System;
+﻿using LightJson.Serialization;
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Reflection;
 using System.Text.Json.Serialization;
-using LightJson.Serialization;
 
 namespace LightJson;
 
@@ -199,6 +199,12 @@ internal class Dynamic
 		{
 			valueType = jval.Type;
 			return jval;
+		}
+		else if (value is IImplicitJsonValue implicitJval)
+		{
+			JsonValue result = implicitJval.AsJsonValue();
+			valueType = result.Type;
+			return result;
 		}
 		else if (value is string || value is char)
 		{
