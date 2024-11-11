@@ -478,7 +478,10 @@ namespace LightJson
 				result = JsonValue.Undefined;
 				return false;
 			}
-			return JsonReader.TryParse(jsonText, options, out result);
+
+			using var sr = new StringReader(jsonText);
+			using var jr = new JsonReader(sr, options ?? JsonOptions.Default);
+			return jr.TryParse(out result);
 		}
 
 		/// <summary>
@@ -490,7 +493,8 @@ namespace LightJson
 		/// <param name="result">When this method returns, returns an <see cref="JsonValue"/> with the result of the operation.</param>
 		public static bool TryDeserialize(TextReader inputStream, JsonOptions? options, out JsonValue result)
 		{
-			return JsonReader.TryParse(inputStream, options, out result);
+			using var jr = new JsonReader(inputStream, options ?? JsonOptions.Default);
+			return jr.TryParse(out result);
 		}
 
 		/// <summary>
@@ -500,7 +504,7 @@ namespace LightJson
 		/// <param name="options">Optional. Sets the JsonOptions instance to deserializing the object.</param>
 		public static T Deserialize<T>(string jsonText, JsonOptions? options = null) where T : notnull
 		{
-			return JsonReader.Parse(jsonText, options).Get<T>();
+			return Deserialize(jsonText, options).Get<T>();
 		}
 
 		/// <summary>
@@ -510,7 +514,11 @@ namespace LightJson
 		/// <param name="options">Optional. Sets the JsonOptions instance to deserializing the object.</param>
 		public static JsonValue Deserialize(string jsonText, JsonOptions? options = null)
 		{
-			return JsonReader.Parse(jsonText, options);
+			ArgumentNullException.ThrowIfNull(jsonText);
+
+			using var sr = new StringReader(jsonText);
+			using var jr = new JsonReader(sr, options ?? JsonOptions.Default);
+			return jr.Parse();
 		}
 
 		/// <summary>

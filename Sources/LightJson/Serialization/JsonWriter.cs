@@ -46,7 +46,7 @@ namespace LightJson.Serialization
 		/// <summary>
 		/// Gets or sets the TextWriter to which this JsonWriter writes.
 		/// </summary>
-		public TextWriter InnerWriter { get; set; }
+		public TextWriter InnerWriter { get; }
 
 		/// <summary>
 		/// Gets or sets an boolean indicating whether this <see cref="JsonWriter"/> should

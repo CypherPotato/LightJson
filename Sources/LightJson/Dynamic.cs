@@ -256,10 +256,10 @@ internal class Dynamic
 			throw new InvalidOperationException($"No converter matched the object type {itemType.FullName}.");
 		}
 
-		if (itemType.IsAssignableTo(typeof(IEnumerable)))
+		if (value is IEnumerable enumerable)
 		{
 			JsonArray arr = new JsonArray(options);
-			foreach (object? item in (IEnumerable)value)
+			foreach (object? item in enumerable)
 			{
 				if (item == null) continue;
 				arr.Add(SerializeObject(item, deepness + 1, convertersEnabled, options, out _));

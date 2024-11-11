@@ -1,8 +1,8 @@
-﻿using System;
+﻿using LightJson.Converters;
+using LightJson.Serialization;
+using System;
 using System.Runtime.CompilerServices;
 using System.Text.Json;
-using LightJson.Converters;
-using LightJson.Serialization;
 
 namespace LightJson;
 
@@ -11,7 +11,7 @@ namespace LightJson;
 /// <summary>
 /// Provides options and configurations for using the LightJson library.
 /// </summary>
-public class JsonOptions
+public sealed class JsonOptions
 {
 	private readonly static JsonOptions _default = new JsonOptions();
 
@@ -79,7 +79,7 @@ public class JsonOptions
 	/// </summary>
 	public JsonOptions()
 	{
-		Converters = new JsonConverterCollection(this)
+		this.Converters = new JsonConverterCollection(this)
 		{
 			new DictionaryConverter(),
 			new GuidConverter(),
@@ -93,11 +93,11 @@ public class JsonOptions
 
 		if (RuntimeFeature.IsDynamicCodeSupported)
 		{
-			DynamicSerialization = DynamicSerializationMode.Both;
+			this.DynamicSerialization = DynamicSerializationMode.Both;
 		}
 		else
 		{
-			DynamicSerialization = DynamicSerializationMode.Write;
+			this.DynamicSerialization = DynamicSerializationMode.Write;
 		}
 	}
 

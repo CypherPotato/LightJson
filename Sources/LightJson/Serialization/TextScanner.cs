@@ -8,12 +8,15 @@ namespace LightJson.Serialization
 	/// <summary>
 	/// Represents a text scanner that reads one character at a time.
 	/// </summary>
-	public sealed class TextScanner
+	public sealed class TextScanner : IDisposable
 	{
 		private readonly TextReader reader;
-		private TextPosition position;
 		internal bool CanThrowExceptions;
 		internal Exception? Exception;
+		private bool disposedValue;
+
+		int currentLine;
+		int currentColumn;
 
 		T ThrowParseException<T>(Exception ex)
 		{
@@ -33,10 +36,7 @@ namespace LightJson.Serialization
 		/// </summary>
 		public TextPosition Position
 		{
-			get
-			{
-				return this.position;
-			}
+			get => new TextPosition(this.currentLine, this.currentColumn);
 		}
 
 		/// <summary>
@@ -93,7 +93,7 @@ namespace LightJson.Serialization
 			{
 				return this.ThrowParseException<char>(new JsonParseException(
 					ErrorType.IncompleteMessage,
-					this.position
+					this.Position
 				));
 			}
 
@@ -111,7 +111,7 @@ namespace LightJson.Serialization
 			{
 				return this.ThrowParseException<char>(new JsonParseException(
 					ErrorType.IncompleteMessage,
-					this.position
+					this.Position
 				));
 			}
 
@@ -126,12 +126,12 @@ namespace LightJson.Serialization
 					goto case '\n';
 
 				case '\n':
-					this.position.line += 1;
-					this.position.column = 0;
+					this.currentLine += 1;
+					this.currentColumn = 0;
 					return '\n';
 
 				default:
-					this.position.column += 1;
+					this.currentColumn += 1;
 					return (char)next;
 			}
 		}
@@ -164,7 +164,7 @@ namespace LightJson.Serialization
 			return this.ThrowParseException<char>(new JsonParseException(
 				"Parser expected " + string.Join(" or ", next),
 				ErrorType.InvalidOrUnexpectedCharacter,
-				this.position
+				this.Position
 			));
 		}
 
@@ -184,7 +184,7 @@ namespace LightJson.Serialization
 				this.ThrowParseException<object>(new JsonParseException(
 					string.Format("Parser expected '{0}'", next),
 					ErrorType.InvalidOrUnexpectedCharacter,
-					this.position
+					this.Position
 				));
 			}
 		}
@@ -208,9 +208,30 @@ namespace LightJson.Serialization
 				this.ThrowParseException<object>(new JsonParseException(
 					string.Format("Parser expected '{0}'", next),
 					ErrorType.InvalidOrUnexpectedCharacter,
-					this.position
+					this.Position
 				));
 			}
+		}
+
+		private void Dispose(bool disposing)
+		{
+			if (!this.disposedValue)
+			{
+				if (disposing)
+				{
+					this.reader?.Dispose();
+				}
+
+				this.disposedValue = true;
+			}
+		}
+
+		/// <inheritdoc/>
+		public void Dispose()
+		{
+			// Do not change this code. Put cleanup code in 'Dispose(bool disposing)' method
+			this.Dispose(disposing: true);
+			GC.SuppressFinalize(this);
 		}
 	}
 }

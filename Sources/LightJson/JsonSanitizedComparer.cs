@@ -38,18 +38,18 @@ public sealed class JsonSanitizedComparer : StringComparer
 	/// <inheritdoc/>
 	public override int Compare(string? x, string? y)
 	{
-		return string.Compare(Sanitize(x), Sanitize(y), true);
+		return string.Compare(this.Sanitize(x), this.Sanitize(y), true);
 	}
 
 	/// <inheritdoc/>
 	public override bool Equals(string? x, string? y)
 	{
-		return Compare(x, y) == 0;
+		return this.Compare(x, y) == 0;
 	}
 
 	/// <inheritdoc/>
 	public override int GetHashCode(string obj)
 	{
-		return Sanitize(obj).GetHashCode();
+		return this.Sanitize(obj).GetHashCode();
 	}
 }

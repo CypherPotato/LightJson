@@ -1,8 +1,8 @@
-﻿using System.IO;
+﻿using LightJson.Serialization;
+using System.IO;
 using System.Net.Http;
 using System.Text;
 using System.Threading.Tasks;
-using LightJson.Serialization;
 
 namespace LightJson;
 
@@ -24,7 +24,8 @@ public static class JsonValueExtensions
 	{
 		var responseMessageStream = httpContent.ReadAsStream();
 		using StreamReader sr = new StreamReader(responseMessageStream, encoding ?? Encoding.UTF8);
-		return JsonReader.Parse(sr, options);
+		using JsonReader jr = new JsonReader(sr, options ?? JsonOptions.Default);
+		return jr.Parse();
 	}
 
 	/// <summary>
@@ -40,6 +41,7 @@ public static class JsonValueExtensions
 	{
 		var responseMessageStream = await httpContent.ReadAsStreamAsync();
 		using StreamReader sr = new StreamReader(responseMessageStream, encoding ?? Encoding.UTF8);
-		return JsonReader.Parse(sr, options);
+		using JsonReader jr = new JsonReader(sr, options ?? JsonOptions.Default);
+		return await jr.ParseAsync();
 	}
 }
