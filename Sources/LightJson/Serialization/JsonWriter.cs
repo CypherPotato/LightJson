@@ -433,7 +433,7 @@ namespace LightJson.Serialization
 		}
 
 		/// <summary>
-		/// Generates a string representation of the given value.
+		/// Generates a JSON string representation of the given value.
 		/// </summary>
 		/// <param name="value">The value to serialize.</param>
 		/// <param name="options">The JsonOptions instance for serializing this object.</param>

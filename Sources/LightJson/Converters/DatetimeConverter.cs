@@ -13,19 +13,19 @@ public class DateTimeConverter : JsonConverter
 	public static string Format { get; set; } = "s";
 
 	/// <inheritdoc/>
-	public override Boolean CanSerialize(Type type)
+	public override Boolean CanSerialize(Type type, JsonOptions currentOptions)
 	{
 		return type == typeof(DateTime);
 	}
 
 	/// <inheritdoc/>
-	public override Object Deserialize(JsonValue value, Type requestedType)
+	public override Object Deserialize(JsonValue value, Type requestedType, JsonOptions currentOptions)
 	{
 		return DateTime.Parse(value.GetString());
 	}
 
 	/// <inheritdoc/>
-	public override JsonValue Serialize(Object value)
+	public override JsonValue Serialize(Object value, JsonOptions currentOptions)
 	{
 		DateTime t = (DateTime)value;
 		return new JsonValue(t.ToString(Format));

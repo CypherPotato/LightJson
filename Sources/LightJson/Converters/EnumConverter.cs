@@ -14,13 +14,13 @@ public class EnumConverter : JsonConverter
 	public static bool EnumToString { get; set; } = false;
 
 	/// <inheritdoc/>
-	public override Boolean CanSerialize(Type type)
+	public override Boolean CanSerialize(Type type, JsonOptions currentOptions)
 	{
 		return type.IsEnum;
 	}
 
 	/// <inheritdoc/>
-	public override object Deserialize(JsonValue value, Type requestedType)
+	public override object Deserialize(JsonValue value, Type requestedType, JsonOptions currentOptions)
 	{
 		if (value.IsInteger)
 		{
@@ -33,7 +33,7 @@ public class EnumConverter : JsonConverter
 	}
 
 	/// <inheritdoc/>
-	public override JsonValue Serialize(object value)
+	public override JsonValue Serialize(object value, JsonOptions currentOptions)
 	{
 		if (EnumToString)
 		{

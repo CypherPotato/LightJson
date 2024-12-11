@@ -19,7 +19,7 @@ namespace LightJson
 		private readonly JsonValueType type = JsonValueType.Undefined;
 		private readonly object reference = null!;
 		private readonly double value;
-		private JsonOptions options;
+		internal JsonOptions options;
 		internal string path;
 
 		/// <summary>
@@ -163,7 +163,14 @@ namespace LightJson
 		{
 			if (this.IsNull)
 			{
-				return this.ThrowInvalidCast(type);
+				if (type.IsGenericType && type.GetGenericTypeDefinition() == typeof(System.Nullable<>))
+				{
+					return (object)null!;
+				}
+				else
+				{
+					return this.ThrowInvalidCast(type);
+				}
 			}
 			return Dynamic.DeserializeObject(this, type, this.options);
 		}
@@ -314,15 +321,6 @@ namespace LightJson
 			throw new InvalidCastException($"Expected to read the JSON value at {this.path} as {expectedType}, but got {this.Type} instead.");
 		}
 
-		private T ThrowInvalidCast<T>()
-		{
-			if (!this.IsDefined)
-			{
-				throw new InvalidCastException($"At value {this.path} it is expected to have a {typeof(T).Name}.");
-			}
-			throw new InvalidCastException($"Expected to read the JSON value at {this.path} as {typeof(T).Name}, but got {this.Type} instead.");
-		}
-
 		private object ThrowInvalidCast(Type T)
 		{
 			if (!this.IsDefined)
@@ -347,12 +345,7 @@ namespace LightJson
 		/// <param name="value">The value to be converted into an <see cref="JsonValue"/>.</param>
 		/// <param name="options">Optional. Determines optional JSON options to handle the serialization.</param>
 		public static JsonValue Serialize(object? value, JsonOptions? options = null)
-		{
-			JsonOptions _opt = options ?? JsonOptions.Default;
-			JsonValue _value = Dynamic.SerializeObject(value, 0, true, _opt, out JsonValueType valueType);
-			_value.options = _opt;
-			return _value;
-		}
+			=> (options ?? JsonOptions.Default).Serialize(value);
 
 		/// <summary>
 		/// Initializes a new instance of the JsonValue struct, representing a Boolean value.
@@ -471,18 +464,8 @@ namespace LightJson
 		/// <param name="jsonText">The JSON-formatted string.</param>
 		/// <param name="options">Optional. The JSON options to use in the deserializer.</param>
 		/// <param name="result">When this method returns, returns an <see cref="JsonValue"/> with the result of the operation.</param>
-		public static bool TryDeserialize(string? jsonText, JsonOptions? options, out JsonValue result)
-		{
-			if (jsonText is null)
-			{
-				result = JsonValue.Undefined;
-				return false;
-			}
-
-			using var sr = new StringReader(jsonText);
-			using var jr = new JsonReader(sr, options ?? JsonOptions.Default);
-			return jr.TryParse(out result);
-		}
+		public static bool TryDeserialize(string jsonText, JsonOptions? options, out JsonValue result)
+			=> (options ?? JsonOptions.Default).TryDeserialize(jsonText, out result);
 
 		/// <summary>
 		/// Tries to get an <see cref="JsonValue"/> from the specified input. This method leaves the
@@ -492,10 +475,7 @@ namespace LightJson
 		/// <param name="options">Optional. The JSON options to use in the deserializer.</param>
 		/// <param name="result">When this method returns, returns an <see cref="JsonValue"/> with the result of the operation.</param>
 		public static bool TryDeserialize(TextReader inputStream, JsonOptions? options, out JsonValue result)
-		{
-			using var jr = new JsonReader(inputStream, options ?? JsonOptions.Default);
-			return jr.TryParse(out result);
-		}
+			=> (options ?? JsonOptions.Default).TryDeserialize(inputStream, out result);
 
 		/// <summary>
 		/// Returns an <typeparamref name="T"/> by parsing the given string.
@@ -503,9 +483,7 @@ namespace LightJson
 		/// <param name="jsonText">The JSON-formatted string to be parsed.</param>
 		/// <param name="options">Optional. Sets the JsonOptions instance to deserializing the object.</param>
 		public static T Deserialize<T>(string jsonText, JsonOptions? options = null) where T : notnull
-		{
-			return Deserialize(jsonText, options).Get<T>();
-		}
+			=> (options ?? JsonOptions.Default).Deserialize<T>(jsonText);
 
 		/// <summary>
 		/// Returns a <see cref="JsonValue"/> by parsing the given string.
@@ -513,13 +491,7 @@ namespace LightJson
 		/// <param name="jsonText">The JSON-formatted string to be parsed.</param>
 		/// <param name="options">Optional. Sets the JsonOptions instance to deserializing the object.</param>
 		public static JsonValue Deserialize(string jsonText, JsonOptions? options = null)
-		{
-			ArgumentNullException.ThrowIfNull(jsonText);
-
-			using var sr = new StringReader(jsonText);
-			using var jr = new JsonReader(sr, options ?? JsonOptions.Default);
-			return jr.Parse();
-		}
+			=> (options ?? JsonOptions.Default).Deserialize(jsonText);
 
 		/// <summary>
 		/// Returns a value indicating whether this JsonValue is equal to the given object.

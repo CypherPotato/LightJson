@@ -13,13 +13,13 @@ public class CharConverter : JsonConverter
 	public static string ConvertErrorMessage { get; set; } = "The JSON value at {0} expects an string with an 1-char length.";
 
 	/// <inheritdoc/>
-	public override bool CanSerialize(Type type)
+	public override bool CanSerialize(Type type, JsonOptions currentOptions)
 	{
 		return type == typeof(char);
 	}
 
 	/// <inheritdoc/>
-	public override object Deserialize(JsonValue value, Type requestedType)
+	public override object Deserialize(JsonValue value, Type requestedType, JsonOptions currentOptions)
 	{
 		string s = value.GetString();
 		if (s.Length != 1)
@@ -31,7 +31,7 @@ public class CharConverter : JsonConverter
 	}
 
 	/// <inheritdoc/>
-	public override JsonValue Serialize(object value)
+	public override JsonValue Serialize(object value, JsonOptions currentOptions)
 	{
 		return new JsonValue(value.ToString()!);
 	}

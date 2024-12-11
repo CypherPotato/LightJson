@@ -7,20 +7,17 @@ namespace LightJson;
 /// <summary>
 /// Represents an collection of <see cref="JsonConverter"/>.
 /// </summary>
-public class JsonConverterCollection : IList<JsonConverter>
+public sealed class JsonConverterCollection : IList<JsonConverter>
 {
 	private readonly List<JsonConverter> _converters;
-	private readonly JsonOptions parent;
 
 	/// <summary>
 	/// Creates an new <see cref="JsonConverterCollection"/> with the specified
 	/// <see cref="JsonOptions"/> object.
 	/// </summary>
-	/// <param name="parent">The parent JsonOptions object.</param>
-	public JsonConverterCollection(JsonOptions parent)
+	public JsonConverterCollection()
 	{
 		this._converters = new List<JsonConverter>();
-		this.parent = parent;
 	}
 
 	/// <inheritdoc/>
@@ -39,7 +36,6 @@ public class JsonConverterCollection : IList<JsonConverter>
 	/// <inheritdoc/>
 	public void Add(JsonConverter item)
 	{
-		item.CurrentOptions = this.parent;
 		this._converters.Add(item);
 	}
 

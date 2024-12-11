@@ -8,19 +8,19 @@ namespace LightJson.Converters;
 public sealed class TimeSpanConverter : JsonConverter
 {
 	/// <inheritdoc />
-	public override bool CanSerialize(Type type)
+	public override bool CanSerialize(Type type, JsonOptions currentOptions)
 	{
 		return type == typeof(TimeSpan);
 	}
 
 	/// <inheritdoc />
-	public override object Deserialize(JsonValue value, Type requestedType)
+	public override object Deserialize(JsonValue value, Type requestedType, JsonOptions currentOptions)
 	{
 		return new TimeSpan(value.GetLong());
 	}
 
 	/// <inheritdoc />
-	public override JsonValue Serialize(object value)
+	public override JsonValue Serialize(object value, JsonOptions currentOptions)
 	{
 		TimeSpan s = (TimeSpan)value;
 		return new JsonValue(s.Ticks);

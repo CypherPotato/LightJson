@@ -8,19 +8,19 @@ namespace LightJson.Converters;
 public class GuidConverter : JsonConverter
 {
 	/// <inheritdoc/>
-	public override Boolean CanSerialize(Type type)
+	public override Boolean CanSerialize(Type type, JsonOptions currentOptions)
 	{
 		return type == typeof(Guid);
 	}
 
 	/// <inheritdoc/>
-	public override Object Deserialize(JsonValue value, Type requestedType)
+	public override Object Deserialize(JsonValue value, Type requestedType, JsonOptions currentOptions)
 	{
 		return Guid.Parse(value.GetString());
 	}
 
 	/// <inheritdoc/>
-	public override JsonValue Serialize(Object value)
+	public override JsonValue Serialize(Object value, JsonOptions currentOptions)
 	{
 		return new JsonValue(value.ToString()!);
 	}

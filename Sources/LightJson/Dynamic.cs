@@ -22,6 +22,12 @@ internal class Dynamic
 	[UnconditionalSuppressMessage("AOT", "IL3050:Calling members annotated with 'RequiresDynamicCodeAttribute' may break functionality when AOT compiling.", Justification = "<Pending>")]
 	static object DeserializeObjectX(JsonValue value, Type type, int deepness, JsonOptions options)
 	{
+		if (type.IsGenericType && type.GetGenericTypeDefinition() == typeof(System.Nullable<>))
+		{
+			// map nullable struct to their underlaying type
+			type = type.GetGenericArguments()[0];
+		}
+
 		if (type == typeof(JsonValue))
 		{
 			return value;
@@ -55,11 +61,11 @@ internal class Dynamic
 			for (int i = 0; i < options.Converters.Count; i++)
 			{
 				var mapper = options.Converters[i];
-				if (mapper.CanSerialize(type))
+				if (mapper.CanSerialize(type, options))
 				{
 					try
 					{
-						return mapper.Deserialize(value, type);
+						return mapper.Deserialize(value, type, options);
 					}
 					catch (Exception ex)
 					{
@@ -242,9 +248,9 @@ internal class Dynamic
 			for (int i = 0; i < options.Converters.Count; i++)
 			{
 				Converters.JsonConverter? mapper = options.Converters[i];
-				if (mapper.CanSerialize(itemType))
+				if (mapper.CanSerialize(itemType, options))
 				{
-					var result = mapper.Serialize(value);
+					var result = mapper.Serialize(value, options);
 					valueType = result.Type;
 					return result;
 				}

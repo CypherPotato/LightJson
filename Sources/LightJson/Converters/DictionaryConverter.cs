@@ -11,17 +11,17 @@ namespace LightJson.Converters;
 public class DictionaryConverter : JsonConverter
 {
 	/// <inheritdoc/>
-	public override Boolean CanSerialize(Type type)
+	public override Boolean CanSerialize(Type type, JsonOptions currentOptions)
 	{
 		return type.IsAssignableTo(typeof(IDictionary<string, object?>));
 	}
 
 	/// <inheritdoc/>
-	public override object Deserialize(JsonValue value, Type requestedType)
+	public override object Deserialize(JsonValue value, Type requestedType, JsonOptions currentOptions)
 	{
 		if (requestedType == typeof(ExpandoObject))
 		{
-			return this.JsonValueToObject(value, 0)!;
+			return this.JsonValueToObject(value, 0, currentOptions)!;
 		}
 		else
 		{
@@ -30,9 +30,9 @@ public class DictionaryConverter : JsonConverter
 	}
 
 	/// <inheritdoc/>
-	public override JsonValue Serialize(Object value)
+	public override JsonValue Serialize(Object value, JsonOptions currentOptions)
 	{
-		JsonObject result = new JsonObject(base.CurrentOptions);
+		JsonObject result = new JsonObject(currentOptions);
 		IDictionary<string, object?> items = (IDictionary<string, object?>)value;
 
 		foreach (var item in items)
@@ -43,9 +43,9 @@ public class DictionaryConverter : JsonConverter
 		return result.AsJsonValue();
 	}
 
-	object? JsonValueToObject(JsonValue self, int deepness)
+	object? JsonValueToObject(JsonValue self, int deepness, JsonOptions currentOptions)
 	{
-		if (deepness > this.CurrentOptions.DynamicObjectMaxDepth)
+		if (deepness > currentOptions.DynamicObjectMaxDepth)
 		{
 			throw new ArgumentOutOfRangeException("The JSON deserialization reached it's maximum depth.");
 		}
@@ -54,7 +54,7 @@ public class DictionaryConverter : JsonConverter
 		{
 			case JsonValueType.Array:
 				return self.GetJsonArray()
-					.Select(n => this.JsonValueToObject(n, deepness + 1));
+					.Select(n => this.JsonValueToObject(n, deepness + 1, currentOptions));
 
 			case JsonValueType.String:
 				return self.GetString();
@@ -70,7 +70,7 @@ public class DictionaryConverter : JsonConverter
 				IDictionary<string, object?> expando = new ExpandoObject();
 				foreach (var kvp in jobj)
 				{
-					expando.Add(kvp.Key, this.JsonValueToObject(kvp.Value, deepness + 1));
+					expando.Add(kvp.Key, this.JsonValueToObject(kvp.Value, deepness + 1, currentOptions));
 				}
 				return expando;
 

@@ -31,13 +31,13 @@ public sealed class JsonConverter<T> : JsonConverter where T : notnull
 	}
 
 	/// <inheritdoc/>
-	public override bool CanSerialize(Type type)
+	public override bool CanSerialize(Type type, JsonOptions currentOptions)
 	{
 		return type.IsAssignableTo(typeof(T));
 	}
 
 	/// <inheritdoc/>
-	public override object Deserialize(JsonValue value, Type requestedType)
+	public override object Deserialize(JsonValue value, Type requestedType, JsonOptions currentOptions)
 	{
 		if (this.DeserializerCallback is not null)
 		{
@@ -50,7 +50,7 @@ public sealed class JsonConverter<T> : JsonConverter where T : notnull
 	}
 
 	/// <inheritdoc/>
-	public override JsonValue Serialize(object value)
+	public override JsonValue Serialize(object value, JsonOptions currentOptions)
 	{
 		if (this.SerializerCallback is not null)
 		{
