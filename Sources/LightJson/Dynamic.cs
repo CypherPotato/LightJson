@@ -11,7 +11,7 @@ namespace LightJson;
 
 internal class Dynamic
 {
-	public static object DeserializeObject(JsonValue value, Type tinputType, JsonOptions options)
+	public static object DeserializeObject(JsonValue value, [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.All)] Type tinputType, JsonOptions options)
 	{
 		if (value.IsNull)
 			throw new InvalidOperationException($"Cannot deserialize the JSON value at {value.Path} into {tinputType.Name} because it is null or undefined.");
@@ -19,13 +19,13 @@ internal class Dynamic
 		return DeserializeObjectX(value, tinputType, 0, options);
 	}
 
-	[UnconditionalSuppressMessage("AOT", "IL3050:Calling members annotated with 'RequiresDynamicCodeAttribute' may break functionality when AOT compiling.", Justification = "<Pending>")]
-	static object DeserializeObjectX(JsonValue value, Type type, int deepness, JsonOptions options)
+	//[UnconditionalSuppressMessage("AOT", "IL3050:Calling members annotated with 'RequiresDynamicCodeAttribute' may break functionality when AOT compiling.", Justification = "<Pending>")]
+	static object DeserializeObjectX(JsonValue value, [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.All)] Type type, int deepness, JsonOptions options)
 	{
 		if (type.IsGenericType && type.GetGenericTypeDefinition() == typeof(System.Nullable<>))
 		{
 			// map nullable struct to their underlaying type
-			type = type.GetGenericArguments()[0];
+			type = Nullable.GetUnderlyingType(type)!;
 		}
 
 		if (type == typeof(JsonValue))
@@ -58,6 +58,13 @@ internal class Dynamic
 		}
 		else
 		{
+			// find the IJsonSerizeable interface on type
+			if (JsonSerializableHelpers.TryDynamicDeserialize(value, options, type, out var result))
+			{
+				return result!;
+			}
+
+			// find a JsonConverter to match the specified type
 			for (int i = 0; i < options.Converters.Count; i++)
 			{
 				var mapper = options.Converters[i];
@@ -74,9 +81,14 @@ internal class Dynamic
 				}
 			}
 
+			// try to dynamic deserialize
 			if (options.DynamicSerialization.HasFlag(DynamicSerializationMode.Read))
 			{
+				//
+				// DynamicSerializationMode.Read requires DynamicCode
+#pragma warning disable IL3050
 				return DeserializeDynamicObject(value, type, deepness + 1, options);
+#pragma warning restore IL3050
 			}
 			else
 			{
@@ -85,11 +97,15 @@ internal class Dynamic
 		}
 	}
 
-	[RequiresDynamicCode("This method requires dynamic-code to deserialize into dynamic objects.")]
-	[SuppressMessage("Trimming", "IL2067:Target parameter argument does not satisfy 'DynamicallyAccessedMembersAttribute' in call to target method. The parameter of method does not have matching annotations.", Justification = "<Pendente>")]
-	[SuppressMessage("Trimming", "IL2070:'this' argument does not satisfy 'DynamicallyAccessedMembersAttribute' in call to target method. The parameter of method does not have matching annotations.", Justification = "<Pendente>")]
-	[SuppressMessage("Trimming", "IL2026:Using dynamic types might cause types or members to be removed by trimmer.", Justification = "<Pendente>")]
-	static object DeserializeDynamicObject(JsonValue value, Type type, int deepness, JsonOptions options)
+	[RequiresDynamicCode("Calls System.Type.MakeGenericType(params Type[])")]
+	[DynamicDependency(DynamicallyAccessedMemberTypes.All, typeof(List<>))]
+	[SuppressMessage("Trimming", "IL2062:The parameter of method has a DynamicallyAccessedMembersAttribute, but the value passed to it can not be statically analyzed.",
+		Justification = "The compiler shouldn't trim arrays element types.")]
+	[SuppressMessage("Trimming", "IL2067:The parameter of method has a DynamicallyAccessedMembersAttribute, but the value passed to it can not be statically analyzed.",
+		Justification = "Same as above.")]
+	[SuppressMessage("Trimming", "IL2072:Target parameter argument does not satisfy 'DynamicallyAccessedMembersAttribute' in call to target method. The return value of the source method does not have matching annotations.",
+		Justification = "The GetElementType() doens't carry the DynamicallyAccessedMembers information.")]
+	static object DeserializeDynamicObject(JsonValue value, [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.All)] Type type, int deepness, JsonOptions options)
 	{
 		if (type.IsAssignableTo(typeof(IEnumerable)))
 		{
@@ -112,10 +128,12 @@ internal class Dynamic
 				var genericCollection = typeof(ICollection<>).MakeGenericType(subType);
 				if (type.IsAssignableTo(genericCollection))
 				{
-					dynamic? listInstance = Activator.CreateInstance(type);
+					dynamic? listInstance = Activator.CreateInstance(genericCollection);
 					foreach (dynamic? obj in items)
 					{
+#pragma warning disable IL2026 // solved by DynamicDependency
 						listInstance?.Add(obj);
+#pragma warning restore IL2026
 					}
 					return listInstance!;
 				}
@@ -243,6 +261,7 @@ internal class Dynamic
 			return new JsonValue(valueType, nbool ? 1 : 0, null, options);
 		}
 
+		// serialize using converter
 		if (convertersEnabled)
 		{
 			for (int i = 0; i < options.Converters.Count; i++)
@@ -255,6 +274,12 @@ internal class Dynamic
 					return result;
 				}
 			}
+		}
+
+		if (JsonSerializableHelpers.TryDynamicSerialize(value, itemType, options, out var dynamicResult))
+		{
+			valueType = dynamicResult.Type;
+			return dynamicResult;
 		}
 
 		if (!options.DynamicSerialization.HasFlag(DynamicSerializationMode.Write))

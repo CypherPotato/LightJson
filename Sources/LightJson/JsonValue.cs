@@ -2,6 +2,7 @@ using LightJson.Converters;
 using LightJson.Serialization;
 using System;
 using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Text.Json.Serialization;
 
@@ -159,7 +160,7 @@ namespace LightJson
 		/// Gets this value as an defined <see cref="JsonConverter"/>.
 		/// </summary>
 		/// <param name="type">The defined converted type.</param>
-		public object Get(Type type)
+		public object Get([DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.All)] Type type)
 		{
 			if (this.IsNull)
 			{
@@ -179,7 +180,7 @@ namespace LightJson
 		/// Gets this value as an defined <see cref="JsonConverter"/>.
 		/// </summary>
 		/// <typeparam name="T">The defined mapping type.</typeparam>
-		public T Get<T>() where T : notnull
+		public T Get<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.All)] T>() where T : notnull
 		{
 			var tType = typeof(T);
 			return (T)this.Get(tType);
@@ -482,7 +483,7 @@ namespace LightJson
 		/// </summary>
 		/// <param name="jsonText">The JSON-formatted string to be parsed.</param>
 		/// <param name="options">Optional. Sets the JsonOptions instance to deserializing the object.</param>
-		public static T Deserialize<T>(string jsonText, JsonOptions? options = null) where T : notnull
+		public static T Deserialize<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.All)] T>(string jsonText, JsonOptions? options = null) where T : notnull
 			=> (options ?? JsonOptions.Default).Deserialize<T>(jsonText);
 
 		/// <summary>

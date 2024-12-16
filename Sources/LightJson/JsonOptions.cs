@@ -1,6 +1,7 @@
 ﻿using LightJson.Converters;
 using LightJson.Serialization;
 using System;
+using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Runtime.CompilerServices;
 using System.Text;
@@ -34,7 +35,7 @@ public sealed class JsonOptions
 	public bool WriteIndented { get; set; } = false;
 
 	/// <summary>
-	/// Gets or sets the default string comparer used for comparing property values.
+	/// Gets or sets the default string comparer used for comparing properties names.
 	/// </summary>
 	public StringComparer PropertyNameComparer { get; set; } = StringComparer.Ordinal;
 
@@ -72,6 +73,11 @@ public sealed class JsonOptions
 	/// trimmed/AOT compilation.
 	/// </remarks>
 	public DynamicSerializationMode DynamicSerialization { get; set; }
+
+	/// <summary>
+	/// Gets or sets the output for the JSON writer when writing double Infinity numbers.
+	/// </summary>
+	public JsonInfinityHandleOption InfinityHandler { get; set; } = JsonInfinityHandleOption.WriteNull;
 
 	/// <summary>
 	/// Creates an new <see cref="JsonOptions"/> instance with default parameters.
@@ -123,6 +129,12 @@ public sealed class JsonOptions
 		_value.options = this;
 		return _value;
 	}
+
+	/// <summary>
+	/// Serializes the specified object into an JSON string.
+	/// </summary>
+	/// <param name="value">The object to serialize into an JSON string.</param>
+	public string SerializeJson(object? value) => Serialize(value).ToString();
 
 	/// <summary>
 	/// Deserializes a JSON string into a <see cref="JsonValue"/>.
@@ -177,7 +189,7 @@ public sealed class JsonOptions
 	/// <typeparam name="T">The type of the object to deserialize to. Must not be null.</typeparam>
 	/// <param name="utf8JsonString">The JSON string to deserialize.</param>
 	/// <returns>An object of type <typeparamref name="T"/> representing the deserialized JSON.</returns>
-	public T Deserialize<T>(string utf8JsonString) where T : notnull => this.Deserialize(utf8JsonString).Get<T>();
+	public T Deserialize<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.All)] T>(string utf8JsonString) where T : notnull => this.Deserialize(utf8JsonString).Get<T>();
 
 	/// <summary>
 	/// Deserializes JSON from a stream into an object of type <typeparamref name="T"/>.
@@ -186,7 +198,7 @@ public sealed class JsonOptions
 	/// <param name="inputStream">The stream containing the JSON data.</param>
 	/// <param name="encoding">The encoding to use for reading the stream. If null, defaults to <see cref="Encoding.Default"/>.</param>
 	/// <returns>An object of type <typeparamref name="T"/> representing the deserialized JSON.</returns>
-	public T Deserialize<T>(Stream inputStream, Encoding? encoding) where T : notnull => this.Deserialize(inputStream, encoding).Get<T>();
+	public T Deserialize<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.All)] T>(Stream inputStream, Encoding? encoding) where T : notnull => this.Deserialize(inputStream, encoding).Get<T>();
 
 	/// <summary>
 	/// Attempts to deserialize JSON from a stream into a <see cref="JsonValue"/>.
@@ -249,4 +261,20 @@ public enum DynamicSerializationMode
 	/// Represents that the JSON serializer can read and write dynamic JSON for non-mapped objects.
 	/// </summary>
 	Both = Read | Write
+}
+
+/// <summary>
+/// Represents the action to deal with float infinite numbers.
+/// </summary>
+public enum JsonInfinityHandleOption
+{
+	/// <summary>
+	/// Write JSON null on Infinity numbers.
+	/// </summary>
+	WriteNull,
+
+	/// <summary>
+	/// Write JSON zero on Infinity numbers.
+	/// </summary>
+	WriteZero
 }

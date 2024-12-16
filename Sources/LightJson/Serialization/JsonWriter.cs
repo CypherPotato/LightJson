@@ -60,6 +60,11 @@ namespace LightJson.Serialization
 		public JsonNamingPolicy? NamingPolicy { get; set; }
 
 		/// <summary>
+		/// Gets or sets the output for the JSON writer when writing double Infinity numbers.
+		/// </summary>
+		public JsonInfinityHandleOption InfinityHandleOption { get; set; } = JsonInfinityHandleOption.WriteNull;
+
+		/// <summary>
 		/// Initializes an new instance of <see cref="JsonWriter"/>.
 		/// </summary>
 		public JsonWriter()
@@ -87,6 +92,7 @@ namespace LightJson.Serialization
 			}
 
 			this.NamingPolicy = options.NamingPolicy;
+			this.InfinityHandleOption = options.InfinityHandler;
 
 			this.renderingCollections = new HashSet<IEnumerable<JsonValue>>();
 			this.InnerWriter = innerWriter;
@@ -116,7 +122,22 @@ namespace LightJson.Serialization
 					break;
 
 				case JsonValueType.Number:
-					this.Write(value.GetNumber().ToString(CultureInfo.InvariantCulture));
+					var number = value.GetNumber();
+					if (double.IsPositiveInfinity(number) || double.IsNegativeInfinity(number))
+					{
+						if (InfinityHandleOption == JsonInfinityHandleOption.WriteZero)
+						{
+							this.Write("0");
+						}
+						else
+						{
+							this.Write("null");
+						}
+					}
+					else
+					{
+						this.Write(number.ToString(CultureInfo.InvariantCulture));
+					}
 					break;
 
 				case JsonValueType.String:

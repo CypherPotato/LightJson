@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Diagnostics.CodeAnalysis;
 
 namespace LightJson;
 
@@ -6,7 +7,7 @@ namespace LightJson;
 /// Represents a value box where it's value is serialized and deserialized as an Json value.
 /// </summary>
 /// <typeparam name="TValue">The value type. This type cannot be null.</typeparam>
-public sealed class JsonBox<TValue> : IEquatable<TValue>, IJsonBox where TValue : notnull
+public sealed class JsonBox<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.All)] TValue> : IEquatable<TValue>, IJsonBox where TValue : notnull
 {
 	private JsonValue jval;
 

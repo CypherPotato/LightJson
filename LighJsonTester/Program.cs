@@ -1,6 +1,4 @@
 ﻿using LightJson;
-using System.Text.Json;
-using System.Text.Json.Serialization;
 
 namespace LighJsonTester;
 
@@ -8,20 +6,45 @@ internal class Program
 {
     static void Main(string[] args)
     {
-        JsonValue val = JsonValue.Serialize(new { batata = true });
+        string json = """
+            [
+                [10, 20],
+                [20, 30],
+                [40, 50]
+            ]
+            """;
 
-        var n = val.Get<JsonValue>();
+        JsonOptions.Default.DynamicSerialization = DynamicSerializationMode.Both;
 
-        Console.WriteLine(n.ToString());
+        var points = JsonOptions.Default.Deserialize(json)
+            .GetJsonArray().EveryAs<Point>();
 
+        foreach (var point in points)
+        {
+            Console.WriteLine(point); 
+        }
     }
 }
 
-public class PatientOccupationData
+public readonly record struct Point : IJsonSerializable<Point>
 {
-    public required string Occupation { get; set; }
-    public required string Profession { get; set; }
-    public int EmploymentYears { get; set; }
-    public required string CompanyCNPJ { get; set; }
-    public required string CompanyCEP { get; set; }
+    public readonly double X;
+    public readonly double Y;
+
+    public Point(double x, double y)
+    {
+        X = x;
+        Y = y;
+    }
+
+    public static Point DeserializeFromJson(JsonValue json, JsonOptions options)
+    {
+        var jarr = json.GetJsonArray();
+        return new Point(jarr[0].GetNumber(), jarr[1].GetNumber());
+    }
+
+    public static JsonValue SerializeIntoJson(Point self, JsonOptions options)
+    {
+        return new JsonArray(options) { self.X, self.Y };
+    }
 }

@@ -3,6 +3,7 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
 
 namespace LightJson
 {
@@ -160,7 +161,7 @@ namespace LightJson
 		/// Casts every <see cref="JsonValue"/> in this array into an <typeparamref name="T"/>.
 		/// </summary>
 		/// <typeparam name="T">The type to cast the JsonValue into.</typeparam>
-		public IEnumerable<T> EveryAs<T>() where T : notnull
+		public IEnumerable<T> EveryAs<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.All)] T>() where T : notnull
 		{
 			foreach (var jsonitem in this.items)
 			{
@@ -173,7 +174,7 @@ namespace LightJson
 		/// This method also includes null values.
 		/// </summary>
 		/// <typeparam name="T">The type to cast the JsonValue into.</typeparam>
-		public IEnumerable<T?> EveryAsNullable<T>() where T : notnull
+		public IEnumerable<T?> EveryAsNullable<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.All)] T>() where T : notnull
 		{
 			foreach (var jsonitem in this.items)
 			{
