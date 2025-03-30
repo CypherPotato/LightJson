@@ -137,6 +137,11 @@ internal class Dynamic {
 				var prop = properties [ i ];
 
 				string propName = prop.Name;
+
+				if (prop.GetCustomAttribute<JsonPropertyNameAttribute> () is { } attrJsonName) {
+					propName = attrJsonName.Name;
+				}
+
 				JsonValue? jobjChild = jobj
 					.Properties
 						.Where ( p => options.PropertyNameComparer.Equals ( propName, p.Key ) )

@@ -1,15 +1,13 @@
 using System;
 
-namespace LightJson.Serialization
-{
+namespace LightJson.Serialization {
 	/// <summary>
 	/// The exception that is thrown when a JSON message cannot be parsed.
 	/// </summary>
 	/// <remarks>
 	/// This exception is only intended to be thrown by LightJson.
 	/// </remarks>
-	public sealed class JsonParseException : Exception
-	{
+	public sealed class JsonParseException : Exception {
 		/// <summary>
 		/// Gets the text position where the error occurred.
 		/// </summary>
@@ -23,16 +21,16 @@ namespace LightJson.Serialization
 		/// <summary>
 		/// Initializes a new instance of JsonParseException.
 		/// </summary>
-		public JsonParseException()
-			: base(GetDefaultMessage(ErrorType.Unknown)) { }
+		public JsonParseException ()
+			: base ( GetDefaultMessage ( ErrorType.Unknown ) ) { }
 
 		/// <summary>
 		/// Initializes a new instance of JsonParseException with the given error type and position.
 		/// </summary>
 		/// <param name="type">The error type that describes the cause of the error.</param>
 		/// <param name="position">The position in the text where the error occurred.</param>
-		public JsonParseException(ErrorType type, TextPosition position)
-			: this(GetDefaultMessage(type), type, position) { }
+		public JsonParseException ( ErrorType type, TextPosition position )
+			: this ( GetDefaultMessage ( type ), type, position ) { }
 
 		/// <summary>
 		/// Initializes a new instance of JsonParseException with the given message, error type, and position.
@@ -40,17 +38,14 @@ namespace LightJson.Serialization
 		/// <param name="message">The message that describes the error.</param>
 		/// <param name="type">The error type that describes the cause of the error.</param>
 		/// <param name="position">The position in the text where the error occurred.</param>
-		public JsonParseException(string message, ErrorType type, TextPosition position)
-			: base(message)
-		{
+		public JsonParseException ( string message, ErrorType type, TextPosition position )
+			: base ( message ) {
 			this.Type = type;
 			this.Position = position;
 		}
 
-		private static string GetDefaultMessage(ErrorType type)
-		{
-			switch (type)
-			{
+		private static string GetDefaultMessage ( ErrorType type ) {
+			switch (type) {
 				case ErrorType.IncompleteMessage:
 					return "The string ended before a value could be parsed.";
 
@@ -68,8 +63,7 @@ namespace LightJson.Serialization
 		/// <summary>
 		/// Enumerates the types of errors that can occur when parsing a JSON message.
 		/// </summary>
-		public enum ErrorType : int
-		{
+		public enum ErrorType : int {
 			/// <summary>
 			/// Indicates that the cause of the error is unknown.
 			/// </summary>

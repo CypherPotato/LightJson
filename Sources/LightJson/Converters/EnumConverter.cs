@@ -5,8 +5,7 @@ namespace LightJson.Converters;
 /// <summary>
 /// Represents an Json Converter which can serialize and deserialize enums.
 /// </summary>
-public class EnumConverter : JsonConverter
-{
+public class EnumConverter : JsonConverter {
 	/// <summary>
 	/// Gets or sets whether this converter should serialize enum values into their
 	/// string representation or numeric ones.
@@ -14,34 +13,27 @@ public class EnumConverter : JsonConverter
 	public static bool EnumToString { get; set; } = false;
 
 	/// <inheritdoc/>
-	public override Boolean CanSerialize(Type type, JsonOptions currentOptions)
-	{
+	public override Boolean CanSerialize ( Type type, JsonOptions currentOptions ) {
 		return type.IsEnum;
 	}
 
 	/// <inheritdoc/>
-	public override object Deserialize(JsonValue value, Type requestedType, JsonOptions currentOptions)
-	{
-		if (value.IsInteger)
-		{
-			return Enum.ToObject(requestedType, value.GetInteger());
+	public override object Deserialize ( JsonValue value, Type requestedType, JsonOptions currentOptions ) {
+		if (value.IsInteger) {
+			return Enum.ToObject ( requestedType, value.GetInteger () );
 		}
-		else
-		{
-			return Enum.Parse(requestedType, value.GetString(), true);
+		else {
+			return Enum.Parse ( requestedType, value.GetString (), true );
 		}
 	}
 
 	/// <inheritdoc/>
-	public override JsonValue Serialize(object value, JsonOptions currentOptions)
-	{
-		if (EnumToString)
-		{
-			return new JsonValue(value.ToString()!);
+	public override JsonValue Serialize ( object value, JsonOptions currentOptions ) {
+		if (EnumToString) {
+			return new JsonValue ( value.ToString ()! );
 		}
-		else
-		{
-			return new JsonValue((int)value);
+		else {
+			return new JsonValue ( (int) value );
 		}
 	}
 }

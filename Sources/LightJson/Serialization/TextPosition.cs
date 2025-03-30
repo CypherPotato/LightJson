@@ -1,10 +1,8 @@
-﻿namespace LightJson.Serialization
-{
+﻿namespace LightJson.Serialization {
 	/// <summary>
 	/// Represents a position within a plain text resource.
 	/// </summary>
-	public readonly struct TextPosition
-	{
+	public readonly struct TextPosition {
 		/// <summary>
 		/// The column position, 0-based.
 		/// </summary>
@@ -20,8 +18,7 @@
 		/// </summary>
 		/// <param name="line">The 1-based line number.</param>
 		/// <param name="column">The 1-based column number.</param>
-		public TextPosition(long line, long column)
-		{
+		public TextPosition ( long line, long column ) {
 			this.Column = column;
 			this.Line = line;
 		}

@@ -3,14 +3,12 @@ using System.Text;
 
 namespace LightJson.Serialization;
 
-internal class JsonSanitizer
-{
+internal class JsonSanitizer {
 	[Obsolete]
-	public static string SanitizeInput(string input)
-	{
-		StringBuilder output = new StringBuilder();
+	public static string SanitizeInput ( string input ) {
+		StringBuilder output = new StringBuilder ();
 
-		char[] inputChars = input.ToCharArray();
+		char [] inputChars = input.ToCharArray ();
 
 		bool inSingleString = false;
 		bool inDoubleString = false;
@@ -20,46 +18,41 @@ internal class JsonSanitizer
 		var inString = () => inSingleString || inDoubleString;
 		var inComment = () => inMultilineComment || inSinglelineComment;
 
-		for (int i = 0; i < inputChars.Length; i++)
-		{
-			char current = inputChars[i];
-			char before = i > 0 ? inputChars[i - 1] : '\0';
+		for (int i = 0; i < inputChars.Length; i++) {
+			char current = inputChars [ i ];
+			char before = i > 0 ? inputChars [ i - 1 ] : '\0';
 
-			if (current == '\'' && before != '\\' && !inDoubleString && !inComment())
-			{
+			if (current == '\'' && before != '\\' && !inDoubleString && !inComment ()) {
 				inSingleString = !inSingleString;
 			}
-			else if (current == '"' && before != '\\' && !inSingleString && !inComment())
-			{
+			else if (current == '"' && before != '\\' && !inSingleString && !inComment ()) {
 				inDoubleString = !inDoubleString;
 			}
-			else if (current == '*' && before == '/' && !inString() && !inSinglelineComment)
-			{
+			else if (current == '*' && before == '/' && !inString () && !inSinglelineComment) {
 				inMultilineComment = true;
-				if (output.Length > 0) output.Length--;
+				if (output.Length > 0)
+					output.Length--;
 			}
-			else if (current == '/' && before == '*' && !inString() && !inSinglelineComment)
-			{
+			else if (current == '/' && before == '*' && !inString () && !inSinglelineComment) {
 				inMultilineComment = false;
-				if (output.Length > 0) output.Length--;
+				if (output.Length > 0)
+					output.Length--;
 				continue;
 			}
-			else if (current == '/' && before == '/' && !inString() && !inMultilineComment)
-			{
+			else if (current == '/' && before == '/' && !inString () && !inMultilineComment) {
 				inSinglelineComment = true;
-				if (output.Length > 0) output.Length--;
+				if (output.Length > 0)
+					output.Length--;
 			}
-			else if (current == '\n' || current == '\r' && !inString() && inSinglelineComment)
-			{
+			else if (current == '\n' || (current == '\r' && !inString () && inSinglelineComment)) {
 				inSinglelineComment = false;
 			}
 
-			if (!inComment())
-			{
-				output.Append(current);
+			if (!inComment ()) {
+				output.Append ( current );
 			}
 		}
 
-		return output.ToString();
+		return output.ToString ();
 	}
 }
