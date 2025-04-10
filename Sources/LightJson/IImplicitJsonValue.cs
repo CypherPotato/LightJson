@@ -4,6 +4,7 @@
 /// Represents an value that can be implicitly converted to an <see cref="JsonValue"/>.
 /// </summary>
 public interface IImplicitJsonValue {
+
 	/// <summary>
 	/// Returns a JSON string representing the state of this value.
 	/// </summary>

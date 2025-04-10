@@ -2,6 +2,7 @@
 using System.Globalization;
 using System.IO;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace LightJson.Serialization {
@@ -11,6 +12,7 @@ namespace LightJson.Serialization {
 	/// Represents a reader that can read JsonValues.
 	/// </summary>
 	public sealed class JsonReader : IDisposable {
+
 		private readonly TextScanner scanner;
 		private string moutingPath = "$";
 		private readonly JsonOptions options;
@@ -47,46 +49,48 @@ namespace LightJson.Serialization {
 			}
 		}
 
-		private string ReadJsonKey () {
+		private string ReadJsonKey ( CancellationToken cancellation ) {
 			string read;
 			if (this.options.SerializationFlags.HasFlag ( JsonSerializationFlags.AllowUnquotedPropertyNames )) {
-				read = this.ReadUnquotedProperty ();
+				read = this.ReadUnquotedProperty ( cancellation );
 			}
 			else {
-				read = this.ReadString ();
+				read = this.ReadString ( cancellation );
 			}
 			this.moutingPath += "." + read;
 			return read;
 		}
 
-		private JsonValue ReadJsonValue () {
-			this.scanner.SkipWhitespace ();
+		private JsonValue ReadJsonValue ( CancellationToken cancellation ) {
 
-			this.SkipComments ();
+			cancellation.ThrowIfCancellationRequested ();
+
+			this.scanner.SkipWhitespace ( cancellation );
+			this.SkipComments ( cancellation );
 
 			var next = this.scanner.Peek ();
 			if (this.scanner.Exception is not null)
 				return this.ThrowParseException<JsonValue> ( this.scanner.Exception );
 
 			if (char.IsNumber ( next )) {
-				return this.ReadNumber ();
+				return this.ReadNumber ( cancellation );
 			}
 
 			switch (next) {
 				case '{':
-					return new JsonValue ( this.ReadObject (), this.options );
+					return new JsonValue ( this.ReadObject ( cancellation ), this.options );
 
 				case '[':
-					return new JsonValue ( this.ReadArray (), this.options );
+					return new JsonValue ( this.ReadArray ( cancellation ), this.options );
 
 				case '"':
 				case '\'':
-					return new JsonValue ( this.ReadString (), this.options );
+					return new JsonValue ( this.ReadString ( cancellation ), this.options );
 
 				case '-':
 				case '.':
 				case '+':
-					return this.ReadNumber ();
+					return this.ReadNumber ( cancellation );
 
 				case 't':
 				case 'f':
@@ -137,23 +141,25 @@ namespace LightJson.Serialization {
 			}
 		}
 
-		private void ReadDigits ( StringBuilder builder ) {
+		private void ReadDigits ( StringBuilder builder, CancellationToken cancellation ) {
 			while (this.scanner.CanRead && !TextScanner.IsNumericValueTerminator ( this.scanner.PeekOrDefault () )) {
+				cancellation.ThrowIfCancellationRequested ();
 				builder.Append ( this.scanner.Read () );
 			}
 			if (this.scanner.Exception is not null)
 				this.ThrowParseException ( this.scanner.Exception );
 		}
 
-		private JsonValue ReadNumber () {
+		private JsonValue ReadNumber ( CancellationToken cancellation ) {
 			var builder = new StringBuilder ();
 			var peek = this.scanner.Peek ();
+
 			if (this.scanner.Exception is not null)
 				return this.ThrowParseException<JsonObject> ( this.scanner.Exception );
 
 			if (peek == '-') {
 				builder.Append ( this.scanner.Read () );
-				this.ReadDigits ( builder );
+				this.ReadDigits ( builder, cancellation );
 			}
 			else if (peek == '.') {
 				builder.Append ( "0" );
@@ -161,7 +167,7 @@ namespace LightJson.Serialization {
 			else if (peek == '+') {
 				if (this.options.SerializationFlags.HasFlag ( JsonSerializationFlags.AllowPositiveSign )) {
 					builder.Append ( this.scanner.Read () );
-					this.ReadDigits ( builder );
+					this.ReadDigits ( builder, cancellation );
 				}
 				else {
 					return this.ThrowParseException ( new JsonParseException (
@@ -171,7 +177,7 @@ namespace LightJson.Serialization {
 				}
 			}
 			else {
-				this.ReadDigits ( builder );
+				this.ReadDigits ( builder, cancellation );
 			}
 
 			if (this.scanner.CanRead && this.scanner.Peek () == '.') {
@@ -180,7 +186,7 @@ namespace LightJson.Serialization {
 				var n = this.scanner.PeekOrDefault ();
 
 				if (char.IsDigit ( n )) {
-					this.ReadDigits ( builder );
+					this.ReadDigits ( builder, cancellation );
 				}
 				else {
 					if (TextScanner.IsNumericValueTerminator ( n )) {
@@ -214,7 +220,7 @@ namespace LightJson.Serialization {
 						break;
 				}
 
-				this.ReadDigits ( builder );
+				this.ReadDigits ( builder, cancellation );
 			}
 
 			if (this.scanner.Exception is not null)
@@ -245,13 +251,13 @@ namespace LightJson.Serialization {
 			}
 		}
 
-		private string ReadUnquotedProperty () {
+		private string ReadUnquotedProperty ( CancellationToken cancellation ) {
 			var builder = new StringBuilder ();
 
 			var peek = this.scanner.Peek ();
 			if (peek == '"' || peek == '\'') {
 				// it's an quoted string
-				return this.ReadString ();
+				return this.ReadString ( cancellation );
 			}
 
 			if (this.scanner.Exception is not null)
@@ -259,6 +265,7 @@ namespace LightJson.Serialization {
 
 			int l = 0;
 			while (true) {
+				cancellation.ThrowIfCancellationRequested ();
 				var c = this.scanner.Read ();
 
 				if (this.scanner.Peek () == ':') {
@@ -287,11 +294,13 @@ namespace LightJson.Serialization {
 			return builder.ToString ();
 		}
 
-		private string ReadString () {
+		private string ReadString ( CancellationToken cancellation ) {
+
+			cancellation.ThrowIfCancellationRequested ();
 			var builder = new StringBuilder ();
 
 			bool isSingleQuoted = false;
-			char h = this.scanner.AssertAny ( '"', '\'' );
+			char h = this.scanner.AssertAny ( [ '"', '\'' ] );
 			if (this.scanner.Exception is not null)
 				return this.ThrowParseException<string> ( this.scanner.Exception );
 
@@ -310,6 +319,7 @@ namespace LightJson.Serialization {
 			int lineStartColumn = (int) this.scanner.Position.Column;
 			bool usedNlLiteral = false;
 			while (true) {
+				cancellation.ThrowIfCancellationRequested ();
 				var c = this.scanner.Read ();
 
 				if (c == '\\') {
@@ -495,19 +505,21 @@ namespace LightJson.Serialization {
 			return (char) value;
 		}
 
-		private JsonObject ReadObject () {
-			return this.ReadObject ( new JsonObject ( this.options ) );
+		private JsonObject ReadObject ( CancellationToken cancellation ) {
+			return this.ReadObject ( new JsonObject ( this.options ), cancellation );
 		}
 
-		private JsonObject ReadObject ( JsonObject jsonObject ) {
+		private JsonObject ReadObject ( JsonObject jsonObject, CancellationToken cancellation ) {
 			string initialPath = this.moutingPath;
+
+			cancellation.ThrowIfCancellationRequested ();
 
 			this.scanner.Assert ( '{' );
 			if (this.scanner.Exception is not null)
 				return this.ThrowParseException<JsonObject> ( this.scanner.Exception );
 
-			this.scanner.SkipWhitespace ();
-			this.SkipComments ();
+			this.scanner.SkipWhitespace ( cancellation );
+			this.SkipComments ( cancellation );
 
 			if (this.scanner.Peek () == '}') {
 				this.scanner.Read ();
@@ -517,8 +529,9 @@ namespace LightJson.Serialization {
 					return this.ThrowParseException<JsonObject> ( this.scanner.Exception );
 
 				while (true) {
-					this.scanner.SkipWhitespace ();
-					this.SkipComments ();
+					this.scanner.SkipWhitespace ( cancellation );
+					this.SkipComments ( cancellation );
+					cancellation.ThrowIfCancellationRequested ();
 
 					if (this.options.SerializationFlags.HasFlag ( JsonSerializationFlags.IgnoreTrailingComma ) && this.scanner.Peek () == '}') {
 						this.scanner.Read ();
@@ -528,7 +541,7 @@ namespace LightJson.Serialization {
 					if (this.scanner.Exception is not null)
 						return this.ThrowParseException<JsonObject> ( this.scanner.Exception );
 
-					var key = this.ReadJsonKey ();
+					var key = this.ReadJsonKey ( cancellation );
 
 					// https://www.rfc-editor.org/rfc/rfc7159#section-4
 					// JSON should allow duplicate key names by default
@@ -541,24 +554,24 @@ namespace LightJson.Serialization {
 						}
 					}
 
-					this.scanner.SkipWhitespace ();
-					this.SkipComments ();
+					this.scanner.SkipWhitespace ( cancellation );
+					this.SkipComments ( cancellation );
 
 					this.scanner.Assert ( ':' );
 					if (this.scanner.Exception is not null)
 						return this.ThrowParseException<JsonObject> ( this.scanner.Exception );
 
-					this.scanner.SkipWhitespace ();
-					this.SkipComments ();
+					this.scanner.SkipWhitespace ( cancellation );
+					this.SkipComments ( cancellation );
 
-					var value = this.ReadJsonValue ();
+					var value = this.ReadJsonValue ( cancellation );
 
 					value.path = this.moutingPath;
 
 					jsonObject [ key ] = value;
 
-					this.scanner.SkipWhitespace ();
-					this.SkipComments ();
+					this.scanner.SkipWhitespace ( cancellation );
+					this.SkipComments ( cancellation );
 
 					var next = this.scanner.Read ();
 					this.moutingPath = initialPath;
@@ -582,20 +595,22 @@ namespace LightJson.Serialization {
 			return jsonObject;
 		}
 
-		private JsonArray ReadArray () {
-			return this.ReadArray ( new JsonArray ( this.options ) );
+		private JsonArray ReadArray ( CancellationToken cancellation ) {
+			return this.ReadArray ( new JsonArray ( this.options ), cancellation );
 		}
 
-		private JsonArray ReadArray ( JsonArray jsonArray ) {
+		private JsonArray ReadArray ( JsonArray jsonArray, CancellationToken cancellation ) {
 			string initialPath = this.moutingPath;
 			int index = 0;
+
+			cancellation.ThrowIfCancellationRequested ();
 
 			this.scanner.Assert ( '[' );
 			if (this.scanner.Exception is not null)
 				return this.ThrowParseException<JsonArray> ( this.scanner.Exception );
 
-			this.scanner.SkipWhitespace ();
-			this.SkipComments ();
+			this.scanner.SkipWhitespace ( cancellation );
+			this.SkipComments ( cancellation );
 
 			if (this.scanner.Peek () == ']') {
 				this.scanner.Read ();
@@ -605,8 +620,9 @@ namespace LightJson.Serialization {
 					return this.ThrowParseException<JsonArray> ( this.scanner.Exception );
 
 				while (true) {
-					this.scanner.SkipWhitespace ();
-					this.SkipComments ();
+					this.scanner.SkipWhitespace ( cancellation );
+					this.SkipComments ( cancellation );
+					cancellation.ThrowIfCancellationRequested ();
 
 					if (this.scanner.Peek () == ']') {
 						if (this.options.SerializationFlags.HasFlag ( JsonSerializationFlags.IgnoreTrailingComma )) {
@@ -625,14 +641,14 @@ namespace LightJson.Serialization {
 						return this.ThrowParseException<JsonArray> ( this.scanner.Exception );
 
 					this.moutingPath += $"[{index}]";
-					var value = this.ReadJsonValue ();
+					var value = this.ReadJsonValue ( cancellation );
 
 					value.path = this.moutingPath;
 
 					jsonArray.Add ( value );
 
-					this.scanner.SkipWhitespace ();
-					this.SkipComments ();
+					this.scanner.SkipWhitespace ( cancellation );
+					this.SkipComments ( cancellation );
 
 					this.moutingPath = initialPath;
 					var next = this.scanner.Read ();
@@ -657,17 +673,18 @@ namespace LightJson.Serialization {
 			return jsonArray;
 		}
 
-		private void SkipComments () {
+		private void SkipComments ( CancellationToken cancellation ) {
 			if (!this.options.SerializationFlags.HasFlag ( JsonSerializationFlags.IgnoreComments )) {
 				return;
 			}
 		checkNextComment:
-			this.scanner.SkipWhitespace ();
+			this.scanner.SkipWhitespace ( cancellation );
 			if (this.scanner.Peek () == '/') {
 				this.scanner.Read ();
 				bool isMultilineComment = this.scanner.Peek () == '*';
 
 				while (this.scanner.CanRead) {
+					cancellation.ThrowIfCancellationRequested ();
 					char c = this.scanner.Read ();
 
 					if (isMultilineComment) {
@@ -693,19 +710,25 @@ namespace LightJson.Serialization {
 		}
 
 		/// <summary>
-		/// Reads the inner <see cref="TextReader"/> input to an valid <see cref="JsonValue"/>.
+		/// Parses the JSON value from the input.
 		/// </summary>
+		/// <returns>A <see cref="JsonValue"/> representing the parsed JSON.</returns>
 		public JsonValue Parse () {
-			this.scanner.SkipWhitespace ();
-			return this.ReadJsonValue ();
+			this.scanner.SkipWhitespace ( default );
+			return this.ReadJsonValue ( default );
 		}
 
 		/// <summary>
-		/// Asynchronously reads the inner <see cref="TextReader"/> input to a valid <see cref="JsonValue"/>.
+		/// Asynchronously parses the JSON value from the input.
 		/// </summary>
-		/// <returns>A <see cref="ValueTask{JsonValue}"/> representing the asynchronous operation, with 
-		/// a <see cref="JsonValue"/> result of the parsed input.</returns>
-		public ValueTask<JsonValue> ParseAsync () => ValueTask.FromResult ( this.Parse () );
+		/// <param name="cancellation">An optional <see cref="CancellationToken"/> to cancel the operation.</param>
+		/// <returns>A <see cref="Task"/> that returns a <see cref="JsonValue"/> representing the parsed JSON.</returns>
+		public Task<JsonValue> ParseAsync ( CancellationToken cancellation = default ) {
+			return Task.Run ( delegate {
+				this.scanner.SkipWhitespace ( cancellation );
+				return this.ReadJsonValue ( cancellation );
+			}, cancellation );
+		}
 
 		/// <summary>
 		/// Attempts to read the inner <see cref="TextReader"/> into an valid JSON and returns an boolean indicating the
@@ -722,12 +745,19 @@ namespace LightJson.Serialization {
 		}
 
 		/// <summary>
-		/// Asynchronously attempts to read the inner <see cref="TextReader"/> into a valid JSON and returns a boolean indicating the result.
+		/// Asynchronously attempts to read the inner <see cref="TextReader"/> into a valid JSON and returns a tuple containing
+		/// a boolean indicating the result and the parsed <see cref="JsonValue"/>.
 		/// </summary>
-		/// <param name="result">When this method returns, it outputs an <see cref="JsonValue"/> with the result of the operation.</param>
-		/// <returns>A <see cref="ValueTask{TResult}"/> representing the asynchronous operation, with a boolean indicating if
-		/// the input could be read into a valid JSON or not.</returns>
-		public ValueTask<bool> TryParseAsync ( out JsonValue result ) => ValueTask.FromResult ( this.TryParse ( out result ) );
+		/// <param name="cancellation">An optional <see cref="CancellationToken"/> to cancel the operation.</param>
+		/// <returns>A tuple containing a boolean indicating if the input could be read into a valid JSON or not, and the
+		/// parsed <see cref="JsonValue"/>.</returns>
+		public async Task<(bool, JsonValue)> TryParseAsync ( CancellationToken cancellation = default ) {
+			this.canThrowExceptions = false;
+			this.scanner.CanThrowExceptions = false;
+			var result = await this.ParseAsync ( cancellation );
+
+			return (this.caughtException == false && this.scanner.Exception is null, result);
+		}
 
 		private void Dispose ( bool disposing ) {
 			if (!this.disposedValue) {

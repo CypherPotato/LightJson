@@ -1,5 +1,6 @@
 ﻿using System;
 using System.IO;
+using System.Threading;
 
 namespace LightJson.Serialization {
 	using ErrorType = JsonParseException.ErrorType;
@@ -55,7 +56,14 @@ namespace LightJson.Serialization {
 		/// </summary>
 		/// <param name="n">The char to check.</param>
 		public static bool IsNumericValueTerminator ( char n )
-			=> char.IsWhiteSpace ( n ) || n == ',' || n == '}' || n == ']' || n == '\0';
+			=> n == ','
+			|| n == '}'
+			|| n == ']'
+			|| n == '\0'
+			|| n == ' '
+			|| n == '\n'
+			|| n == '\r'
+			|| n == '\t';
 
 		/// <summary>
 		/// Reads the next character in the stream without changing the current position or returns an null character '\0' if the scanner
@@ -122,8 +130,9 @@ namespace LightJson.Serialization {
 		/// <summary>
 		/// Advances the scanner to next non-whitespace character.
 		/// </summary>
-		public void SkipWhitespace () {
+		public void SkipWhitespace ( CancellationToken cancellation ) {
 			while (char.IsWhiteSpace ( this.PeekOrDefault () )) {
+				cancellation.ThrowIfCancellationRequested ();
 				this.Read ();
 			}
 		}
@@ -133,7 +142,7 @@ namespace LightJson.Serialization {
 		/// If the characters do not match, an exception will be thrown.
 		/// </summary>
 		/// <param name="next">An array of expected characters.</param>
-		public char AssertAny ( params char [] next ) {
+		public char AssertAny ( ReadOnlySpan<char> next ) {
 			var p = this.Peek ();
 			for (int i = 0; i < next.Length; i++) {
 				if (next [ i ] == p)
@@ -141,7 +150,7 @@ namespace LightJson.Serialization {
 			}
 
 			return this.ThrowParseException<char> ( new JsonParseException (
-				"Parser expected " + string.Join ( " or ", next ),
+				"Parser expected " + string.Join ( " or ", next.ToArray () ),
 				ErrorType.InvalidOrUnexpectedCharacter,
 				this.Position
 			) );

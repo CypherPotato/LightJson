@@ -4,6 +4,8 @@ using System.IO;
 using System.Runtime.CompilerServices;
 using System.Text;
 using System.Text.Json;
+using System.Threading;
+using System.Threading.Tasks;
 using LightJson.Converters;
 using LightJson.Serialization;
 
@@ -126,6 +128,18 @@ public sealed class JsonOptions {
 	}
 
 	/// <summary>
+	/// Serializes the specified <see cref="IJsonSerializable{TJsonSerializable}"/> object to a <see cref="JsonValue"/>.
+	/// </summary>
+	/// <typeparam name="TJsonSerializable">The type of the object to serialize, which must implement <see cref="IJsonSerializable{TJsonSerializable}"/>.</typeparam>
+	/// <param name="value">The object to serialize.</param>
+	/// <returns>A <see cref="JsonValue"/> representing the serialized object.</returns>
+	public JsonValue Serialize<TJsonSerializable> ( TJsonSerializable value ) where TJsonSerializable : IJsonSerializable<TJsonSerializable> {
+		JsonValue _value = TJsonSerializable.SerializeIntoJson ( value, this );
+		_value.options = this;
+		return _value;
+	}
+
+	/// <summary>
 	/// Serializes the specified object into an JSON string.
 	/// </summary>
 	/// <param name="value">The object to serialize into an JSON string.</param>
@@ -192,6 +206,72 @@ public sealed class JsonOptions {
 	public T Deserialize<[DynamicallyAccessedMembers ( DynamicallyAccessedMemberTypes.All )] T> ( Stream inputStream, Encoding? encoding ) where T : notnull => this.Deserialize ( inputStream, encoding ).Get<T> ();
 
 	/// <summary>
+	/// Deserializes a JSON string into a <see cref="JsonValue"/> asynchronously.
+	/// </summary>
+	/// <param name="utf8JsonString">The JSON string to deserialize.</param>
+	/// <param name="cancellation">The token to monitor for cancellation requests.</param>
+	/// <returns>A <see cref="JsonValue"/> representing the deserialized JSON.</returns>
+	public Task<JsonValue> DeserializeAsync ( string utf8JsonString, CancellationToken cancellation = default ) {
+		ArgumentNullException.ThrowIfNull ( utf8JsonString );
+		using var sr = new StringReader ( utf8JsonString );
+		using var jr = new JsonReader ( sr, this );
+		return jr.ParseAsync ( cancellation );
+	}
+
+	/// <summary>
+	/// Deserializes a JSON string represented as a <see cref="ReadOnlySpan{Char}"/> into a <see cref="JsonValue"/> asynchronously.
+	/// </summary>
+	/// <param name="utf8JsonString">The JSON string to deserialize as a <see cref="ReadOnlySpan{Char}"/>.</param>
+	/// <param name="cancellation">The token to monitor for cancellation requests.</param>
+	/// <returns>A <see cref="JsonValue"/> representing the deserialized JSON.</returns>
+	public Task<JsonValue> DeserializeAsync ( ReadOnlySpan<char> utf8JsonString, CancellationToken cancellation = default ) {
+		return this.DeserializeAsync ( new string ( utf8JsonString ), cancellation );
+	}
+
+	/// <summary>
+	/// Deserializes JSON from a <see cref="TextReader"/> into a <see cref="JsonValue"/> asynchronously.
+	/// </summary>
+	/// <param name="sr">The <see cref="TextReader"/> containing the JSON data.</param>
+	/// <param name="cancellation">The token to monitor for cancellation requests.</param>
+	/// <returns>A <see cref="JsonValue"/> representing the deserialized JSON.</returns>
+	public Task<JsonValue> DeserializeAsync ( TextReader sr, CancellationToken cancellation = default ) {
+		using var jr = new JsonReader ( sr, this );
+		return jr.ParseAsync ( cancellation );
+	}
+
+	/// <summary>
+	/// Deserializes JSON from a stream into a <see cref="JsonValue"/> asynchronously.
+	/// </summary>
+	/// <param name="inputStream">The stream containing the JSON data.</param>
+	/// <param name="encoding">The encoding to use for reading the stream. If null, defaults to <see cref="Encoding.Default"/>.</param>
+	/// <param name="cancellation">The token to monitor for cancellation requests.</param>
+	/// <returns>A <see cref="JsonValue"/> representing the deserialized JSON.</returns>
+	public Task<JsonValue> DeserializeAsync ( Stream inputStream, Encoding? encoding, CancellationToken cancellation = default ) {
+		using var sr = new StreamReader ( inputStream, encoding ?? Encoding.Default );
+		using var jr = new JsonReader ( sr, this );
+		return jr.ParseAsync ( cancellation );
+	}
+
+	/// <summary>
+	/// Deserializes a JSON string into an object of type <typeparamref name="T"/> asynchronously.
+	/// </summary>
+	/// <typeparam name="T">The type of the object to deserialize to. Must not be null.</typeparam>
+	/// <param name="utf8JsonString">The JSON string to deserialize.</param>
+	/// <param name="cancellation">The token to monitor for cancellation requests.</param>
+	/// <returns>An object of type <typeparamref name="T"/> representing the deserialized JSON.</returns>
+	public async Task<T> DeserializeAsync<[DynamicallyAccessedMembers ( DynamicallyAccessedMemberTypes.All )] T> ( string utf8JsonString, CancellationToken cancellation = default ) where T : notnull => (await this.DeserializeAsync ( utf8JsonString, cancellation )).Get<T> ();
+
+	/// <summary>
+	/// Deserializes JSON from a stream into an object of type <typeparamref name="T"/> asynchronously.
+	/// </summary>
+	/// <typeparam name="T">The type of the object to deserialize to. Must not be null.</typeparam>
+	/// <param name="inputStream">The stream containing the JSON data.</param>
+	/// <param name="encoding">The encoding to use for reading the stream. If null, defaults to <see cref="Encoding.Default"/>.</param>
+	/// <param name="cancellation">The token to monitor for cancellation requests.</param>
+	/// <returns>An object of type <typeparamref name="T"/> representing the deserialized JSON.</returns>
+	public async Task<T> DeserializeAsync<[DynamicallyAccessedMembers ( DynamicallyAccessedMemberTypes.All )] T> ( Stream inputStream, Encoding? encoding, CancellationToken cancellation = default ) where T : notnull => (await this.DeserializeAsync ( inputStream, encoding, cancellation )).Get<T> ();
+
+	/// <summary>
 	/// Attempts to deserialize JSON from a stream into a <see cref="JsonValue"/>.
 	/// </summary>
 	/// <param name="inputStream">The stream containing the JSON data.</param>
@@ -227,6 +307,31 @@ public sealed class JsonOptions {
 		using var jr = new JsonReader ( sr, this );
 
 		return jr.TryParse ( out result );
+	}
+
+	/// <summary>
+	/// Attempts to deserialize a JSON object from a stream asynchronously.
+	/// </summary>
+	/// <param name="inputStream">The stream containing the JSON data.</param>
+	/// <param name="encoding">The encoding of the stream. If null, <see cref="Encoding.Default"/> is used.</param>
+	/// <param name="cancellation">A token to cancel the asynchronous operation.</param>
+	/// <returns>A task that returns a tuple containing a boolean indicating whether the deserialization was successful and the deserialized <see cref="JsonValue"/>.</returns>
+	public Task<(bool, JsonValue)> TryDeserializeAsync ( Stream inputStream, Encoding? encoding, CancellationToken cancellation ) {
+		using var sr = new StreamReader ( inputStream, encoding ?? Encoding.Default );
+		using var jr = new JsonReader ( sr, this );
+		return jr.TryParseAsync ( cancellation );
+	}
+
+	/// <summary>
+	/// Attempts to deserialize a JSON object from a UTF-8 encoded string asynchronously.
+	/// </summary>
+	/// <param name="utf8Json">The UTF-8 encoded string containing the JSON data.</param>
+	/// <param name="cancellation">A token to cancel the asynchronous operation.</param>
+	/// <returns>A task that returns a tuple containing a boolean indicating whether the deserialization was successful and the deserialized <see cref="JsonValue"/>.</returns>
+	public Task<(bool, JsonValue)> TryDeserializeAsync ( string utf8Json, CancellationToken cancellation ) {
+		using var sr = new StringReader ( utf8Json );
+		using var jr = new JsonReader ( sr, this );
+		return jr.TryParseAsync ( cancellation );
 	}
 }
 

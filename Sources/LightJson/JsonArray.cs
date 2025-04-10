@@ -3,6 +3,7 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
+using System.Linq;
 using LightJson.Serialization;
 
 namespace LightJson {
@@ -157,6 +158,28 @@ namespace LightJson {
 					yield return jsonitem.Get<T> ();
 				}
 			}
+		}
+
+		/// <summary>
+		/// Converts the current object to an array of type <typeparamref name="T"/>.
+		/// </summary>
+		/// <typeparam name="T">The type of the elements in the resulting array. Must be a non-nullable type.</typeparam>
+		/// <returns>An array of type <typeparamref name="T"/> containing the elements.</returns>
+		public T [] ToArray<[DynamicallyAccessedMembers ( DynamicallyAccessedMemberTypes.All )] T> () where T : notnull
+			=> this.EveryAs<T> ().ToArray ();
+
+		/// <summary>
+		/// Converts the current <see cref="JsonArray"/> to an array of type <typeparamref name="T"/> using the provided conversion function.
+		/// </summary>
+		/// <typeparam name="T">The type of the elements in the resulting array.</typeparam>
+		/// <param name="func">A function that converts a <see cref="JsonValue"/> to an object of type <typeparamref name="T"/>.</param>
+		/// <returns>An array of type <typeparamref name="T"/> containing the converted elements.</returns>
+		public T [] ToArray<T> ( Func<JsonValue, T> func ) {
+			var result = new T [ this.Count ];
+			for (int i = 0; i < this.Count; i++) {
+				result [ i ] = func ( this [ i ] );
+			}
+			return result;
 		}
 
 		/// <summary>

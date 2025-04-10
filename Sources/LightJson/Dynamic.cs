@@ -1,24 +1,24 @@
 ﻿using System;
 using System.Collections;
-using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Reflection;
+using System.Runtime.CompilerServices;
 using System.Text.Json.Serialization;
 using LightJson.Serialization;
 
 namespace LightJson;
 
 internal class Dynamic {
+
 	public static object DeserializeObject ( JsonValue value, [DynamicallyAccessedMembers ( DynamicallyAccessedMemberTypes.All )] Type tinputType, JsonOptions options ) {
 		if (value.IsNull)
 			throw new InvalidOperationException ( $"Cannot deserialize the JSON value at {value.Path} into {tinputType.Name} because it is null or undefined." );
 
-		return DeserializeObjectX ( value, tinputType, 0, options );
+		return DeserializeObjectCore ( value, tinputType, 0, options );
 	}
 
-	//[UnconditionalSuppressMessage("AOT", "IL3050:Calling members annotated with 'RequiresDynamicCodeAttribute' may break functionality when AOT compiling.", Justification = "<Pending>")]
-	static object DeserializeObjectX ( JsonValue value, [DynamicallyAccessedMembers ( DynamicallyAccessedMemberTypes.All )] Type type, int deepness, JsonOptions options ) {
+	static object DeserializeObjectCore ( JsonValue value, [DynamicallyAccessedMembers ( DynamicallyAccessedMemberTypes.All )] Type type, int deepness, JsonOptions options ) {
 		if (type.IsGenericType && type.GetGenericTypeDefinition () == typeof ( System.Nullable<> )) {
 			// map nullable struct to their underlaying type
 			type = Nullable.GetUnderlyingType ( type )!;
@@ -69,6 +69,7 @@ internal class Dynamic {
 			if (options.DynamicSerialization.HasFlag ( DynamicSerializationMode.Read )) {
 				//
 				// DynamicSerializationMode.Read requires DynamicCode
+				// This line should not be called in AOT- environment.
 #pragma warning disable IL3050
 				return DeserializeDynamicObject ( value, type, deepness + 1, options );
 #pragma warning restore IL3050
@@ -79,15 +80,9 @@ internal class Dynamic {
 		}
 	}
 
-	[RequiresDynamicCode ( "Calls System.Type.MakeGenericType(params Type[])" )]
-	[DynamicDependency ( DynamicallyAccessedMemberTypes.All, typeof ( List<> ) )]
-	[SuppressMessage ( "Trimming", "IL2062:The parameter of method has a DynamicallyAccessedMembersAttribute, but the value passed to it can not be statically analyzed.",
-		Justification = "The compiler shouldn't trim arrays element types." )]
-	[SuppressMessage ( "Trimming", "IL2067:The parameter of method has a DynamicallyAccessedMembersAttribute, but the value passed to it can not be statically analyzed.",
-		Justification = "Same as above." )]
-	[SuppressMessage ( "Trimming", "IL2072:Target parameter argument does not satisfy 'DynamicallyAccessedMembersAttribute' in call to target method. The return value of the source method does not have matching annotations.",
-		Justification = "The GetElementType() doens't carry the DynamicallyAccessedMembers information." )]
-	static object DeserializeDynamicObject ( JsonValue value, [DynamicallyAccessedMembers ( DynamicallyAccessedMemberTypes.All )] Type type, int deepness, JsonOptions options ) {
+	[RequiresDynamicCode ( "This method does a lot of reflection, and should be used only when dynamic code is supported (non-aot environments)." )]
+#pragma warning disable IL2062, IL2070, IL2067, IL2072
+	static object DeserializeDynamicObject ( JsonValue value, Type type, int deepness, JsonOptions options ) {
 		if (type.IsAssignableTo ( typeof ( IEnumerable ) )) {
 			Type subType = type.IsArray
 				? type.GetElementType ()!
@@ -98,31 +93,11 @@ internal class Dynamic {
 			ArrayList items = new ArrayList ();
 			for (int i = 0; i < arr.Count; i++) {
 				var arrItem = arr [ i ];
-				var obj = DeserializeObjectX ( arrItem, subType, deepness + 1, options );
+				var obj = DeserializeObjectCore ( arrItem, subType, deepness + 1, options );
 				items.Add ( obj );
 			}
 
-			if (type.IsGenericType && !type.IsArray) {
-				var genericCollection = typeof ( ICollection<> ).MakeGenericType ( subType );
-				if (type.IsAssignableTo ( genericCollection )) {
-					dynamic? listInstance = Activator.CreateInstance ( genericCollection );
-					foreach (dynamic? obj in items) {
-#pragma warning disable IL2026 // solved by DynamicDependency
-						listInstance?.Add ( obj );
-#pragma warning restore IL2026
-					}
-					return listInstance!;
-				}
-				else {
-					throw new InvalidOperationException ( $"Unsupported collection type: {type}. The JSON deserializer can only deserialize JsonArrays into arrays or ICollection<> objects." );
-				}
-			}
-			else if (type.IsArray) {
-				return items.ToArray ( subType );
-			}
-			else {
-				throw new InvalidOperationException ( $"Unsupported collection type: {type}. The JSON deserializer can only deserialize JsonArrays into arrays or ICollection<> objects." );
-			}
+			return items.ToArray ( subType );
 		}
 		else {
 			PropertyInfo [] properties = type.GetProperties ( BindingFlags.Public | BindingFlags.Instance );
@@ -163,9 +138,51 @@ internal class Dynamic {
 					prop.SetValue ( objInstance, jsonValueObj );
 				}
 				else {
-					if (prop.GetCustomAttribute<JsonRequiredAttribute> ( true ) is JsonRequiredAttribute jrequired) {
+					if (prop.GetCustomAttribute<JsonRequiredAttribute> ( true ) is JsonRequiredAttribute jrequired ||
+						prop.GetCustomAttribute<RequiredMemberAttribute> () is { }) {
 						throw new JsonSerializationException ( $"At value {jobj.path}.{prop.Name} it is expected to have a {prop.PropertyType}.",
 							JsonSerializationException.ErrorType.Unknown );
+					}
+				}
+			}
+
+			if (options.SerializeFields) {
+				FieldInfo [] fields = type.GetFields ( BindingFlags.Public | BindingFlags.Instance );
+
+				for (int i = 0; i < fields.Length; i++) {
+					var field = fields [ i ];
+					string fieldName = field.Name;
+
+					if (field.GetCustomAttribute<JsonPropertyNameAttribute> () is { } attrJsonName) {
+						fieldName = attrJsonName.Name;
+					}
+
+					JsonValue? jobjChild = jobj
+						.Properties
+							.Where ( p => options.PropertyNameComparer.Equals ( fieldName, p.Key ) )
+							.Select ( p => p.Value )
+							.Cast<JsonValue?> ()
+							.FirstOrDefault ();
+
+					if (jobjChild is JsonValue jvalue) {
+						if (field.GetCustomAttribute<JsonIgnoreAttribute> () is JsonIgnoreAttribute ignore) {
+							if (ignore.Condition == JsonIgnoreCondition.WhenWritingDefault && jvalue.IsNull) {
+								continue;
+							}
+							else if (ignore.Condition == JsonIgnoreCondition.Always) {
+								continue;
+							}
+						}
+
+						object? jsonValueObj = jvalue.MaybeNull ()?.Get ( field.FieldType );
+						field.SetValue ( objInstance, jsonValueObj );
+					}
+					else {
+						if (field.GetCustomAttribute<JsonRequiredAttribute> ( true ) is JsonRequiredAttribute jrequired ||
+							field.GetCustomAttribute<RequiredMemberAttribute> () is { }) {
+							throw new JsonSerializationException ( $"At value {jobj.path}.{field.Name} it is expected to have a {field.FieldType}.",
+								JsonSerializationException.ErrorType.Unknown );
+						}
 					}
 				}
 			}
@@ -173,6 +190,7 @@ internal class Dynamic {
 			return objInstance;
 		}
 	}
+#pragma warning restore
 
 	public static JsonValue SerializeObject ( object? value, int deepness, bool convertersEnabled, JsonOptions options, out JsonValueType valueType ) {
 		if (deepness > options.DynamicObjectMaxDepth) {

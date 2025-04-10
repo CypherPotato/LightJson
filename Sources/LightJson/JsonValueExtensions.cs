@@ -1,6 +1,7 @@
 ﻿using System.IO;
 using System.Net.Http;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 using LightJson.Serialization;
 
@@ -17,9 +18,8 @@ public static class JsonValueExtensions {
 	/// <param name="httpContent">The HTTP content object.</param>
 	/// <param name="encoding">Optional. The encoding used for the decoding.</param>
 	/// <param name="options">Optional. The <see cref="JsonOptions"/> object for the serializer.</param>
-	public static JsonValue ReadAsJsonValue ( this HttpContent httpContent,
-		Encoding? encoding = null,
-		JsonOptions? options = null ) {
+	public static JsonValue ReadAsJsonValue ( this HttpContent httpContent, Encoding? encoding = null, JsonOptions? options = null ) {
+
 		var responseMessageStream = httpContent.ReadAsStream ();
 		using StreamReader sr = new StreamReader ( responseMessageStream, encoding ?? Encoding.UTF8 );
 		using JsonReader jr = new JsonReader ( sr, options ?? JsonOptions.Default );
@@ -33,12 +33,11 @@ public static class JsonValueExtensions {
 	/// <param name="httpContent">The HTTP content object.</param>
 	/// <param name="encoding">Optional. The encoding used for the decoding.</param>
 	/// <param name="options">Optional. The <see cref="JsonOptions"/> object for the serializer.</param>
-	public static async Task<JsonValue> ReadAsJsonValueAsync ( this HttpContent httpContent,
-		Encoding? encoding = null,
-		JsonOptions? options = null ) {
+	/// <param name="cancellation">A token to cancel the asynchronous operation.</param>
+	public static async Task<JsonValue> ReadAsJsonValueAsync ( this HttpContent httpContent, Encoding? encoding = null, JsonOptions? options = null, CancellationToken cancellation = default ) {
 		var responseMessageStream = await httpContent.ReadAsStreamAsync ();
 		using StreamReader sr = new StreamReader ( responseMessageStream, encoding ?? Encoding.UTF8 );
 		using JsonReader jr = new JsonReader ( sr, options ?? JsonOptions.Default );
-		return await jr.ParseAsync ();
+		return await jr.ParseAsync ( cancellation );
 	}
 }
