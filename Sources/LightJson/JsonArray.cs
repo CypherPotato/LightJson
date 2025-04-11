@@ -80,6 +80,21 @@ namespace LightJson {
 		}
 
 		/// <summary>
+		/// Initializes a new instance of JsonArray with the specified <see cref="JsonOptions"/> and values.
+		/// </summary>
+		/// <param name="options">Specifies the <see cref="JsonOptions"/> used for this JsonArray.</param>
+		/// <param name="values">The collection of <see cref="JsonValue"/> to be added to this JsonArray.</param>
+		public JsonArray ( JsonOptions options, IEnumerable<JsonValue> values ) : this ( options ) {
+			if (values == null) {
+				throw new ArgumentNullException ( nameof ( values ) );
+			}
+
+			foreach (var value in values) {
+				this.items.Add ( value );
+			}
+		}
+
+		/// <summary>
 		/// Returns an <see cref="JsonValue"/> representating this <see cref="JsonArray"/>.
 		/// </summary>
 		/// <returns></returns>

@@ -1,42 +1,33 @@
-﻿using LightJson;
+﻿using System.Text.Json;
+using System.Text.Json.Serialization;
+using LightJson;
+using LightJson.Serialization;
+using Microsoft.Diagnostics.Tracing.Parsers.AspNet;
+using static LighJsonTester.Program;
 
 namespace LighJsonTester;
 
-internal class Program {
-    static void Main ( string [] args ) {
-        JsonOptions.Default.WriteIndented = true;
-        var json = JsonOptions.Default.Describe ( typeof ( User ) );
-        Console.WriteLine ( json.ToString () );
+internal class Program
+{
+    static void Main(string[] args)
+    {
+        JsonOptions.Default.SerializerContext = new JsonOptionsSerializerContext(AppJsonContext.Default, new JsonSerializerOptions());
+
+        var json = """
+            { 
+                "__id": 12,
+                "name": "foo"
+            }
+            """;
+
+        UserRecord user = JsonOptions.Default.Deserialize<UserRecord>(json);
+        ;
     }
+
+    public record UserRecord(int id, string? name = null);
 }
 
-class User {
-    public string Name { get; set; }
-    public int Age { get; set; }
-    public Address [] Addresses { get; set; } = Array.Empty<Address> ();
-}
-
-struct Address {
-    public string Street { get; set; }
-    public string City { get; set; }
-    public Point Point { get; set; }
-}
-
-public readonly record struct Point : IJsonSerializable<Point> {
-    public readonly double X;
-    public readonly double Y;
-
-    public Point ( double x, double y ) {
-        this.X = x;
-        this.Y = y;
-    }
-
-    public static Point DeserializeFromJson ( JsonValue json, JsonOptions options ) {
-        var jarr = json.GetJsonArray ();
-        return new Point ( jarr [ 0 ].GetNumber (), jarr [ 1 ].GetNumber () );
-    }
-
-    public static JsonValue SerializeIntoJson ( Point self, JsonOptions options ) {
-        return new JsonArray ( options ) { self.X, self.Y };
-    }
+[JsonSerializable(typeof(UserRecord))]
+partial class AppJsonContext : JsonSerializerContext
+{
 }

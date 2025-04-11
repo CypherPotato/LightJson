@@ -12,9 +12,9 @@
 
 		<Nullable>enable</Nullable>
 		<LangVersion>latest</LangVersion>
-		<Version>0.13.1</Version>
+		<Version>0.14.0-beta1</Version>
 		<Authors>CypherPotato</Authors>
-		<Description>A maintained fork from MarcosLopezC.LightJson with options, converters, naming policies, Native AOT and JSON5 support.</Description>
+		<Description>A maintained fork from MarcosLopezC.LightJson with options, converters, naming policies, type info, Native AOT and JSON5 support.</Description>
 		<Copyright>Copyright © 2024 CypherPotato</Copyright>
 		<PackageLicenseExpression>MIT</PackageLicenseExpression>
 		<PackageId>CypherPotato.LightJson</PackageId>
@@ -48,6 +48,10 @@
 			<Pack>True</Pack>
 			<PackagePath>\</PackagePath>
 		</None>
+	</ItemGroup>
+
+	<ItemGroup>
+	  <PackageReference Include="System.Text.Json" Version="9.0.4" />
 	</ItemGroup>
 
 </Project>

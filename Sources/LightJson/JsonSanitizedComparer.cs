@@ -9,6 +9,12 @@ namespace LightJson;
 /// considers alpha-numeric characters between the strings.
 /// </summary>
 public sealed class JsonSanitizedComparer : StringComparer {
+
+	/// <summary>
+	/// Gets the singleton instance of the <see cref="JsonSanitizedComparer"/> class.
+	/// </summary>
+	public static JsonSanitizedComparer Instance { get; } = new JsonSanitizedComparer();
+
 	/// <summary>
 	/// Creates an new instance of the <see cref="JsonSanitizedComparer"/> class.
 	/// </summary>

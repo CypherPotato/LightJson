@@ -147,7 +147,7 @@ namespace LightJson {
 					return this.ThrowInvalidCast ( type );
 				}
 			}
-			return Dynamic.DeserializeObject ( this, type, this.options );
+			return JsonDeserializer.Deserialize ( this, type, 0, this.options );
 		}
 
 		/// <summary>
@@ -578,9 +578,9 @@ namespace LightJson {
 		/// <exclude/>
 		public static implicit operator JsonValue ( char value ) => new JsonValue ( value );
 		/// <exclude/>
-		public static implicit operator JsonValue ( JsonObject value ) => value.AsJsonValue ();
+		public static implicit operator JsonValue ( JsonObject? value ) => value?.AsJsonValue () ?? JsonValue.Null;
 		/// <exclude/>
-		public static implicit operator JsonValue ( JsonArray value ) => value.AsJsonValue ();
+		public static implicit operator JsonValue ( JsonArray? value ) => value?.AsJsonValue () ?? JsonValue.Null;
 		/// <exclude/>
 		public static implicit operator JsonValue ( JsonValue [] items ) => new JsonArray ( JsonOptions.Default, items ).AsJsonValue ();
 	}
