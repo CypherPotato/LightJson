@@ -5,15 +5,13 @@ using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Reflection;
 using System.Text.Json;
-using System.Text.Json.Serialization;
 using System.Text.Json.Serialization.Metadata;
 
 namespace LightJson.Serialization;
 
 static class JsonDeserializer
 {
-
-	public static object Deserialize(JsonValue value, [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicMethods)] Type objectType, int deepness, JsonOptions lightJsonOptions)
+	public static object Deserialize(JsonValue value, [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicMethods | DynamicallyAccessedMemberTypes.Interfaces)] Type objectType, int deepness, JsonOptions lightJsonOptions)
 	{
 		if (objectType.IsGenericType && objectType.GetGenericTypeDefinition() == typeof(Nullable<>))
 		{
@@ -133,7 +131,7 @@ static class JsonDeserializer
 							parametersObjectList[i] = Deserialize(matchedValue, param.ParameterType, deepness + 1, lightJsonOptions);
 						}
 
-						shouldIgnoreProperties.Add(param.Name);
+						_ = shouldIgnoreProperties.Add(param.Name);
 					}
 
 					createdEntity = constructorInfo.Invoke(parametersObjectList);
@@ -152,11 +150,15 @@ static class JsonDeserializer
 
 					object? propertyValue;
 					JsonValue matchedProperty = jobj[property.Name];
-					if (property.IsRequired && matchedProperty.Type == JsonValueType.Undefined)
+					if (matchedProperty.Type == JsonValueType.Undefined)
 					{
-						throw new JsonException($"The property '{matchedProperty.Path}' is required.");
+						if (property.IsRequired)
+						{
+							throw new JsonException($"The property '{matchedProperty.Path}' is required.");
+						}
+						continue;
 					}
-					else if (property.IsSetNullable && matchedProperty.IsNull)
+					else if (matchedProperty.IsNull && property.IsSetNullable)
 					{
 						propertyValue = null;
 					}
@@ -171,13 +173,13 @@ static class JsonDeserializer
 				return createdEntity;
 
 			case JsonTypeInfoKind.Enumerable:
-				ArrayList array = new ArrayList();
+				ArrayList array = [];
 
 				var elementType = typeInfo.ElementType!;
 				foreach (var item in value.GetJsonArray())
 				{
 					object? arrayItem = Deserialize(item, elementType, deepness + 1, lightJsonOptions);
-					array.Add(arrayItem);
+					_ = array.Add(arrayItem);
 				}
 
 				return array.ToArray(elementType);

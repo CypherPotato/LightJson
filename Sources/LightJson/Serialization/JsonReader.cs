@@ -5,378 +5,385 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace LightJson.Serialization {
+namespace LightJson.Serialization
+{
 	using ErrorType = JsonParseException.ErrorType;
 
 	/// <summary>
-	/// Represents a reader that can read JsonValues.
+	/// Represents a reader that provides fast, forward-only access to JSON data in a text-based format.
 	/// </summary>
-	public sealed class JsonReader : IDisposable {
-
+	public sealed class JsonReader : IDisposable
+	{
 		private readonly TextScanner scanner;
 		private string moutingPath = "$";
 		private readonly JsonOptions options;
-		internal bool canThrowExceptions = true;
-		internal bool caughtException = false;
 		private bool disposedValue;
+		private bool leaveOpen = false;
 
 		/// <summary>
-		/// Creates an new instance of the <see cref="JsonReader"/> class with given parameters.
+		/// Initializes a new instance of the <see cref="JsonReader"/> class.
 		/// </summary>
-		/// <param name="reader">The <see cref="TextReader"/> stream where the JSON input is.</param>
-		/// <param name="options">The JSON options to use with the JSON reader.</param>
-		public JsonReader ( TextReader reader, JsonOptions options ) {
-			this.scanner = new TextScanner ( reader );
+		/// <param name="reader">The <see cref="TextReader"/> that contains the JSON data to read.</param>
+		/// <param name="options">The <see cref="JsonOptions"/> that specify the behavior of the <see cref="JsonReader"/>.</param>
+		/// <param name="leaveOpen">A value that indicates whether the underlying <paramref name="reader"/> should remain open after the <see cref="JsonReader"/> object is disposed. Defaults to <c>false</c>.</param>
+		public JsonReader(TextReader reader, JsonOptions options, bool leaveOpen = false)
+		{
+			this.scanner = new TextScanner(reader);
 			this.options = options;
+			this.leaveOpen = leaveOpen;
 		}
 
 		/// <summary>
 		/// Creates an new instance of the <see cref="JsonReader"/> class with given parameters.
 		/// </summary>
 		/// <param name="reader">The <see cref="TextReader"/> stream where the JSON input is.</param>
-		public JsonReader ( TextReader reader ) : this ( reader, JsonOptions.Default ) {
+		public JsonReader(TextReader reader) : this(reader, JsonOptions.Default)
+		{
 		}
 
-		JsonValue ThrowParseException ( Exception ex ) => this.ThrowParseException<JsonValue> ( ex );
-
-		T ThrowParseException<T> ( Exception ex ) {
-			if (this.canThrowExceptions) {
-				throw ex;
-			}
-			else {
-				this.caughtException = true;
-				return default ( T )!;
-			}
-		}
-
-		private string ReadJsonKey ( CancellationToken cancellation ) {
+		private string ReadJsonKey(CancellationToken cancellation)
+		{
 			string read;
-			if (this.options.SerializationFlags.HasFlag ( JsonSerializationFlags.AllowUnquotedPropertyNames )) {
-				read = this.ReadUnquotedProperty ( cancellation );
+			if (this.options.SerializationFlags.HasFlag(JsonSerializationFlags.AllowUnquotedPropertyNames))
+			{
+				read = this.ReadUnquotedProperty(cancellation);
 			}
-			else {
-				read = this.ReadString ( cancellation );
+			else
+			{
+				read = this.ReadString(cancellation);
 			}
 			this.moutingPath += "." + read;
 			return read;
 		}
 
-		private JsonValue ReadJsonValue ( CancellationToken cancellation ) {
+		private JsonValue ReadJsonValue(CancellationToken cancellation)
+		{
+			cancellation.ThrowIfCancellationRequested();
 
-			cancellation.ThrowIfCancellationRequested ();
+			this.scanner.SkipWhitespace(cancellation);
+			this.SkipComments(cancellation);
 
-			this.scanner.SkipWhitespace ( cancellation );
-			this.SkipComments ( cancellation );
+			var next = this.scanner.Peek();
 
-			var next = this.scanner.Peek ();
-			if (this.scanner.Exception is not null)
-				return this.ThrowParseException<JsonValue> ( this.scanner.Exception );
-
-			if (char.IsNumber ( next )) {
-				return this.ReadNumber ( cancellation );
+			if (char.IsNumber(next))
+			{
+				return this.ReadNumber(cancellation);
 			}
 
-			switch (next) {
+			switch (next)
+			{
 				case '{':
-					return new JsonValue ( this.ReadObject ( cancellation ), this.options );
+					return new JsonValue(this.ReadObject(cancellation), this.options);
 
 				case '[':
-					return new JsonValue ( this.ReadArray ( cancellation ), this.options );
+					return new JsonValue(this.ReadArray(cancellation), this.options);
 
 				case '"':
 				case '\'':
-					return new JsonValue ( this.ReadString ( cancellation ), this.options );
+					return new JsonValue(this.ReadString(cancellation), this.options);
 
 				case '-':
 				case '.':
 				case '+':
-					return this.ReadNumber ( cancellation );
+					return this.ReadNumber(cancellation);
 
 				case 't':
 				case 'f':
-					return this.ReadBoolean ();
+					return this.ReadBoolean();
 
 				case 'n':
-					return this.ReadNull ();
+					return this.ReadNull();
 
 				default:
-					return this.ThrowParseException ( new JsonParseException (
+					throw new JsonParseException(
 						ErrorType.InvalidOrUnexpectedCharacter,
 						this.scanner.Position
-					) );
+					);
 			}
 		}
 
-		private JsonValue ReadNull () {
-			this.scanner.Assert ( "null" );
-			if (this.scanner.Exception is not null)
-				return this.ThrowParseException ( this.scanner.Exception );
+		private JsonValue ReadNull()
+		{
+			this.scanner.Assert("null");
 			return JsonValue.Null;
 		}
 
-		private JsonValue ReadBoolean () {
-			switch (this.scanner.Peek ()) {
+		private JsonValue ReadBoolean()
+		{
+			switch (this.scanner.Peek())
+			{
 				case 't':
-					this.scanner.Assert ( "true" );
-					if (this.scanner.Exception is not null)
-						return this.ThrowParseException ( this.scanner.Exception );
-
-					return new JsonValue ( true, this.options );
+					this.scanner.Assert("true");
+					return new JsonValue(true, this.options);
 
 				case 'f':
-					this.scanner.Assert ( "false" );
-					if (this.scanner.Exception is not null)
-						return this.ThrowParseException ( this.scanner.Exception );
-
-					return new JsonValue ( false, this.options );
+					this.scanner.Assert("false");
+					return new JsonValue(false, this.options);
 
 				default:
-					if (this.scanner.Exception is not null)
-						return this.ThrowParseException<JsonObject> ( this.scanner.Exception );
-
-					return this.ThrowParseException ( new JsonParseException (
+					throw new JsonParseException(
 						ErrorType.InvalidOrUnexpectedCharacter,
 						this.scanner.Position
-					) );
+					);
 			}
 		}
 
-		private void ReadDigits ( StringBuilder builder, CancellationToken cancellation ) {
-			while (this.scanner.CanRead && !TextScanner.IsNumericValueTerminator ( this.scanner.PeekOrDefault () )) {
-				cancellation.ThrowIfCancellationRequested ();
-				builder.Append ( this.scanner.Read () );
+		private void ReadDigits(StringBuilder builder, CancellationToken cancellation)
+		{
+			while (this.scanner.CanRead && !TextScanner.IsNumericValueTerminator(this.scanner.PeekOrDefault()))
+			{
+				cancellation.ThrowIfCancellationRequested();
+				_ = builder.Append(this.scanner.Read());
 			}
-			if (this.scanner.Exception is not null)
-				this.ThrowParseException ( this.scanner.Exception );
 		}
 
-		private JsonValue ReadNumber ( CancellationToken cancellation ) {
-			var builder = new StringBuilder ();
-			var peek = this.scanner.Peek ();
+		private JsonValue ReadNumber(CancellationToken cancellation)
+		{
+			var builder = new StringBuilder();
+			var peek = this.scanner.Peek();
 
-			if (this.scanner.Exception is not null)
-				return this.ThrowParseException<JsonObject> ( this.scanner.Exception );
-
-			if (peek == '-') {
-				builder.Append ( this.scanner.Read () );
-				this.ReadDigits ( builder, cancellation );
+			if (peek == '-')
+			{
+				_ = builder.Append(this.scanner.Read());
+				this.ReadDigits(builder, cancellation);
 			}
-			else if (peek == '.') {
-				builder.Append ( "0" );
+			else if (peek == '.')
+			{
+				_ = builder.Append("0");
 			}
-			else if (peek == '+') {
-				if (this.options.SerializationFlags.HasFlag ( JsonSerializationFlags.AllowPositiveSign )) {
-					builder.Append ( this.scanner.Read () );
-					this.ReadDigits ( builder, cancellation );
+			else if (peek == '+')
+			{
+				if (this.options.SerializationFlags.HasFlag(JsonSerializationFlags.AllowPositiveSign))
+				{
+					_ = builder.Append(this.scanner.Read());
+					this.ReadDigits(builder, cancellation);
 				}
-				else {
-					return this.ThrowParseException ( new JsonParseException (
+				else
+				{
+					throw new JsonParseException(
 						ErrorType.InvalidOrUnexpectedCharacter,
 						this.scanner.Position
-					) );
+					);
 				}
 			}
-			else {
-				this.ReadDigits ( builder, cancellation );
+			else
+			{
+				this.ReadDigits(builder, cancellation);
 			}
 
-			if (this.scanner.CanRead && this.scanner.Peek () == '.') {
-				builder.Append ( this.scanner.Read () );
+			if (this.scanner.CanRead && this.scanner.Peek() == '.')
+			{
+				_ = builder.Append(this.scanner.Read());
 
-				var n = this.scanner.PeekOrDefault ();
+				var n = this.scanner.PeekOrDefault();
 
-				if (char.IsDigit ( n )) {
-					this.ReadDigits ( builder, cancellation );
+				if (char.IsDigit(n))
+				{
+					this.ReadDigits(builder, cancellation);
 				}
-				else {
-					if (TextScanner.IsNumericValueTerminator ( n )) {
-						if (!this.options.SerializationFlags.HasFlag ( JsonSerializationFlags.TrailingDecimalPoint )) {
-							return this.ThrowParseException ( new JsonParseException (
+				else
+				{
+					if (TextScanner.IsNumericValueTerminator(n))
+					{
+						if (!this.options.SerializationFlags.HasFlag(JsonSerializationFlags.TrailingDecimalPoint))
+						{
+							throw new JsonParseException(
 								ErrorType.InvalidOrUnexpectedCharacter,
 								this.scanner.Position
-							) );
+							);
 						}
 					}
-					else {
-						return this.ThrowParseException ( new JsonParseException (
+					else
+					{
+						throw new JsonParseException(
 							ErrorType.InvalidOrUnexpectedCharacter,
 							this.scanner.Position
-						) );
+						);
 					}
 				}
 			}
-			if (this.scanner.Exception is not null)
-				return this.ThrowParseException<JsonObject> ( this.scanner.Exception );
 
-			if (this.scanner.CanRead && char.ToLowerInvariant ( this.scanner.Peek () ) == 'e') {
-				builder.Append ( this.scanner.Read () );
+			if (this.scanner.CanRead && char.ToLowerInvariant(this.scanner.Peek()) == 'e')
+			{
+				_ = builder.Append(this.scanner.Read());
 
-				var next = this.scanner.Peek ();
+				var next = this.scanner.Peek();
 
-				switch (next) {
+				switch (next)
+				{
 					case '+':
 					case '-':
-						builder.Append ( this.scanner.Read () );
+						_ = builder.Append(this.scanner.Read());
 						break;
 				}
 
-				this.ReadDigits ( builder, cancellation );
+				this.ReadDigits(builder, cancellation);
 			}
 
-			if (this.scanner.Exception is not null)
-				return this.ThrowParseException<JsonObject> ( this.scanner.Exception );
+			string s = builder.ToString();
 
-			string s = builder.ToString ();
-
-			if (s.Length > 1 && s [ 0 ] == '0' && s [ 1 ] == 'x' && this.options.SerializationFlags.HasFlag ( JsonSerializationFlags.HexadecimalNumberLiterals )) {
+			if (s.Length > 1 && s[0] == '0' && s[1] == 'x' && this.options.SerializationFlags.HasFlag(JsonSerializationFlags.HexadecimalNumberLiterals))
+			{
 				// hex literal
-				string hex = s [ 2.. ];
+				string hex = s[2..];
 
-				if (hex == "") {
-					return this.ThrowParseException<string> ( new JsonParseException (
+				if (hex == "")
+				{
+					throw new JsonParseException(
 						ErrorType.InvalidOrUnexpectedCharacter,
 						this.scanner.Position
-					) );
+					);
 				}
 
-				var num = Convert.ToInt32 ( hex, 16 );
-				return new JsonValue ( (double) num, this.options );
+				var num = Convert.ToInt32(hex, 16);
+				return new JsonValue((double)num, this.options);
 			}
-			else {
-				if (s.IndexOf ( '_' ) >= 1 && this.options.SerializationFlags.HasFlag ( JsonSerializationFlags.NumericUnderscoreLiterals )) {
-					s = s.Replace ( "_", "" );
+			else
+			{
+				if (s.IndexOf('_') >= 1 && this.options.SerializationFlags.HasFlag(JsonSerializationFlags.NumericUnderscoreLiterals))
+				{
+					s = s.Replace("_", "");
 				}
 
-				return new JsonValue ( double.Parse ( s, CultureInfo.InvariantCulture ), this.options );
+				return new JsonValue(double.Parse(s, CultureInfo.InvariantCulture), this.options);
 			}
 		}
 
-		private string ReadUnquotedProperty ( CancellationToken cancellation ) {
-			var builder = new StringBuilder ();
+		private string ReadUnquotedProperty(CancellationToken cancellation)
+		{
+			var builder = new StringBuilder();
 
-			var peek = this.scanner.Peek ();
-			if (peek == '"' || peek == '\'') {
+			var peek = this.scanner.Peek();
+			if (peek == '"' || peek == '\'')
+			{
 				// it's an quoted string
-				return this.ReadString ( cancellation );
+				return this.ReadString(cancellation);
 			}
 
-			if (this.scanner.Exception is not null)
-				this.ThrowParseException ( this.scanner.Exception );
-
 			int l = 0;
-			while (true) {
-				cancellation.ThrowIfCancellationRequested ();
-				var c = this.scanner.Read ();
+			while (true)
+			{
+				cancellation.ThrowIfCancellationRequested();
+				var c = this.scanner.Read();
 
-				if (this.scanner.Peek () == ':') {
-					builder.Append ( c );
+				if (this.scanner.Peek() == ':')
+				{
+					_ = builder.Append(c);
 					break;
 				}
 
-				if (this.scanner.Exception is not null)
-					this.ThrowParseException ( this.scanner.Exception );
-
 				// IdentifierName
 
-				if (char.IsLetterOrDigit ( c ) || c == '_' || c == '-' || c == '$') {
-					builder.Append ( c );
+				if (char.IsLetterOrDigit(c) || c == '_' || c == '-' || c == '$')
+				{
+					_ = builder.Append(c);
 				}
-				else {
-					return this.ThrowParseException<string> ( new JsonParseException (
+				else
+				{
+					throw new JsonParseException(
 						ErrorType.InvalidOrUnexpectedCharacter,
 						this.scanner.Position
-					) );
+					);
 				}
 
 				l++;
 			}
 
-			return builder.ToString ();
+			return builder.ToString();
 		}
 
-		private string ReadString ( CancellationToken cancellation ) {
+		private string ReadString(CancellationToken cancellation)
+		{
 
-			cancellation.ThrowIfCancellationRequested ();
-			var builder = new StringBuilder ();
+			cancellation.ThrowIfCancellationRequested();
+			var builder = new StringBuilder();
 
 			bool isSingleQuoted = false;
-			char h = this.scanner.AssertAny ( [ '"', '\'' ] );
-			if (this.scanner.Exception is not null)
-				return this.ThrowParseException<string> ( this.scanner.Exception );
+			char h = this.scanner.AssertAny(['"', '\'']);
 
-			this.scanner.Read ();
+			_ = this.scanner.Read();
 
-			if (h == '\'') {
+			if (h == '\'')
+			{
 				isSingleQuoted = true;
-				if (!this.options.SerializationFlags.HasFlag ( JsonSerializationFlags.AllowSingleQuotes )) {
-					return this.ThrowParseException<string> ( new JsonParseException (
+				if (!this.options.SerializationFlags.HasFlag(JsonSerializationFlags.AllowSingleQuotes))
+				{
+					throw new JsonParseException(
 						ErrorType.InvalidOrUnexpectedCharacter,
 						this.scanner.Position
-					) );
+					);
 				}
 			}
 
-			int lineStartColumn = (int) this.scanner.Position.Column;
+			_ = (int)this.scanner.Position.Column;
 			bool usedNlLiteral = false;
-			while (true) {
-				cancellation.ThrowIfCancellationRequested ();
-				var c = this.scanner.Read ();
+			while (true)
+			{
+				cancellation.ThrowIfCancellationRequested();
+				var c = this.scanner.Read();
 
-				if (c == '\\') {
-					c = this.scanner.Read ();
+				if (c == '\\')
+				{
+					c = this.scanner.Read();
 
-					switch (char.ToLower ( c )) {
+					switch (char.ToLower(c))
+					{
 						case '"':  // "
 						case '\'': // '
 						case '\\': // \
 						case '/':  // /
-							builder.Append ( c );
+							_ = builder.Append(c);
 							break;
 						case 'b':
-							builder.Append ( '\b' );
+							_ = builder.Append('\b');
 							break;
 						case 'f':
-							builder.Append ( '\f' );
+							_ = builder.Append('\f');
 							break;
 						case 'n':
-							builder.Append ( '\n' );
+							_ = builder.Append('\n');
 							break;
 						case 'r':
-							builder.Append ( '\r' );
+							_ = builder.Append('\r');
 							break;
 						case 't':
-							builder.Append ( '\t' );
+							_ = builder.Append('\t');
 							break;
 						case 'u':
-							builder.Append ( this.ReadUnicodeLiteral () );
+							_ = builder.Append(this.ReadUnicodeLiteral());
 							break;
 						case '\n' or '\r':
-							if (this.options.SerializationFlags.HasFlag ( JsonSerializationFlags.AllowStringLineBreaks )) {
+							if (this.options.SerializationFlags.HasFlag(JsonSerializationFlags.AllowStringLineBreaks))
+							{
 								usedNlLiteral = true;
-								builder.Append ( "\\\n" );
+								_ = builder.Append("\\\n");
 							}
-							else {
-								return this.ThrowParseException<string> ( new JsonParseException (
+							else
+							{
+								throw new JsonParseException(
 									ErrorType.InvalidOrUnexpectedCharacter,
 									this.scanner.Position
-								) );
+								);
 							}
 							break;
 
 						default:
-							return this.ThrowParseException<string> ( new JsonParseException (
+							throw new JsonParseException(
 								ErrorType.InvalidOrUnexpectedCharacter,
 								this.scanner.Position
-							) );
+							);
 					}
 				}
-				else if (!isSingleQuoted && c == '"') {
+				else if (!isSingleQuoted && c == '"')
+				{
 					break;
 				}
-				else if (isSingleQuoted && c == '\'') {
+				else if (isSingleQuoted && c == '\'')
+				{
 					break;
 				}
-				else {
+				else
+				{
 					// According to the spec:
 					//
 					// unescaped = %x20-21 / %x23-5B / %x5D-10FFFF
@@ -390,54 +397,65 @@ namespace LightJson.Serialization {
 					// > 0x10FFFF is unnecessary *I think* because it's obviously
 					// out of the range of a character but we might need to look ahead
 					// to get the whole utf-16 codepoint.
-					if (c < '\u0020') {
-						if ((c is '\n' or '\r') && this.options.SerializationFlags.HasFlag ( JsonSerializationFlags.AllowStringLineBreaks )) {
+					if (c < '\u0020')
+					{
+						if ((c is '\n' or '\r') && this.options.SerializationFlags.HasFlag(JsonSerializationFlags.AllowStringLineBreaks))
+						{
 							usedNlLiteral = true;
-							builder.Append ( c );
+							_ = builder.Append(c);
 						}
 						else
-							return this.ThrowParseException<string> ( new JsonParseException (
+							throw new JsonParseException(
 							ErrorType.InvalidOrUnexpectedCharacter,
 							this.scanner.Position
-						) );
+						);
 					}
-					else {
-						builder.Append ( c );
+					else
+					{
+						_ = builder.Append(c);
 					}
 				}
 			}
 
-			if (usedNlLiteral) {
-				string [] copyLines = builder.ToString ().Split ( '\n' );
-				builder.Clear ();
+			if (usedNlLiteral)
+			{
+				string[] copyLines = builder.ToString().Split('\n');
+				_ = builder.Clear();
 
 				bool nextIsContinuation = false;
-				for (int i = 0; i < copyLines.Length; i++) {
-					string line = copyLines [ i ].TrimEnd ();
+				for (int i = 0; i < copyLines.Length; i++)
+				{
+					string line = copyLines[i].TrimEnd();
 
-					if (nextIsContinuation) {
-						line = line.TrimStart ();
+					if (nextIsContinuation)
+					{
+						line = line.TrimStart();
 						nextIsContinuation = false;
 					}
 
-					if (line.EndsWith ( '\\' )) {
+					if (line.EndsWith('\\'))
+					{
 						nextIsContinuation = true;
-						builder.Append ( line [ new Range ( 0, Index.FromEnd ( 1 ) ) ] );
+						_ = builder.Append(line[new Range(0, Index.FromEnd(1))]);
 					}
-					else if (i == copyLines.Length - 1) {
-						builder.Append ( line );
+					else if (i == copyLines.Length - 1)
+					{
+						_ = builder.Append(line);
 					}
-					else {
-						builder.AppendLine ( line );
+					else
+					{
+						_ = builder.AppendLine(line);
 					}
 				}
 			}
 
-			return builder.ToString ();
+			return builder.ToString();
 		}
 
-		private int ReadHexDigit () {
-			switch (char.ToUpper ( this.scanner.Read () )) {
+		private int ReadHexDigit()
+		{
+			switch (char.ToUpper(this.scanner.Read()))
+			{
 				case '0':
 					return 0;
 
@@ -487,106 +505,108 @@ namespace LightJson.Serialization {
 					return 15;
 
 				default:
-					return this.ThrowParseException<int> ( new JsonParseException (
+					throw new JsonParseException(
 						ErrorType.InvalidOrUnexpectedCharacter,
 						this.scanner.Position
-					) );
+					);
 			}
 		}
 
-		private char ReadUnicodeLiteral () {
+		private char ReadUnicodeLiteral()
+		{
 			int value = 0;
 
-			value += this.ReadHexDigit () * 4096; // 16^3
-			value += this.ReadHexDigit () * 256;  // 16^2
-			value += this.ReadHexDigit () * 16;   // 16^1
-			value += this.ReadHexDigit ();        // 16^0
+			value += this.ReadHexDigit() * 4096; // 16^3
+			value += this.ReadHexDigit() * 256;  // 16^2
+			value += this.ReadHexDigit() * 16;   // 16^1
+			value += this.ReadHexDigit();        // 16^0
 
-			return (char) value;
+			return (char)value;
 		}
 
-		private JsonObject ReadObject ( CancellationToken cancellation ) {
-			return this.ReadObject ( new JsonObject ( this.options ), cancellation );
+		private JsonObject ReadObject(CancellationToken cancellation)
+		{
+			return this.ReadObject(new JsonObject(this.options), cancellation);
 		}
 
-		private JsonObject ReadObject ( JsonObject jsonObject, CancellationToken cancellation ) {
+		private JsonObject ReadObject(JsonObject jsonObject, CancellationToken cancellation)
+		{
 			string initialPath = this.moutingPath;
 
-			cancellation.ThrowIfCancellationRequested ();
+			cancellation.ThrowIfCancellationRequested();
 
-			this.scanner.Assert ( '{' );
-			if (this.scanner.Exception is not null)
-				return this.ThrowParseException<JsonObject> ( this.scanner.Exception );
+			this.scanner.Assert('{');
 
-			this.scanner.SkipWhitespace ( cancellation );
-			this.SkipComments ( cancellation );
+			this.scanner.SkipWhitespace(cancellation);
+			this.SkipComments(cancellation);
 
-			if (this.scanner.Peek () == '}') {
-				this.scanner.Read ();
+			if (this.scanner.Peek() == '}')
+			{
+				_ = this.scanner.Read();
 			}
-			else {
-				if (this.scanner.Exception is not null)
-					return this.ThrowParseException<JsonObject> ( this.scanner.Exception );
+			else
+			{
+				while (true)
+				{
+					this.scanner.SkipWhitespace(cancellation);
+					this.SkipComments(cancellation);
+					cancellation.ThrowIfCancellationRequested();
 
-				while (true) {
-					this.scanner.SkipWhitespace ( cancellation );
-					this.SkipComments ( cancellation );
-					cancellation.ThrowIfCancellationRequested ();
-
-					if (this.options.SerializationFlags.HasFlag ( JsonSerializationFlags.IgnoreTrailingComma ) && this.scanner.Peek () == '}') {
-						this.scanner.Read ();
+					if (this.options.SerializationFlags.HasFlag(JsonSerializationFlags.IgnoreTrailingComma) && this.scanner.Peek() == '}')
+					{
+						_ = this.scanner.Read();
 						break;
 					}
 
-					if (this.scanner.Exception is not null)
-						return this.ThrowParseException<JsonObject> ( this.scanner.Exception );
-
-					var key = this.ReadJsonKey ( cancellation );
+					var key = this.ReadJsonKey(cancellation);
 
 					// https://www.rfc-editor.org/rfc/rfc7159#section-4
 					// JSON should allow duplicate key names by default
-					if (this.options.ThrowOnDuplicateObjectKeys) {
-						if (jsonObject.ContainsKey ( key )) {
-							return this.ThrowParseException<JsonObject> ( new JsonParseException (
+					if (this.options.ThrowOnDuplicateObjectKeys)
+					{
+						if (jsonObject.ContainsKey(key))
+						{
+							throw new JsonParseException(
 								ErrorType.DuplicateObjectKeys,
 								this.scanner.Position
-							) );
+							);
 						}
 					}
 
-					this.scanner.SkipWhitespace ( cancellation );
-					this.SkipComments ( cancellation );
+					this.scanner.SkipWhitespace(cancellation);
+					this.SkipComments(cancellation);
 
-					this.scanner.Assert ( ':' );
-					if (this.scanner.Exception is not null)
-						return this.ThrowParseException<JsonObject> ( this.scanner.Exception );
+					this.scanner.Assert(':');
 
-					this.scanner.SkipWhitespace ( cancellation );
-					this.SkipComments ( cancellation );
+					this.scanner.SkipWhitespace(cancellation);
+					this.SkipComments(cancellation);
 
-					var value = this.ReadJsonValue ( cancellation );
+					var value = this.ReadJsonValue(cancellation);
 
 					value.path = this.moutingPath;
 
-					jsonObject [ key ] = value;
+					jsonObject[key] = value;
 
-					this.scanner.SkipWhitespace ( cancellation );
-					this.SkipComments ( cancellation );
+					this.scanner.SkipWhitespace(cancellation);
+					this.SkipComments(cancellation);
 
-					var next = this.scanner.Read ();
+					var next = this.scanner.Read();
 					this.moutingPath = initialPath;
 
-					if (next == '}') {
+					if (next == '}')
+					{
 						break;
 					}
-					else if (next == ',') {
+					else if (next == ',')
+					{
 						continue;
 					}
-					else {
-						return this.ThrowParseException<JsonObject> ( new JsonParseException (
+					else
+					{
+						throw new JsonParseException(
 							ErrorType.InvalidOrUnexpectedCharacter,
 							this.scanner.Position
-						) );
+						);
 					}
 				}
 			}
@@ -595,76 +615,79 @@ namespace LightJson.Serialization {
 			return jsonObject;
 		}
 
-		private JsonArray ReadArray ( CancellationToken cancellation ) {
-			return this.ReadArray ( new JsonArray ( this.options ), cancellation );
+		private JsonArray ReadArray(CancellationToken cancellation)
+		{
+			return this.ReadArray(new JsonArray(this.options), cancellation);
 		}
 
-		private JsonArray ReadArray ( JsonArray jsonArray, CancellationToken cancellation ) {
+		private JsonArray ReadArray(JsonArray jsonArray, CancellationToken cancellation)
+		{
 			string initialPath = this.moutingPath;
 			int index = 0;
 
-			cancellation.ThrowIfCancellationRequested ();
+			cancellation.ThrowIfCancellationRequested();
 
-			this.scanner.Assert ( '[' );
-			if (this.scanner.Exception is not null)
-				return this.ThrowParseException<JsonArray> ( this.scanner.Exception );
+			this.scanner.Assert('[');
 
-			this.scanner.SkipWhitespace ( cancellation );
-			this.SkipComments ( cancellation );
+			this.scanner.SkipWhitespace(cancellation);
+			this.SkipComments(cancellation);
 
-			if (this.scanner.Peek () == ']') {
-				this.scanner.Read ();
+			if (this.scanner.Peek() == ']')
+			{
+				_ = this.scanner.Read();
 			}
-			else {
-				if (this.scanner.Exception is not null)
-					return this.ThrowParseException<JsonArray> ( this.scanner.Exception );
+			else
+			{
+				while (true)
+				{
+					this.scanner.SkipWhitespace(cancellation);
+					this.SkipComments(cancellation);
+					cancellation.ThrowIfCancellationRequested();
 
-				while (true) {
-					this.scanner.SkipWhitespace ( cancellation );
-					this.SkipComments ( cancellation );
-					cancellation.ThrowIfCancellationRequested ();
-
-					if (this.scanner.Peek () == ']') {
-						if (this.options.SerializationFlags.HasFlag ( JsonSerializationFlags.IgnoreTrailingComma )) {
-							this.scanner.Read ();
+					if (this.scanner.Peek() == ']')
+					{
+						if (this.options.SerializationFlags.HasFlag(JsonSerializationFlags.IgnoreTrailingComma))
+						{
+							_ = this.scanner.Read();
 							break;
 						}
-						else {
-							return this.ThrowParseException<JsonArray> ( new JsonParseException (
+						else
+						{
+							throw new JsonParseException(
 								ErrorType.InvalidOrUnexpectedCharacter,
 								this.scanner.Position
-							) );
+							);
 						}
 					}
 
-					if (this.scanner.Exception is not null)
-						return this.ThrowParseException<JsonArray> ( this.scanner.Exception );
-
 					this.moutingPath += $"[{index}]";
-					var value = this.ReadJsonValue ( cancellation );
+					var value = this.ReadJsonValue(cancellation);
 
 					value.path = this.moutingPath;
 
-					jsonArray.Add ( value );
+					jsonArray.Add(value);
 
-					this.scanner.SkipWhitespace ( cancellation );
-					this.SkipComments ( cancellation );
+					this.scanner.SkipWhitespace(cancellation);
+					this.SkipComments(cancellation);
 
 					this.moutingPath = initialPath;
-					var next = this.scanner.Read ();
+					var next = this.scanner.Read();
 
-					if (next == ']') {
+					if (next == ']')
+					{
 						break;
 					}
-					else if (next == ',') {
+					else if (next == ',')
+					{
 						index++;
 						continue;
 					}
-					else {
-						return this.ThrowParseException<JsonArray> ( new JsonParseException (
+					else
+					{
+						throw new JsonParseException(
 							ErrorType.InvalidOrUnexpectedCharacter,
 							this.scanner.Position
-						) );
+						);
 					}
 				}
 			}
@@ -673,28 +696,36 @@ namespace LightJson.Serialization {
 			return jsonArray;
 		}
 
-		private void SkipComments ( CancellationToken cancellation ) {
-			if (!this.options.SerializationFlags.HasFlag ( JsonSerializationFlags.IgnoreComments )) {
+		private void SkipComments(CancellationToken cancellation)
+		{
+			if (!this.options.SerializationFlags.HasFlag(JsonSerializationFlags.IgnoreComments))
+			{
 				return;
 			}
 		checkNextComment:
-			this.scanner.SkipWhitespace ( cancellation );
-			if (this.scanner.Peek () == '/') {
-				this.scanner.Read ();
-				bool isMultilineComment = this.scanner.Peek () == '*';
+			this.scanner.SkipWhitespace(cancellation);
+			if (this.scanner.Peek() == '/')
+			{
+				_ = this.scanner.Read();
+				bool isMultilineComment = this.scanner.Peek() == '*';
 
-				while (this.scanner.CanRead) {
-					cancellation.ThrowIfCancellationRequested ();
-					char c = this.scanner.Read ();
+				while (this.scanner.CanRead)
+				{
+					cancellation.ThrowIfCancellationRequested();
+					char c = this.scanner.Read();
 
-					if (isMultilineComment) {
-						if (c == '*' && this.scanner.Peek () == '/') {
-							this.scanner.Read ();
+					if (isMultilineComment)
+					{
+						if (c == '*' && this.scanner.Peek() == '/')
+						{
+							_ = this.scanner.Read();
 							break;
 						}
 					}
-					else {
-						if (c is '\n' or '\r') {
+					else
+					{
+						if (c is '\n' or '\r')
+						{
 							break;
 						}
 					}
@@ -702,9 +733,8 @@ namespace LightJson.Serialization {
 
 				goto checkNextComment;
 			}
-			else {
-				if (this.scanner.Exception is not null)
-					this.ThrowParseException ( this.scanner.Exception );
+			else
+			{
 				return;
 			}
 		}
@@ -713,9 +743,10 @@ namespace LightJson.Serialization {
 		/// Parses the JSON value from the input.
 		/// </summary>
 		/// <returns>A <see cref="JsonValue"/> representing the parsed JSON.</returns>
-		public JsonValue Parse () {
-			this.scanner.SkipWhitespace ( default );
-			return this.ReadJsonValue ( default );
+		public JsonValue Parse()
+		{
+			this.scanner.SkipWhitespace(default);
+			return this.ReadJsonValue(default);
 		}
 
 		/// <summary>
@@ -723,11 +754,13 @@ namespace LightJson.Serialization {
 		/// </summary>
 		/// <param name="cancellation">An optional <see cref="CancellationToken"/> to cancel the operation.</param>
 		/// <returns>A <see cref="Task"/> that returns a <see cref="JsonValue"/> representing the parsed JSON.</returns>
-		public Task<JsonValue> ParseAsync ( CancellationToken cancellation = default ) {
-			return Task.Run ( delegate {
-				this.scanner.SkipWhitespace ( cancellation );
-				return this.ReadJsonValue ( cancellation );
-			}, cancellation );
+		public Task<JsonValue> ParseAsync(CancellationToken cancellation = default)
+		{
+			return Task.Run(delegate
+			{
+				this.scanner.SkipWhitespace(cancellation);
+				return this.ReadJsonValue(cancellation);
+			}, cancellation);
 		}
 
 		/// <summary>
@@ -736,12 +769,18 @@ namespace LightJson.Serialization {
 		/// </summary>
 		/// <param name="result">When this method returns, it outputs an <see cref="JsonValue"/> with the result of the operation.</param>
 		/// <returns>An boolean indicating if the input could be read into a valid JSON or not.</returns>
-		public bool TryParse ( out JsonValue result ) {
-			this.canThrowExceptions = false;
-			this.scanner.CanThrowExceptions = false;
-			result = this.Parse ();
-
-			return this.caughtException == false && this.scanner.Exception is null;
+		public bool TryParse(out JsonValue result)
+		{
+			try
+			{
+				result = this.Parse();
+				return true;
+			}
+			catch
+			{
+				result = default;
+				return false;
+			}
 		}
 
 		/// <summary>
@@ -751,18 +790,28 @@ namespace LightJson.Serialization {
 		/// <param name="cancellation">An optional <see cref="CancellationToken"/> to cancel the operation.</param>
 		/// <returns>A tuple containing a boolean indicating if the input could be read into a valid JSON or not, and the
 		/// parsed <see cref="JsonValue"/>.</returns>
-		public async Task<(bool, JsonValue)> TryParseAsync ( CancellationToken cancellation = default ) {
-			this.canThrowExceptions = false;
-			this.scanner.CanThrowExceptions = false;
-			var result = await this.ParseAsync ( cancellation );
-
-			return (this.caughtException == false && this.scanner.Exception is null, result);
+		public async Task<(bool, JsonValue)> TryParseAsync(CancellationToken cancellation = default)
+		{
+			JsonValue result = default;
+			try
+			{
+				result = await this.ParseAsync(cancellation);
+				return (true, result);
+			}
+			catch
+			{
+				return (false, result);
+			}
 		}
 
-		private void Dispose ( bool disposing ) {
-			if (!this.disposedValue) {
-				if (disposing) {
-					this.scanner.Dispose ();
+		private void Dispose(bool disposing)
+		{
+			if (!this.disposedValue)
+			{
+				if (disposing)
+				{
+					if (!this.leaveOpen)
+						this.scanner.Dispose();
 				}
 
 				// TODO: free unmanaged resources (unmanaged objects) and override finalizer
@@ -772,9 +821,10 @@ namespace LightJson.Serialization {
 		}
 
 		/// <inheritdoc/>
-		public void Dispose () {
-			this.Dispose ( disposing: true );
-			GC.SuppressFinalize ( this );
+		public void Dispose()
+		{
+			this.Dispose(disposing: true);
+			GC.SuppressFinalize(this);
 		}
 	}
 }
