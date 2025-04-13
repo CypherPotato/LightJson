@@ -95,13 +95,13 @@ static class JsonDeserializer
 		{
 			case JsonTypeInfoKind.Object:
 
-				HashSet<string> shouldIgnoreProperties = new HashSet<string>(lightJsonOptions.PropertyNameComparer);
+				HashSet<string> shouldIgnoreProperties = new HashSet<string>(JsonSanitizedComparer.Instance);
 				var jobj = value.GetJsonObject();
+
 				object createdEntity;
 				if (typeInfo.CreateObject is { })
 				{
 					createdEntity = typeInfo.CreateObject();
-
 				}
 				else if (typeInfo.ConstructorAttributeProvider is ConstructorInfo constructorInfo)
 				{
@@ -114,7 +114,7 @@ static class JsonDeserializer
 						if (param.Name is null)
 							continue;
 
-						JsonValue matchedValue = jobj.GetValue(param.Name, lightJsonOptions.PropertyNameComparer);
+						JsonValue matchedValue = jobj.GetValue(param.Name, JsonSanitizedComparer.Instance);
 						if (matchedValue.IsNull)
 						{
 							if (param.HasDefaultValue)
@@ -182,7 +182,13 @@ static class JsonDeserializer
 					_ = array.Add(arrayItem);
 				}
 
+#if NET9_0_OR_GREATER
+				var destArray = Array.CreateInstanceFromArrayType(elementType, array.Count);
+				array.CopyTo(destArray);
+				return destArray;
+#else
 				return array.ToArray(elementType);
+#endif
 		}
 
 		Debug.Fail("It shouldn't get here...");

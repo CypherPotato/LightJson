@@ -3,6 +3,7 @@ using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Runtime.CompilerServices;
 using System.Text;
+using System.Text.Encodings.Web;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
@@ -21,9 +22,9 @@ public sealed class JsonOptions
 	private readonly static JsonOptions _default = new JsonOptions();
 
 	/// <summary>
-	/// Gets or sets the default <see cref="JsonOptions"/> object.
+	/// Gets the default <see cref="JsonOptions"/> object.
 	/// </summary>
-	public static JsonOptions Default { get; set; } = _default;
+	public static JsonOptions Default { get => _default; }
 
 	/// <summary>
 	/// Gets or sets serialization flags to the <see cref="Serialization.JsonReader"/>.
@@ -56,6 +57,11 @@ public sealed class JsonOptions
 	/// Gets or sets the function that transforms the property name of a JSON object to JSON output.
 	/// </summary>
 	public JsonNamingPolicy? NamingPolicy { get; set; }
+
+	/// <summary>
+	/// Gets or sets the encoder to use when escaping strings, or <see langword="null"/> to use the default encoder.
+	/// </summary>
+	public JavaScriptEncoder? Encoder { get; set; }
 
 	/// <summary>
 	/// Gets or sets an boolean indicating where the JSON parser should throw on duplicated object keys.
@@ -145,6 +151,17 @@ public sealed class JsonOptions
 	/// </summary>
 	/// <param name="value">The object to serialize into an JSON string.</param>
 	public string SerializeJson(object? value) => this.Serialize(value).ToString();
+
+	/// <summary>
+	/// Serializes the specified object into a UTF-8 encoded byte array.
+	/// </summary>
+	/// <param name="value">The object to serialize into a UTF-8 encoded byte array.</param>
+	/// <returns>A UTF-8 encoded byte array representing the serialized object.</returns>
+	public byte[] SerializeUtf8Bytes(object? value)
+	{
+		string jsonText = this.Serialize(value).ToString();
+		return Encoding.UTF8.GetBytes(jsonText);
+	}
 	#endregion
 
 	#region Deserialize methods
@@ -313,8 +330,6 @@ public sealed class JsonOptions
 	/// <exception cref="ArgumentNullException">Thrown if <paramref name="jsonText"/> is null.</exception>
 	public Task<JsonValue> DeserializeAsync(ReadOnlyMemory<byte> jsonText, Encoding? encoding, CancellationToken cancellation = default)
 	{
-		ArgumentNullException.ThrowIfNull(jsonText);
-
 		return this.DeserializeAsync(new StringReader((encoding ?? Encoding.UTF8).GetString(jsonText.Span)), cancellation);
 	}
 
@@ -327,8 +342,6 @@ public sealed class JsonOptions
 	/// <exception cref="ArgumentNullException">Thrown if <paramref name="utf8JsonString"/> is null.</exception>
 	public Task<JsonValue> DeserializeAsync(ReadOnlyMemory<char> utf8JsonString, CancellationToken cancellation = default)
 	{
-		ArgumentNullException.ThrowIfNull(utf8JsonString);
-
 		return this.DeserializeAsync(new StringReader(new string(utf8JsonString.Span)), cancellation);
 	}
 

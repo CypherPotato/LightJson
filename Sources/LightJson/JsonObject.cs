@@ -13,8 +13,8 @@ namespace LightJson
 	public sealed class JsonObject : IEnumerable<KeyValuePair<string, JsonValue>>, IEnumerable<JsonValue>, IDictionary<string, JsonValue>, IImplicitJsonValue
 	{
 		internal string path;
+		internal readonly IDictionary<string, JsonValue> properties;
 		private readonly JsonOptions options;
-		private readonly IDictionary<string, JsonValue> properties;
 
 		/// <summary> 
 		/// Gets all defined properties in this <see cref="JsonObject"/>.
@@ -129,7 +129,7 @@ namespace LightJson
 		/// <returns>The <see cref="JsonValue"/> associated with the key, or <see cref="JsonValue.Null"/> if the key is not found.</returns>
 		public JsonValue GetValue(string key, IEqualityComparer<string> comparer)
 		{
-			foreach (var item in properties)
+			foreach (var item in this.properties)
 			{
 				if (comparer.Equals(item.Key, key))
 				{
@@ -179,6 +179,15 @@ namespace LightJson
 		public override string ToString()
 		{
 			return this.ToString(this.options);
+		}
+
+		/// <summary>
+		/// Gets the properties of the current JSON object.
+		/// </summary>
+		/// <returns>An <see cref="IEnumerable{T}"/> of <see cref="KeyValuePair{TKey, TValue}"/> containing the property names and their corresponding <see cref="JsonValue"/>.</returns>
+		public IEnumerable<KeyValuePair<string, JsonValue>> GetProperties()
+		{
+			return this.properties;
 		}
 
 		/// <summary>

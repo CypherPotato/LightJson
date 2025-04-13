@@ -2,6 +2,8 @@
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
+using System.Linq;
+using System.Text.Encodings.Web;
 using System.Text.Json;
 
 namespace LightJson.Serialization
@@ -60,6 +62,11 @@ namespace LightJson.Serialization
 		public JsonNamingPolicy? NamingPolicy { get; set; }
 
 		/// <summary>
+		/// Gets or sets the <see cref="TextEncoder"/> used to encode string literals.
+		/// </summary>
+		public TextEncoder? StringEncoder { get; set; }
+
+		/// <summary>
 		/// Gets or sets the output for the JSON writer when writing double Infinity numbers.
 		/// </summary>
 		public JsonInfinityHandleOption InfinityHandleOption { get; set; } = JsonInfinityHandleOption.WriteNull;
@@ -70,7 +77,7 @@ namespace LightJson.Serialization
 		public JsonWriter()
 		{
 			this.InnerWriter = new StringWriter();
-			this.renderingCollections = new HashSet<IEnumerable<JsonValue>>();
+			this.renderingCollections = [];
 		}
 
 		/// <summary>
@@ -93,9 +100,9 @@ namespace LightJson.Serialization
 
 			this.NamingPolicy = options.NamingPolicy;
 			this.InfinityHandleOption = options.InfinityHandler;
-
-			this.renderingCollections = new HashSet<IEnumerable<JsonValue>>();
+			this.renderingCollections = [];
 			this.InnerWriter = innerWriter;
+			this.StringEncoder = options.Encoder;
 		}
 
 		private void Write(string? text)
@@ -107,54 +114,6 @@ namespace LightJson.Serialization
 			}
 
 			this.InnerWriter.Write(text);
-		}
-
-		private void WriteEncodedJsonValue(JsonValue value)
-		{
-			switch (value.Type)
-			{
-				case JsonValueType.Null:
-					this.Write("null");
-					break;
-
-				case JsonValueType.Boolean:
-					this.Write(value.GetBoolean() ? "true" : "false");
-					break;
-
-				case JsonValueType.Number:
-					var number = value.GetNumber();
-					if (double.IsPositiveInfinity(number) || double.IsNegativeInfinity(number))
-					{
-						if (this.InfinityHandleOption == JsonInfinityHandleOption.WriteZero)
-						{
-							this.Write("0");
-						}
-						else
-						{
-							this.Write("null");
-						}
-					}
-					else
-					{
-						this.Write(number.ToString(CultureInfo.InvariantCulture));
-					}
-					break;
-
-				case JsonValueType.String:
-					this.WriteEncodedString(value.GetString());
-					break;
-
-				case JsonValueType.Object:
-					this.Write(string.Format("JsonObject[{0}]", value.GetJsonObject().Count));
-					break;
-
-				case JsonValueType.Array:
-					this.Write(string.Format("JsonArray[{0}]", value.GetJsonArray().Count));
-					break;
-
-				default:
-					throw new InvalidOperationException("Invalid value type.");
-			}
 		}
 
 		private void WriteJsonKey(string key)
@@ -173,52 +132,58 @@ namespace LightJson.Serialization
 		{
 			this.Write("\"");
 
-			for (int i = 0; i < text.Length; i += 1)
+			if (this.StringEncoder is not null)
 			{
-				var currentChar = text[i];
-
-				// Encoding special characters.
-				switch (currentChar)
+				this.InnerWriter.Write(this.StringEncoder.Encode(text));
+			}
+			else
+			{
+				for (int i = 0; i < text.Length; i += 1)
 				{
-					case '\\':
-						this.InnerWriter.Write("\\\\");
-						break;
+					var currentChar = text[i];
 
-					case '\"':
-						this.InnerWriter.Write("\\\"");
-						break;
+					switch (currentChar)
+					{
+						case '\\':
+							this.InnerWriter.Write("\\\\");
+							break;
 
-					case '/':
-						this.InnerWriter.Write("\\/");
-						break;
+						case '\"':
+							this.InnerWriter.Write("\\\"");
+							break;
 
-					case '\b':
-						this.InnerWriter.Write("\\b");
-						break;
+						case '/':
+							this.InnerWriter.Write("\\/");
+							break;
 
-					case '\f':
-						this.InnerWriter.Write("\\f");
-						break;
+						case '\b':
+							this.InnerWriter.Write("\\b");
+							break;
 
-					case '\n':
-						this.InnerWriter.Write("\\n");
-						break;
+						case '\f':
+							this.InnerWriter.Write("\\f");
+							break;
 
-					case '\r':
-						this.InnerWriter.Write("\\r");
-						break;
+						case '\n':
+							this.InnerWriter.Write("\\n");
+							break;
 
-					case '\t':
-						this.InnerWriter.Write("\\t");
-						break;
+						case '\r':
+							this.InnerWriter.Write("\\r");
+							break;
 
-					default:
-						this.InnerWriter.Write(currentChar);
-						break;
+						case '\t':
+							this.InnerWriter.Write("\\t");
+							break;
+
+						default:
+							this.InnerWriter.Write(currentChar);
+							break;
+					}
 				}
 			}
 
-			this.InnerWriter.Write("\"");
+			this.Write("\"");
 		}
 
 		private void WriteIndentation()
@@ -256,7 +221,7 @@ namespace LightJson.Serialization
 
 		private void RemoveRenderingCollection(IEnumerable<JsonValue> value)
 		{
-			this.renderingCollections.Remove(value);
+			_ = this.renderingCollections.Remove(value);
 		}
 
 		private void Render(JsonValue value)
@@ -264,10 +229,34 @@ namespace LightJson.Serialization
 			switch (value.Type)
 			{
 				case JsonValueType.Null:
+					this.Write("null");
+					break;
+
 				case JsonValueType.Boolean:
+					this.Write(value.GetBoolean() ? "true" : "false");
+					break;
+
 				case JsonValueType.Number:
+					var number = value.GetNumber();
+					if (double.IsPositiveInfinity(number) || double.IsNegativeInfinity(number))
+					{
+						if (this.InfinityHandleOption == JsonInfinityHandleOption.WriteZero)
+						{
+							this.Write("0");
+						}
+						else
+						{
+							this.Write("null");
+						}
+					}
+					else
+					{
+						this.Write(number.ToString(CultureInfo.InvariantCulture));
+					}
+					break;
+
 				case JsonValueType.String:
-					this.WriteEncodedJsonValue(value);
+					this.WriteEncodedString(value.GetString());
 					break;
 
 				case JsonValueType.Object:
@@ -289,19 +278,15 @@ namespace LightJson.Serialization
 		private void Render(JsonArray value)
 		{
 			this.AddRenderingCollection(value);
-
 			this.WriteLine("[");
-
 			this.indent += 1;
 
 			using (var enumerator = value.GetEnumerator())
 			{
 				var hasNext = enumerator.MoveNext();
-
 				while (hasNext)
 				{
 					this.Render(enumerator.Current);
-
 					hasNext = enumerator.MoveNext();
 
 					if (hasNext)
@@ -316,24 +301,19 @@ namespace LightJson.Serialization
 			}
 
 			this.indent -= 1;
-
 			this.Write("]");
-
 			this.RemoveRenderingCollection(value);
 		}
 
 		private void Render(JsonObject value)
 		{
 			this.AddRenderingCollection(value);
-
 			this.WriteLine("{");
-
 			this.indent += 1;
 
 			using (var enumerator = this.GetJsonObjectEnumerator(value))
 			{
 				var hasNext = enumerator.MoveNext();
-
 				while (hasNext)
 				{
 					string key = enumerator.Current.Key;
@@ -358,30 +338,18 @@ namespace LightJson.Serialization
 			}
 
 			this.indent -= 1;
-
 			this.Write("}");
-
 			this.RemoveRenderingCollection(value);
 		}
 
-		/// <summary>
-		/// Gets an JsonObject enumarator based on the configuration of this JsonWriter.
-		/// If JsonWriter.SortObjects is set to true, then a ordered enumerator is returned.
-		/// Otherwise, a faster non-deterministic enumerator is returned.
-		/// </summary>
-		/// <param name="jsonObject">The JsonObject for which to get an enumerator.</param>
 		private IEnumerator<KeyValuePair<string, JsonValue>> GetJsonObjectEnumerator(JsonObject jsonObject)
 		{
 			if (this.SortObjects)
 			{
-				var sortedDictionary = new SortedDictionary<string, JsonValue>(StringComparer.Ordinal);
-
-				foreach (var item in jsonObject)
-				{
-					sortedDictionary.Add(item.Key, item.Value);
-				}
-
-				return sortedDictionary.GetEnumerator();
+				return jsonObject
+					.GetProperties()
+					.OrderBy(o => o.Key, StringComparer.Ordinal)
+					.GetEnumerator();
 			}
 			else
 			{
