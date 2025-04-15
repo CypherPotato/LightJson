@@ -1,7 +1,7 @@
-﻿using System;
+﻿using LightJson.Converters;
+using System;
 using System.Collections;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Reflection;
 using System.Text.Json;
@@ -11,7 +11,7 @@ namespace LightJson.Serialization;
 
 static class JsonDeserializer
 {
-	public static object Deserialize(JsonValue value, [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicMethods | DynamicallyAccessedMemberTypes.Interfaces)] Type objectType, int deepness, JsonOptions lightJsonOptions)
+	public static object Deserialize(JsonValue value, [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicMethods | DynamicallyAccessedMemberTypes.Interfaces)] Type objectType, int deepness, bool enableConverters, JsonOptions options)
 	{
 		if (objectType.IsGenericType && objectType.GetGenericTypeDefinition() == typeof(Nullable<>))
 		{
@@ -19,15 +19,27 @@ static class JsonDeserializer
 			objectType = Nullable.GetUnderlyingType(objectType)!;
 		}
 
-		if (objectType == typeof(JsonValue))
+		if (deepness > options.DynamicObjectMaxDepth)
+		{
+			throw new JsonException("The JSON deserialization reached it's maximum depth.");
+		}
+		else if (objectType == typeof(JsonValue))
 		{
 			return value;
 		}
+		else if (objectType == typeof(JsonObject))
+		{
+			return value.GetJsonObject();
+		}
+		else if (objectType == typeof(JsonArray))
+		{
+			return value.GetJsonArray();
+		}
 		else if (objectType == typeof(int) || objectType == typeof(uint) ||
-				 objectType == typeof(long) || objectType == typeof(ulong) ||
-				 objectType == typeof(double) || objectType == typeof(float) ||
-				 objectType == typeof(byte) || objectType == typeof(sbyte) ||
-				 objectType == typeof(decimal))
+				   objectType == typeof(long) || objectType == typeof(ulong) ||
+				   objectType == typeof(double) || objectType == typeof(float) ||
+				   objectType == typeof(byte) || objectType == typeof(sbyte) ||
+				   objectType == typeof(decimal))
 		{
 			return Convert.ChangeType(value.GetNumber(), objectType);
 		}
@@ -39,159 +51,179 @@ static class JsonDeserializer
 		{
 			return value.GetBoolean();
 		}
-		else if (objectType == typeof(JsonObject))
-		{
-			return value.GetJsonObject();
-		}
-		else if (objectType == typeof(JsonArray))
-		{
-			return value.GetJsonArray();
-		}
 		else
 		{
 			// find the IJsonSerizeable interface on type
-			if (JsonSerializableHelpers.TryDynamicDeserialize(value, lightJsonOptions, objectType, out var result))
+			if (JsonSerializableHelpers.TryDynamicDeserialize(value, options, objectType, out var result))
 			{
 				return result!;
 			}
 
 			// find a JsonConverter to match the specified type
-			for (int i = 0; i < lightJsonOptions.Converters.Count; i++)
+			IList<JsonConverter> converters;
+			converters = enableConverters ? options.Converters : JsonOptions.RequiredConverters;
+			for (int i = 0; i < options.Converters.Count; i++)
 			{
-				var mapper = lightJsonOptions.Converters[i];
-				if (mapper.CanSerialize(objectType, lightJsonOptions))
+				JsonConverter mapper = options.Converters[i];
+				if (mapper.CanSerialize(objectType, options))
 				{
 					try
 					{
-						return mapper.Deserialize(value, objectType, lightJsonOptions);
+						return mapper.Deserialize(value, objectType, options);
 					}
 					catch (Exception ex)
 					{
-						throw new InvalidOperationException($"Caught exception while trying to convert {value.path} to {objectType.Name}: {ex.Message}");
+						throw new JsonException($"Unhandled exception while trying to convert {value.path} to {objectType.Name} through {mapper.GetType().Name}: {ex.Message}", ex);
 					}
 				}
 			}
 
-			if (lightJsonOptions.SerializerContext is { } jcontext)
+			if (options.SerializerContext is { } jcontext)
 			{
-				return DeserializeWithTypeInfo(value, objectType, deepness, jcontext.TypeResolver, jcontext.SerializerOptions, lightJsonOptions);
+				return DeserializeWithTypeInfo(value, objectType, deepness, jcontext.TypeResolver, jcontext.SerializerOptions, enableConverters, options);
 			}
 
-			throw new InvalidOperationException($"Unable to deserialize the JSON value at {value.Path}: no converter matched the specified type.");
+			throw new JsonException($"Unable to deserialize the JSON value at {value.Path}: no converter matched the specified type.");
 		}
 	}
 
 #pragma warning disable IL2072, IL3050
-	static object DeserializeWithTypeInfo(JsonValue value, Type objectType, int deepness, IJsonTypeInfoResolver typeResolver, JsonSerializerOptions serializerOptions, JsonOptions lightJsonOptions)
+	static object DeserializeWithTypeInfo(JsonValue value, Type objectType, int deepness, IJsonTypeInfoResolver typeResolver, JsonSerializerOptions serializerOptions, bool enableConverters, JsonOptions lightJsonOptions)
 	{
 		var typeInfo = typeResolver.GetTypeInfo(objectType, serializerOptions);
 
 		if (typeInfo is null)
 		{
-			throw new InvalidOperationException("typeInfo is null");
+			throw new JsonException($"Couldn't find any suitable TypeInfo to deserialize {objectType.Name}.");
 		}
 
 		switch (typeInfo.Kind)
 		{
 			case JsonTypeInfoKind.Object:
 
-				HashSet<string> shouldIgnoreProperties = new HashSet<string>(JsonSanitizedComparer.Instance);
-				var jobj = value.GetJsonObject();
-
-				object createdEntity;
-				if (typeInfo.CreateObject is { })
 				{
-					createdEntity = typeInfo.CreateObject();
-				}
-				else if (typeInfo.ConstructorAttributeProvider is ConstructorInfo constructorInfo)
-				{
-					var parameters = constructorInfo.GetParameters();
-					object?[] parametersObjectList = new object?[parameters.Length];
+					HashSet<string> shouldIgnoreProperties = new HashSet<string>(JsonSanitizedComparer.Instance);
+					var jobj = value.GetJsonObject();
 
-					for (int i = 0; i < parameters.Length; i++)
+					object createdEntity;
+					if (typeInfo.CreateObject is { })
 					{
-						var param = parameters[i];
-						if (param.Name is null)
-							continue;
+						createdEntity = typeInfo.CreateObject();
+					}
+					else if (typeInfo.ConstructorAttributeProvider is ConstructorInfo constructorInfo)
+					{
+						var parameters = constructorInfo.GetParameters();
+						object?[] parametersObjectList = new object?[parameters.Length];
 
-						JsonValue matchedValue = jobj.GetValue(param.Name, JsonSanitizedComparer.Instance);
-						if (matchedValue.IsNull)
+						for (int i = 0; i < parameters.Length; i++)
 						{
-							if (param.HasDefaultValue)
+							var param = parameters[i];
+							if (param.Name is null)
+								continue;
+
+							JsonValue matchedValue = jobj.GetValue(param.Name, JsonSanitizedComparer.Instance);
+							if (matchedValue.IsNull)
 							{
-								parametersObjectList[i] = param.DefaultValue;
+								if (param.HasDefaultValue)
+								{
+									parametersObjectList[i] = param.DefaultValue;
+								}
+								else
+								{
+									throw new JsonException($"The property '{value.Path}.{param.Name}' is required.");
+								}
 							}
 							else
 							{
-								throw new JsonException($"The property '{value.Path}.{param.Name}' is required.");
+								parametersObjectList[i] = Deserialize(matchedValue, param.ParameterType, deepness + 1, enableConverters, lightJsonOptions);
 							}
-						}
-						else
-						{
-							parametersObjectList[i] = Deserialize(matchedValue, param.ParameterType, deepness + 1, lightJsonOptions);
+
+							_ = shouldIgnoreProperties.Add(param.Name);
 						}
 
-						_ = shouldIgnoreProperties.Add(param.Name);
-					}
-
-					createdEntity = constructorInfo.Invoke(parametersObjectList);
-				}
-				else
-				{
-					throw new InvalidOperationException($"Couldn't create an instance of the {objectType.Name} type.");
-				}
-
-				foreach (var property in typeInfo.Properties)
-				{
-					if (property.Set is null || shouldIgnoreProperties.Contains(property.Name))
-					{
-						continue;
-					}
-
-					object? propertyValue;
-					JsonValue matchedProperty = jobj[property.Name];
-					if (matchedProperty.Type == JsonValueType.Undefined)
-					{
-						if (property.IsRequired)
-						{
-							throw new JsonException($"The property '{matchedProperty.Path}' is required.");
-						}
-						continue;
-					}
-					else if (matchedProperty.IsNull && property.IsSetNullable)
-					{
-						propertyValue = null;
+						createdEntity = constructorInfo.Invoke(parametersObjectList);
 					}
 					else
 					{
-						propertyValue = Deserialize(matchedProperty, property.PropertyType, deepness + 1, lightJsonOptions);
+						throw new JsonException($"Couldn't create an instance of the {objectType.Name} type.");
 					}
 
-					property.Set(createdEntity, propertyValue);
-				}
+					foreach (var property in typeInfo.Properties)
+					{
+						if (property.Set is null || shouldIgnoreProperties.Contains(property.Name))
+						{
+							continue;
+						}
 
-				return createdEntity;
+						object? propertyValue;
+						JsonValue matchedProperty = jobj[property.Name];
+						if (matchedProperty.Type == JsonValueType.Undefined)
+						{
+							if (property.IsRequired)
+							{
+								throw new JsonException($"The property '{matchedProperty.Path}' is required.");
+							}
+							continue;
+						}
+						else if (matchedProperty.IsNull && property.IsSetNullable)
+						{
+							propertyValue = null;
+						}
+						else
+						{
+							propertyValue = Deserialize(matchedProperty, property.PropertyType, deepness + 1, enableConverters, lightJsonOptions);
+						}
+
+						property.Set(createdEntity, propertyValue);
+					}
+
+					return createdEntity;
+				}
 
 			case JsonTypeInfoKind.Enumerable:
-				ArrayList array = [];
-
-				var elementType = typeInfo.ElementType!;
-				foreach (var item in value.GetJsonArray())
 				{
-					object? arrayItem = Deserialize(item, elementType, deepness + 1, lightJsonOptions);
-					_ = array.Add(arrayItem);
-				}
+					ArrayList array = [];
+
+					var elementType = typeInfo.ElementType!;
+					foreach (var item in value.GetJsonArray())
+					{
+						object? arrayItem = Deserialize(item, elementType, deepness + 1, enableConverters, lightJsonOptions);
+						_ = array.Add(arrayItem);
+					}
 
 #if NET9_0_OR_GREATER
-				var destArray = Array.CreateInstanceFromArrayType(elementType, array.Count);
-				array.CopyTo(destArray);
-				return destArray;
+					var destArray = Array.CreateInstanceFromArrayType(elementType, array.Count);
+					array.CopyTo(destArray);
+					return destArray;
 #else
-				return array.ToArray(elementType);
+					return array.ToArray(elementType);
 #endif
-		}
+				}
 
-		Debug.Fail("It shouldn't get here...");
-		return null!;
+			case JsonTypeInfoKind.Dictionary:
+				{
+					var dict = value.GetJsonObject().Properties;
+					object createdEntity;
+					if (typeInfo.CreateObject is { })
+					{
+						createdEntity = typeInfo.CreateObject();
+					}
+					else
+					{
+						throw new JsonException($"Couldn't create an instance of the {objectType.Name} type.");
+					}
+
+					foreach (var item in dict)
+					{
+						object? valueItem = Deserialize(item.Value, typeInfo.ElementType!, deepness + 1, enableConverters, lightJsonOptions);
+						((IDictionary)createdEntity).Add(item.Key, valueItem);
+					}
+
+					return createdEntity;
+				}
+
+			default:
+				throw new JsonException($"The type {objectType.Name} is not supported.");
+		}
 	}
 }

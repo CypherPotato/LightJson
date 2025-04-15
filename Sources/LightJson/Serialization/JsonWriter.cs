@@ -102,7 +102,7 @@ namespace LightJson.Serialization
 			this.InfinityHandleOption = options.InfinityHandler;
 			this.renderingCollections = [];
 			this.InnerWriter = innerWriter;
-			this.StringEncoder = options.Encoder;
+			this.StringEncoder = options.StringEncoder;
 		}
 
 		private void Write(string? text)

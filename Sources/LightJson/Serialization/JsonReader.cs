@@ -294,7 +294,6 @@ namespace LightJson.Serialization
 
 		private string ReadString(CancellationToken cancellation)
 		{
-
 			cancellation.ThrowIfCancellationRequested();
 			var builder = new StringBuilder();
 
@@ -315,7 +314,6 @@ namespace LightJson.Serialization
 				}
 			}
 
-			_ = (int)this.scanner.Position.Column;
 			bool usedNlLiteral = false;
 			while (true)
 			{

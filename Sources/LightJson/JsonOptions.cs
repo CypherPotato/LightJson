@@ -1,4 +1,7 @@
-﻿using System;
+﻿using LightJson.Converters;
+using LightJson.Serialization;
+using System;
+using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Runtime.CompilerServices;
@@ -7,8 +10,7 @@ using System.Text.Encodings.Web;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
-using LightJson.Converters;
-using LightJson.Serialization;
+using JsonConverter = LightJson.Converters.JsonConverter;
 
 namespace LightJson;
 
@@ -19,7 +21,26 @@ namespace LightJson;
 /// </summary>
 public sealed class JsonOptions
 {
-	private readonly static JsonOptions _default = new JsonOptions();
+	private readonly static JsonOptions _default;
+
+	internal static JsonConverter[] RequiredConverters;
+
+	static JsonOptions()
+	{
+		RequiredConverters = [
+			//new DictionaryConverter(),
+			new GuidConverter(),
+			new EnumConverter(),
+			new DateTimeConverter(),
+			new DateOnlyConverter(),
+			new TimeOnlyConverter(),
+			new TimeSpanConverter(),
+			new CharConverter(),
+			new IpAddressConverter(),
+			new UriConverter()
+		];
+		_default = new JsonOptions();
+	}
 
 	/// <summary>
 	/// Gets the default <see cref="JsonOptions"/> object.
@@ -43,15 +64,9 @@ public sealed class JsonOptions
 	public StringComparer PropertyNameComparer { get; set; } = StringComparer.Ordinal;
 
 	/// <summary>
-	/// Gets or sets whether the <see cref="JsonValue.Serialize(object?, JsonOptions?)"/> should serialize fields from
-	/// types.
-	/// </summary>
-	public bool SerializeFields { get; set; } = false;
-
-	/// <summary>
 	/// Gets or sets an list of <see cref="JsonConverter"/>.
 	/// </summary>
-	public JsonConverterCollection Converters { get; set; }
+	public IList<JsonConverter> Converters { get; set; }
 
 	/// <summary>
 	/// Gets or sets the function that transforms the property name of a JSON object to JSON output.
@@ -61,7 +76,7 @@ public sealed class JsonOptions
 	/// <summary>
 	/// Gets or sets the encoder to use when escaping strings, or <see langword="null"/> to use the default encoder.
 	/// </summary>
-	public JavaScriptEncoder? Encoder { get; set; }
+	public JavaScriptEncoder? StringEncoder { get; set; }
 
 	/// <summary>
 	/// Gets or sets an boolean indicating where the JSON parser should throw on duplicated object keys.
@@ -69,9 +84,15 @@ public sealed class JsonOptions
 	public bool ThrowOnDuplicateObjectKeys { get; set; } = false;
 
 	/// <summary>
-	/// Gets or sets the maximum depth for serializing or deserializing dynamic objects.
+	/// Gets or sets the maximum depth for serializing or deserializing objects.
 	/// </summary>
 	public int DynamicObjectMaxDepth { get; set; } = 64;
+
+	/// <summary>
+	/// Gets or sets whether the JSON deserializer should allow parsing string JSON values into numeric
+	/// types.
+	/// </summary>
+	public bool AllowNumbersAsStrings { get; set; } = false;
 
 	/// <summary>
 	/// Gets or sets the context for serializing and deserializing JSON data with options.
@@ -88,17 +109,7 @@ public sealed class JsonOptions
 	/// </summary>
 	public JsonOptions()
 	{
-		this.Converters =
-		[
-			new DictionaryConverter(),
-			new GuidConverter(),
-			new EnumConverter(),
-			new DateTimeConverter(),
-			new DateOnlyConverter(),
-			new TimeOnlyConverter(),
-			new TimeSpanConverter(),
-			new CharConverter()
-		];
+		this.Converters = [.. RequiredConverters];
 
 		if (RuntimeFeature.IsDynamicCodeSupported)
 		{
@@ -106,6 +117,43 @@ public sealed class JsonOptions
 			this.SerializerContext = new JsonOptionsSerializerContext();
 #pragma warning restore IL2026, IL3050
 		}
+	}
+
+	/// <summary>
+	/// Creates an new <see cref="JsonOptions"/> instance with predefined set of options.
+	/// </summary>
+	/// <param name="defaults">The <see cref="JsonOptionsDefaults"/> to inherit properties.</param>
+	public JsonOptions(JsonOptionsDefaults defaults) : this()
+	{
+		if (defaults == JsonOptionsDefaults.Web)
+		{
+			this.NamingPolicy = JsonNamingPolicy.CamelCase;
+			this.PropertyNameComparer = JsonSanitizedComparer.Instance;
+			this.AllowNumbersAsStrings = true;
+		}
+		else if (defaults != JsonOptionsDefaults.General)
+		{
+			throw new ArgumentOutOfRangeException(nameof(defaults));
+		}
+	}
+
+	/// <summary>
+	/// Creates a new <see cref="JsonOptions"/> instance by copying properties from an existing <see cref="JsonOptions"/> instance.
+	/// </summary>
+	/// <param name="options">The <see cref="JsonOptions"/> instance to copy properties from.</param>
+	public JsonOptions(JsonOptions options) : this()
+	{
+		this.SerializationFlags = options.SerializationFlags;
+		this.WriteIndented = options.WriteIndented;
+		this.PropertyNameComparer = options.PropertyNameComparer;
+		this.Converters = options.Converters;
+		this.NamingPolicy = options.NamingPolicy;
+		this.StringEncoder = options.StringEncoder;
+		this.ThrowOnDuplicateObjectKeys = options.ThrowOnDuplicateObjectKeys;
+		this.DynamicObjectMaxDepth = options.DynamicObjectMaxDepth;
+		this.AllowNumbersAsStrings = options.AllowNumbersAsStrings;
+		this.SerializerContext = options.SerializerContext;
+		this.InfinityHandler = options.InfinityHandler;
 	}
 
 	/// <summary>
@@ -129,6 +177,19 @@ public sealed class JsonOptions
 	public JsonValue Serialize(object? value)
 	{
 		JsonValue _value = LightJson.Serialization.JsonSerializer.SerializeObject(value, 0, true, this);
+		_value.options = this;
+		return _value;
+	}
+
+	/// <summary>
+	/// Serializes the specified object to a <see cref="JsonValue"/>.
+	/// </summary>
+	/// <param name="value">The object to serialize. Can be null.</param>
+	/// <param name="enableConverters">A boolean value that indicates whether to enable converters during serialization.</param>
+	/// <returns>A <see cref="JsonValue"/> representing the serialized object.</returns>
+	public JsonValue Serialize(object? value, bool enableConverters = true)
+	{
+		JsonValue _value = LightJson.Serialization.JsonSerializer.SerializeObject(value, 0, enableConverters, this);
 		_value.options = this;
 		return _value;
 	}

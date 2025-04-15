@@ -43,7 +43,7 @@ internal static class JsonSerializableHelpers
 	private const string DeserializeMethodName = nameof(IJsonSerializable<DummySerializable>.DeserializeFromJson);
 	private const BindingFlags PublicStaticFlags = BindingFlags.Public | BindingFlags.Static;
 
-	private static bool ImplementsCorrectInterface(Type type)
+	private static bool ImplementsISerilizable(Type type)
 	{
 		if (s_interfaceImplementationCache.TryGetValue(type, out bool result))
 		{
@@ -77,7 +77,7 @@ internal static class JsonSerializableHelpers
 			return false;
 		}
 
-		if (!ImplementsCorrectInterface(valueType))
+		if (!ImplementsISerilizable(valueType))
 		{
 			result = JsonValue.Null;
 			return false;
@@ -122,7 +122,7 @@ internal static class JsonSerializableHelpers
 			return false;
 		}
 
-		if (!ImplementsCorrectInterface(targetType))
+		if (!ImplementsISerilizable(targetType))
 		{
 			return false;
 		}
