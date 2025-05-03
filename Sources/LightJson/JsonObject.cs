@@ -1,8 +1,9 @@
+using LightJson.Serialization;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
-using LightJson.Serialization;
+using System.Text.Json.Serialization;
 
 namespace LightJson
 {
@@ -10,6 +11,7 @@ namespace LightJson
 	/// Represents a key-value pair collection of <see cref="JsonValue"/> objects.
 	/// </summary>
 	[DebuggerDisplay("Count = {Count}")]
+	[JsonConverter(typeof(JsonObjectInternalConverter))]
 	public sealed class JsonObject : IEnumerable<KeyValuePair<string, JsonValue>>, IEnumerable<JsonValue>, IDictionary<string, JsonValue>, IImplicitJsonValue
 	{
 		internal string path;

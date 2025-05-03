@@ -6,7 +6,8 @@ namespace LightJson.Serialization;
 /// Specifies special configurations and flags for JSON serializers.
 /// </summary>
 [Flags]
-public enum JsonSerializationFlags {
+public enum JsonSerializationFlags
+{
 	/// <summary>
 	/// Defines that the <see cref="Serialization.JsonReader"/> should ignore inline and multi-line JavaScript-like comments.
 	/// </summary>

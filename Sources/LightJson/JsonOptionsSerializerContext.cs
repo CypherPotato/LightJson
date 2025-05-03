@@ -8,7 +8,7 @@ namespace LightJson;
 /// <summary>
 /// Provides a context for serializing and deserializing JSON data with options.
 /// </summary>
-public class JsonOptionsSerializerContext
+public sealed class JsonOptionsSerializerContext
 {
 	/// <summary>
 	/// Gets the options for the <see cref="System.Text.Json.JsonSerializer"/>.

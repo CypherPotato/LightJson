@@ -192,7 +192,7 @@ static class JsonDeserializer
 					}
 
 #if NET9_0_OR_GREATER
-					var destArray = Array.CreateInstanceFromArrayType(elementType, array.Count);
+					var destArray = Array.CreateInstanceFromArrayType(objectType, array.Count);
 					array.CopyTo(destArray);
 					return destArray;
 #else

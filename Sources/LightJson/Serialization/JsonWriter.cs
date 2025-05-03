@@ -251,7 +251,8 @@ namespace LightJson.Serialization
 					}
 					else
 					{
-						this.Write(number.ToString(CultureInfo.InvariantCulture));
+						string numberStr = ((decimal)number).ToString(CultureInfo.InvariantCulture);
+						this.Write(numberStr);
 					}
 					break;
 

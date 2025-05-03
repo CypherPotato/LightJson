@@ -7,6 +7,8 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "LightJson", "LightJson\Ligh
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "LighJsonTester", "..\LighJsonTester\LighJsonTester.csproj", "{F73B37E5-18BE-4FC2-8C33-67C8BBD0C114}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "LightJsonTests", "LightJsonTests\LightJsonTests.csproj", "{12E89FB9-A5C3-85CB-A9B9-6C80B9054A89}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -21,6 +23,10 @@ Global
 		{F73B37E5-18BE-4FC2-8C33-67C8BBD0C114}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{F73B37E5-18BE-4FC2-8C33-67C8BBD0C114}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{F73B37E5-18BE-4FC2-8C33-67C8BBD0C114}.Release|Any CPU.Build.0 = Release|Any CPU
+		{12E89FB9-A5C3-85CB-A9B9-6C80B9054A89}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{12E89FB9-A5C3-85CB-A9B9-6C80B9054A89}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{12E89FB9-A5C3-85CB-A9B9-6C80B9054A89}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{12E89FB9-A5C3-85CB-A9B9-6C80B9054A89}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

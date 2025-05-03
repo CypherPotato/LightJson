@@ -341,12 +341,12 @@ public sealed class JsonOptions
 	/// <param name="cancellation">The cancellation token to use for the asynchronous operation. Defaults to <see cref="CancellationToken.None"/>.</param>
 	/// <returns>A task representing the asynchronous deserialization operation, returning the deserialized <see cref="JsonValue"/>.</returns>
 	/// <exception cref="ArgumentNullException">Thrown if <paramref name="sr"/> is null.</exception>
-	public Task<JsonValue> DeserializeAsync(TextReader sr, CancellationToken cancellation = default)
+	public async Task<JsonValue> DeserializeAsync(TextReader sr, CancellationToken cancellation = default)
 	{
 		ArgumentNullException.ThrowIfNull(sr);
 
 		using var jr = new JsonReader(sr, this);
-		return jr.ParseAsync(cancellation);
+		return await jr.ParseAsync(cancellation);
 	}
 
 	/// <summary>
@@ -356,11 +356,11 @@ public sealed class JsonOptions
 	/// <param name="cancellation">The cancellation token to use for the asynchronous operation. Defaults to <see cref="CancellationToken.None"/>.</param>
 	/// <returns>A task representing the asynchronous deserialization operation, returning the deserialized <see cref="JsonValue"/>.</returns>
 	/// <exception cref="ArgumentNullException">Thrown if <paramref name="jsonText"/> is null.</exception>
-	public Task<JsonValue> DeserializeAsync(string jsonText, CancellationToken cancellation = default)
+	public async Task<JsonValue> DeserializeAsync(string jsonText, CancellationToken cancellation = default)
 	{
 		ArgumentNullException.ThrowIfNull(jsonText);
 
-		return this.DeserializeAsync(new StringReader(jsonText), cancellation);
+		return await this.DeserializeAsync(new StringReader(jsonText), cancellation);
 	}
 
 	/// <summary>
@@ -371,14 +371,14 @@ public sealed class JsonOptions
 	/// <param name="cancellation">The cancellation token to use for the asynchronous operation. Defaults to <see cref="CancellationToken.None"/>.</param>
 	/// <returns>A task representing the asynchronous deserialization operation, returning the deserialized <see cref="JsonValue"/>.</returns>
 	/// <exception cref="ArgumentNullException">Thrown if <paramref name="inputStream"/> or <paramref name="encoding"/> is null.</exception>
-	public Task<JsonValue> DeserializeAsync(Stream inputStream, Encoding? encoding, CancellationToken cancellation = default)
+	public async Task<JsonValue> DeserializeAsync(Stream inputStream, Encoding? encoding, CancellationToken cancellation = default)
 	{
 		ArgumentNullException.ThrowIfNull(inputStream);
 		ArgumentNullException.ThrowIfNull(encoding);
 
 		using var sr = new StreamReader(inputStream, encoding ?? Encoding.UTF8);
 		using var jr = new JsonReader(sr, this);
-		return jr.ParseAsync(cancellation);
+		return await jr.ParseAsync(cancellation);
 	}
 
 	/// <summary>
@@ -389,9 +389,9 @@ public sealed class JsonOptions
 	/// <param name="cancellation">The cancellation token to use for the asynchronous operation. Defaults to <see cref="CancellationToken.None"/>.</param>
 	/// <returns>A task representing the asynchronous deserialization operation, returning the deserialized <see cref="JsonValue"/>.</returns>
 	/// <exception cref="ArgumentNullException">Thrown if <paramref name="jsonText"/> is null.</exception>
-	public Task<JsonValue> DeserializeAsync(ReadOnlyMemory<byte> jsonText, Encoding? encoding, CancellationToken cancellation = default)
+	public async Task<JsonValue> DeserializeAsync(ReadOnlyMemory<byte> jsonText, Encoding? encoding, CancellationToken cancellation = default)
 	{
-		return this.DeserializeAsync(new StringReader((encoding ?? Encoding.UTF8).GetString(jsonText.Span)), cancellation);
+		return await this.DeserializeAsync(new StringReader((encoding ?? Encoding.UTF8).GetString(jsonText.Span)), cancellation);
 	}
 
 	/// <summary>
@@ -401,9 +401,9 @@ public sealed class JsonOptions
 	/// <param name="cancellation">The cancellation token to use for the asynchronous operation. Defaults to <see cref="CancellationToken.None"/>.</param>
 	/// <returns>A task representing the asynchronous deserialization operation, returning the deserialized <see cref="JsonValue"/>.</returns>
 	/// <exception cref="ArgumentNullException">Thrown if <paramref name="utf8JsonString"/> is null.</exception>
-	public Task<JsonValue> DeserializeAsync(ReadOnlyMemory<char> utf8JsonString, CancellationToken cancellation = default)
+	public async Task<JsonValue> DeserializeAsync(ReadOnlyMemory<char> utf8JsonString, CancellationToken cancellation = default)
 	{
-		return this.DeserializeAsync(new StringReader(new string(utf8JsonString.Span)), cancellation);
+		return await this.DeserializeAsync(new StringReader(new string(utf8JsonString.Span)), cancellation);
 	}
 
 	/// <summary>

@@ -7,14 +7,16 @@ namespace LightJson;
 /// Represents a value box where it's value is serialized and deserialized as an Json value.
 /// </summary>
 /// <typeparam name="TValue">The value type. This type cannot be null.</typeparam>
-public sealed class JsonBox<[DynamicallyAccessedMembers ( DynamicallyAccessedMemberTypes.All )] TValue> : IEquatable<TValue>, IJsonBox where TValue : notnull {
+public sealed class JsonBox<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.All)] TValue> : IEquatable<TValue>, IJsonBox where TValue : notnull
+{
 	private JsonValue jval;
 
 	/// <summary>
 	/// Creates an new instance of <see cref="JsonBox{TValue}"/> with no initial
 	/// value.
 	/// </summary>
-	public JsonBox () {
+	public JsonBox()
+	{
 		this.jval = JsonValue.Null;
 	}
 
@@ -23,7 +25,8 @@ public sealed class JsonBox<[DynamicallyAccessedMembers ( DynamicallyAccessedMem
 	/// value.
 	/// </summary>
 	/// <param name="value">The initial value.</param>
-	public JsonBox ( TValue value ) {
+	public JsonBox(TValue value)
+	{
 		this.Value = value;
 	}
 
@@ -32,7 +35,8 @@ public sealed class JsonBox<[DynamicallyAccessedMembers ( DynamicallyAccessedMem
 	/// JSON input.
 	/// </summary>
 	/// <param name="jvalue">The JSON value as the input.</param>
-	public JsonBox ( JsonValue jvalue ) {
+	public JsonBox(JsonValue jvalue)
+	{
 		this.jval = jvalue;
 	}
 
@@ -44,21 +48,28 @@ public sealed class JsonBox<[DynamicallyAccessedMembers ( DynamicallyAccessedMem
 	/// <summary>
 	/// Gets or sets the inner <typeparamref name="TValue"/> contained in this <see cref="JsonBox{TValue}"/>.
 	/// </summary>
-	public TValue? Value {
-		get {
-			if (this.IsNull) {
+	public TValue? Value
+	{
+		get
+		{
+			if (this.IsNull)
+			{
 				return default;
 			}
-			else {
-				return this.jval.Get<TValue> ();
+			else
+			{
+				return this.jval.Get<TValue>();
 			}
 		}
-		set {
-			if (value is null) {
+		set
+		{
+			if (value is null)
+			{
 				this.jval = JsonValue.Null;
 			}
-			else {
-				this.jval = JsonValue.Serialize ( value );
+			else
+			{
+				this.jval = JsonValue.Serialize(value);
 			}
 		}
 	}
@@ -66,47 +77,54 @@ public sealed class JsonBox<[DynamicallyAccessedMembers ( DynamicallyAccessedMem
 	/// <summary>
 	/// Gets or sets the inner <see cref="JsonValue"/> which represents this <see cref="JsonBox{TValue}"/> contained value.
 	/// </summary>
-	public JsonValue JsonValue {
+	public JsonValue JsonValue
+	{
 		get => this.jval;
 		set => this.jval = value;
 	}
 
 	/// <inheritdoc/>
-	public override string? ToString () {
-		return this.Value?.ToString ();
+	public override string? ToString()
+	{
+		return this.Value?.ToString();
 	}
 
 	/// <summary>
 	/// Gets an JSON string representation of the current value.
 	/// </summary>
-	public string ToJsonString () => this.jval.ToString ();
+	public string ToJsonString() => this.jval.ToString();
 
 	/// <inheritdoc/>
-	public override bool Equals ( object? obj ) {
-		if (obj is JsonBox<TValue> jbox) {
-			return this.Value?.Equals ( jbox.Value ) == true;
+	public override bool Equals(object? obj)
+	{
+		if (obj is JsonBox<TValue> jbox)
+		{
+			return this.Value?.Equals(jbox.Value) == true;
 		}
-		else if (obj is TValue tv) {
-			return this.Value?.Equals ( tv ) == true;
+		else if (obj is TValue tv)
+		{
+			return this.Value?.Equals(tv) == true;
 		}
 		return false;
 	}
 
 	/// <inheritdoc/>
-	public override int GetHashCode () {
-		return this.Value?.GetHashCode () ?? 0;
+	public override int GetHashCode()
+	{
+		return this.Value?.GetHashCode() ?? 0;
 	}
 
 	/// <inheritdoc/>
-	public bool Equals ( TValue? other ) {
-		return this.Value?.Equals ( other ) == true;
+	public bool Equals(TValue? other)
+	{
+		return this.Value?.Equals(other) == true;
 	}
 
 	/// 
-	public static implicit operator TValue? ( JsonBox<TValue> box )
+	public static implicit operator TValue?(JsonBox<TValue> box)
 		=> box.Value;
 
 	/// 
-	public static implicit operator JsonBox<TValue> ( TValue value )
-		=> new JsonBox<TValue> ( value );
+	public static implicit operator JsonBox<TValue>(TValue value)
+		=> new JsonBox<TValue>(value);
 }

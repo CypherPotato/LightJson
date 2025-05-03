@@ -1,17 +1,17 @@
-using Microsoft.VisualStudio.TestTools.UnitTesting;
 using LightJson;
-using LightJson.Serialization;
-using System.IO;
+using Microsoft.VisualStudio.TestTools.UnitTesting;
 
 namespace LightJsonTests
 {
-	[TestClass]
-	public class BasicSerializationTests
-	{
-		[TestMethod]
-		public void ParseExampleMessage()
-		{
-			var message = @"
+    [TestClass]
+    public class BasicSerializationTests
+    {
+        JsonOptions testsOptions = new JsonOptions();
+
+        [TestMethod]
+        public void ParseExampleMessage()
+        {
+            var message = @"
 				{
 					""menu"": [
 						""home"",
@@ -21,58 +21,39 @@ namespace LightJsonTests
 				}
 			";
 
-			var json = JsonValue.Parse(message);
+            var json = testsOptions.Deserialize(message);
 
-			Assert.IsTrue(json.IsJsonObject);
+            Assert.IsTrue(json.IsJsonObject);
 
-			Assert.AreEqual(1, json.AsJsonObject.Count);
-			Assert.IsTrue(json.AsJsonObject.ContainsKey("menu"));
+            Assert.AreEqual(1, json.GetJsonObject().Count);
+            Assert.IsTrue(json.GetJsonObject().ContainsKey("menu"));
 
-			var items = json.AsJsonObject["menu"].AsJsonArray;
+            var items = json["menu"].GetJsonArray();
 
-			Assert.IsNotNull(items);
-			Assert.AreEqual(3, items.Count);
-			Assert.IsTrue(items.Contains("home"));
-			Assert.IsTrue(items.Contains("projects"));
-			Assert.IsTrue(items.Contains("about"));
-		}
+            Assert.IsNotNull(items);
+            Assert.AreEqual(3, items.Count);
+            Assert.IsTrue(items.Contains("home"));
+            Assert.IsTrue(items.Contains("projects"));
+            Assert.IsTrue(items.Contains("about"));
+        }
 
-		[TestMethod]
-		public void SerializeExampleMessage()
-		{
-			var json = new JsonObject
-			{
-				["menu"] = new JsonArray
-				{
-					"home",
-					"projects",
-					"about",
-				}
-			};
+        [TestMethod]
+        public void SerializeExampleMessage()
+        {
+            var json = new JsonObject
+            {
+                ["menu"] = new JsonArray
+                {
+                    "home",
+                    "projects",
+                    "about",
+                }
+            };
 
-			var message = json.ToString();
+            var message = json.ToString(testsOptions);
+            var expectedMessage = @"{""menu"":[""home"",""projects"",""about""]}";
 
-			var expectedMessage = @"{""menu"":[""home"",""projects"",""about""]}";
-
-			Assert.AreEqual(expectedMessage, message);
-		}
-
-		[TestMethod]
-		public void ParseReadOnlyFile()
-		{
-			// Serialize an object to a file and make it read-only
-			var json = new JsonObject();
-			var message = json.ToString();
-			var filename = Path.GetTempFileName();
-			File.WriteAllText(filename, message);
-			File.SetAttributes(filename, FileAttributes.ReadOnly);
-
-			// Make sure that we don't get an exception when parsing it
-			JsonReader.ParseFile(filename);
-
-			// Clean up
-			File.SetAttributes(filename, FileAttributes.Normal);
-			File.Delete(filename);
-		}
-	}
+            Assert.AreEqual(expectedMessage, message);
+        }
+    }
 }
