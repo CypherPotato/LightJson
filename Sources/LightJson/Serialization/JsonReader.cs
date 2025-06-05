@@ -788,17 +788,21 @@ namespace LightJson.Serialization
 		/// <param name="cancellation">An optional <see cref="CancellationToken"/> to cancel the operation.</param>
 		/// <returns>A tuple containing a boolean indicating if the input could be read into a valid JSON or not, and the
 		/// parsed <see cref="JsonValue"/>.</returns>
-		public async Task<(bool, JsonValue)> TryParseAsync(CancellationToken cancellation = default)
+		public async Task<JsonDeserializationResult> TryParseAsync(CancellationToken cancellation = default)
 		{
 			JsonValue result = default;
 			try
 			{
 				result = await this.ParseAsync(cancellation);
-				return (true, result);
+				return new(null, result);
 			}
-			catch
+			catch (JsonParseException epx)
 			{
-				return (false, result);
+				return new($"Line: {epx.Position.Line}, Column: {epx.Position.Column} | {epx.Type}: {epx.Message}", result);
+			}
+			catch (Exception ex)
+			{
+				return new(ex.Message, result);
 			}
 		}
 
@@ -812,8 +816,6 @@ namespace LightJson.Serialization
 						this.scanner.Dispose();
 				}
 
-				// TODO: free unmanaged resources (unmanaged objects) and override finalizer
-				// TODO: set large fields to null
 				this.disposedValue = true;
 			}
 		}

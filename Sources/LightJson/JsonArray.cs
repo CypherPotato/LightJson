@@ -114,6 +114,18 @@ namespace LightJson
 		}
 
 		/// <summary>
+		/// Initializes a new instance of JsonArray with the specified values.
+		/// </summary>
+		/// <param name="values">The collection of objects to be added to this JsonArray.</param>
+		public JsonArray(IEnumerable<object?> values) : this(JsonOptions.Default)
+		{
+			foreach (var value in values)
+			{
+				this.items.Add(JsonOptions.Default.Serialize(value));
+			}
+		}
+
+		/// <summary>
 		/// Returns an <see cref="JsonValue"/> representating this <see cref="JsonArray"/>.
 		/// </summary>
 		/// <returns></returns>
@@ -161,6 +173,30 @@ namespace LightJson
 		public void Add(object? value)
 		{
 			this.Add(this.options.Serialize(value));
+		}
+
+		/// <summary>
+		/// Adds a range of values to this array.
+		/// </summary>
+		/// <param name="items">The items to add.</param>
+		public void AddRange(IEnumerable<object?> items)
+		{
+			foreach (var item in items)
+			{
+				this.Add(item);
+			}
+		}
+
+		/// <summary>
+		/// Adds a range of values to this array.
+		/// </summary>
+		/// <param name="items">The items to add.</param>
+		public void AddRange(IEnumerable<JsonValue> items)
+		{
+			foreach (var item in items)
+			{
+				this.Add(item);
+			}
 		}
 
 		/// <inheritdoc/>

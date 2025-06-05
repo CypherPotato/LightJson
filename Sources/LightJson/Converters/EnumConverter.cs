@@ -79,7 +79,7 @@ public sealed class EnumConverter : JsonConverter
 			}
 			return Enum.ToObject(requestedType, result);
 		}
-		else
+		else if (value.IsString)
 		{
 			int result = 0;
 			foreach (var part in value.GetString().Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries))
@@ -87,6 +87,16 @@ public sealed class EnumConverter : JsonConverter
 				result |= (int)GetEnumValue(requestedType, part, currentOptions);
 			}
 			return Enum.ToObject(requestedType, result);
+		}
+		else if (value.IsNull)
+		{
+			return Enum.ToObject(requestedType, 0);
+		}
+		else
+		{
+			// throw invalid cast
+			value.GetString();
+			return default!;
 		}
 	}
 
@@ -97,11 +107,19 @@ public sealed class EnumConverter : JsonConverter
 		{
 			if (SerializeFlagsIntoArrays)
 			{
-				return new JsonArray(currentOptions, [.. value.ToString()!.Split(",", StringSplitOptions.TrimEntries)]);
+				return new JsonArray(currentOptions, [.. value.ToString()!.Split(",", StringSplitOptions.TrimEntries).Where(s => !s.All(char.IsDigit))]);
 			}
 			else
 			{
-				return new JsonValue(value.ToString()!);
+				string valueString = value.ToString()!;
+				if (valueString.All(char.IsDigit)) // the value is out of bounds
+				{
+					return JsonValue.Null;
+				}
+				else
+				{
+					return new JsonValue(valueString);
+				}
 			}
 		}
 		else

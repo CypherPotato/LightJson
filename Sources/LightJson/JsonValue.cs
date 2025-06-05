@@ -5,6 +5,8 @@ using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.IO;
+using System.Net.Http;
+using System.Text;
 using System.Text.Json.Serialization;
 
 #nullable enable
@@ -17,7 +19,7 @@ namespace LightJson
 	[DebuggerDisplay("{ToString(),nq}", Type = "JsonValue({Type})")]
 	[DebuggerTypeProxy(typeof(JsonValueDebugView))]
 	[JsonConverter(typeof(JsonInternalConverter))]
-	public struct JsonValue : IEquatable<JsonValue>
+	public struct JsonValue : IEquatable<JsonValue>, IImplicitJsonValue
 	{
 		private readonly JsonValueType type = JsonValueType.Undefined;
 		private readonly object reference = null!;
@@ -163,7 +165,7 @@ namespace LightJson
 		/// </summary>
 		/// <param name="type">The defined converted type.</param>
 		/// <param name="enableConverters">Optional. Defines whether to use or not defined converters.</param>
-		public object Get([DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.All)] Type type, bool enableConverters = false)
+		public object Get([DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.All)] Type type, bool enableConverters = true)
 		{
 			if (this.IsNull)
 			{
@@ -180,10 +182,45 @@ namespace LightJson
 		}
 
 		/// <summary>
+		/// Tries to get the value as the specified type.
+		/// </summary>
+		/// <typeparam name="T">The type to convert the value to.</typeparam>
+		/// <returns>The value converted to the specified type, or <see langword="default"/> if the conversion fails.</returns>
+		public T? TryGet<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.All)] T>()
+		{
+			try
+			{
+				return (T?)this.TryGet(typeof(T));
+			}
+			catch
+			{
+				return default;
+			}
+		}
+
+		/// <summary>
+		/// Tries to get the value as the specified type.
+		/// </summary>
+		/// <param name="type">The type to convert the value to.</param>
+		/// <param name="enableConverters">Optional. Defines whether to use or not defined converters.</param>
+		/// <returns>The value converted to the specified type, or <see langword="default"/> if the conversion fails.</returns>
+		public object? TryGet([DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.All)] Type type, bool enableConverters = true)
+		{
+			try
+			{
+				return this.MaybeNull()?.Get(type, enableConverters);
+			}
+			catch
+			{
+				return default;
+			}
+		}
+
+		/// <summary>
 		/// Gets this value as an defined <see cref="JsonConverter"/>.
 		/// </summary>
 		/// <typeparam name="T">The defined mapping type.</typeparam>
-		public T Get<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.All)] T>() where T : notnull
+		public T Get<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.All)] T>()
 		{
 			var tType = typeof(T);
 			return (T)this.Get(tType);
@@ -593,6 +630,12 @@ namespace LightJson
 			return JsonWriter.Serialize(this, options);
 		}
 
+		/// <inheritdoc/>
+		public JsonValue AsJsonValue()
+		{
+			return this;
+		}
+
 		private class JsonValueDebugView
 		{
 			private JsonValue jsonValue;
@@ -684,5 +727,7 @@ namespace LightJson
 		public static implicit operator JsonValue(JsonArray? value) => value?.AsJsonValue() ?? JsonValue.Null;
 		/// <exclude/>
 		public static implicit operator JsonValue(JsonValue[] items) => new JsonArray(JsonOptions.Default, items).AsJsonValue();
+		/// <exclude/>
+		public static implicit operator HttpContent(JsonValue value) => new StringContent(value.ToString(), Encoding.UTF8, "application/json");
 	}
 }

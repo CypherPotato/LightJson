@@ -37,7 +37,8 @@ public sealed class JsonOptions
 			new TimeSpanConverter(),
 			new CharConverter(),
 			new IpAddressConverter(),
-			new UriConverter()
+			new UriConverter(),
+			new ExceptionConverter()
 		];
 		_default = new JsonOptions();
 	}
@@ -532,10 +533,10 @@ public sealed class JsonOptions
 	/// <param name="reader">The text reader containing the JSON data to deserialize.</param>
 	/// <param name="cancellation">The cancellation token to use for the asynchronous operation. Defaults to <see cref="CancellationToken.None"/>.</param>
 	/// <returns>A task representing the asynchronous deserialization operation, returning a tuple containing a boolean indicating whether deserialization was successful and the deserialized <see cref="JsonValue"/>.</returns>
-	public Task<(bool, JsonValue)> TryDeserializeAsync(TextReader reader, CancellationToken cancellation = default)
+	public async Task<JsonDeserializationResult> TryDeserializeAsync(TextReader reader, CancellationToken cancellation = default)
 	{
 		using var jr = new JsonReader(reader, this);
-		return jr.TryParseAsync(cancellation);
+		return await jr.TryParseAsync(cancellation);
 	}
 
 	/// <summary>
@@ -545,7 +546,7 @@ public sealed class JsonOptions
 	/// <param name="encoding">The encoding to use when reading the stream. Defaults to <see cref="Encoding.Default"/> if null.</param>
 	/// <param name="cancellation">The cancellation token to use for the asynchronous operation. Defaults to <see cref="CancellationToken.None"/>.</param>
 	/// <returns>A task representing the asynchronous deserialization operation, returning a tuple containing a boolean indicating whether deserialization was successful and the deserialized <see cref="JsonValue"/>.</returns>
-	public Task<(bool, JsonValue)> TryDeserializeAsync(Stream inputStream, Encoding? encoding, CancellationToken cancellation = default)
+	public Task<JsonDeserializationResult> TryDeserializeAsync(Stream inputStream, Encoding? encoding, CancellationToken cancellation = default)
 	{
 		return this.TryDeserializeAsync(new StreamReader(inputStream, encoding ?? Encoding.Default), cancellation);
 	}
@@ -556,7 +557,7 @@ public sealed class JsonOptions
 	/// <param name="jsonText">The string containing the JSON data to deserialize.</param>
 	/// <param name="cancellation">The cancellation token to use for the asynchronous operation. Defaults to <see cref="CancellationToken.None"/>.</param>
 	/// <returns>A task representing the asynchronous deserialization operation, returning a tuple containing a boolean indicating whether deserialization was successful and the deserialized <see cref="JsonValue"/>.</returns>
-	public Task<(bool, JsonValue)> TryDeserializeAsync(string jsonText, CancellationToken cancellation = default)
+	public Task<JsonDeserializationResult> TryDeserializeAsync(string jsonText, CancellationToken cancellation = default)
 	{
 		return this.TryDeserializeAsync(new StringReader(jsonText), cancellation);
 	}
@@ -567,7 +568,7 @@ public sealed class JsonOptions
 	/// <param name="jsonText">The read-only memory of characters containing the JSON data to deserialize.</param>
 	/// <param name="cancellation">The cancellation token to use for the asynchronous operation. Defaults to <see cref="CancellationToken.None"/>.</param>
 	/// <returns>A task representing the asynchronous deserialization operation, returning a tuple containing a boolean indicating whether deserialization was successful and the deserialized <see cref="JsonValue"/>.</returns>
-	public Task<(bool, JsonValue)> TryDeserializeAsync(ReadOnlyMemory<char> jsonText, CancellationToken cancellation = default)
+	public Task<JsonDeserializationResult> TryDeserializeAsync(ReadOnlyMemory<char> jsonText, CancellationToken cancellation = default)
 	{
 		return this.TryDeserializeAsync(new StringReader(new string(jsonText.Span)), cancellation);
 	}
@@ -579,7 +580,7 @@ public sealed class JsonOptions
 	/// <param name="encoding">The encoding to use when converting the bytes to a string. Defaults to <see cref="Encoding.UTF8"/> if null.</param>
 	/// <param name="cancellation">The cancellation token to use for the asynchronous operation. Defaults to <see cref="CancellationToken.None"/>.</param>
 	/// <returns>A task representing the asynchronous deserialization operation, returning a tuple containing a boolean indicating whether deserialization was successful and the deserialized <see cref="JsonValue"/>.</returns>
-	public Task<(bool, JsonValue)> TryDeserializeAsync(ReadOnlyMemory<byte> jsonText, Encoding? encoding, CancellationToken cancellation = default)
+	public Task<JsonDeserializationResult> TryDeserializeAsync(ReadOnlyMemory<byte> jsonText, Encoding? encoding, CancellationToken cancellation = default)
 	{
 		return this.TryDeserializeAsync(new StringReader((encoding ?? Encoding.UTF8).GetString(jsonText.Span)), cancellation);
 	}
@@ -647,7 +648,7 @@ public sealed class JsonOptions
 	/// <returns>A value task representing the asynchronous operation, returning true if the string is valid JSON; otherwise, false.</returns>
 	public async ValueTask<bool> IsValidJsonAsync(string jsonText, CancellationToken cancellation = default)
 	{
-		return (await this.TryDeserializeAsync(jsonText, cancellation).ConfigureAwait(false)).Item1;
+		return (await this.TryDeserializeAsync(jsonText, cancellation).ConfigureAwait(false)).Success;
 	}
 
 	/// <summary>
@@ -658,7 +659,7 @@ public sealed class JsonOptions
 	/// <returns>A value task representing the asynchronous operation, returning true if the JSON data is valid; otherwise, false.</returns>
 	public async ValueTask<bool> IsValidJsonAsync(TextReader reader, CancellationToken cancellation = default)
 	{
-		return (await this.TryDeserializeAsync(reader, cancellation).ConfigureAwait(false)).Item1;
+		return (await this.TryDeserializeAsync(reader, cancellation).ConfigureAwait(false)).Success;
 	}
 
 	/// <summary>
@@ -670,7 +671,7 @@ public sealed class JsonOptions
 	/// <returns>A value task representing the asynchronous operation, returning true if the JSON data is valid; otherwise, false.</returns>
 	public async ValueTask<bool> IsValidJsonAsync(Stream inputStream, Encoding? encoding, CancellationToken cancellation = default)
 	{
-		return (await this.TryDeserializeAsync(inputStream, encoding, cancellation).ConfigureAwait(false)).Item1;
+		return (await this.TryDeserializeAsync(inputStream, encoding, cancellation).ConfigureAwait(false)).Success;
 	}
 
 	/// <summary>
@@ -682,7 +683,7 @@ public sealed class JsonOptions
 	/// <returns>A value task representing the asynchronous operation, returning true if the span is valid JSON; otherwise, false.</returns>
 	public async ValueTask<bool> IsValidJsonAsync(ReadOnlyMemory<byte> jsonText, Encoding? encoding, CancellationToken cancellation = default)
 	{
-		return (await this.TryDeserializeAsync(jsonText, encoding, cancellation).ConfigureAwait(false)).Item1;
+		return (await this.TryDeserializeAsync(jsonText, encoding, cancellation).ConfigureAwait(false)).Success;
 	}
 	#endregion
 }

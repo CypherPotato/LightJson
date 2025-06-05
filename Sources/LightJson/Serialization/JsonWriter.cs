@@ -72,6 +72,11 @@ namespace LightJson.Serialization
 		public JsonInfinityHandleOption InfinityHandleOption { get; set; } = JsonInfinityHandleOption.WriteNull;
 
 		/// <summary>
+		/// Gets or sets the function which transforms the input JSON value into a resulting value.
+		/// </summary>
+		public Func<JsonValue, JsonValue>? RenderFunction { get; set; }
+
+		/// <summary>
 		/// Initializes an new instance of <see cref="JsonWriter"/>.
 		/// </summary>
 		public JsonWriter()
@@ -130,6 +135,12 @@ namespace LightJson.Serialization
 
 		private void WriteEncodedString(string text)
 		{
+			if (text.StartsWith(JsonRawValue.TAG))
+			{
+				this.Write(text[JsonRawValue.TAG.Length..]);
+				return;
+			}
+
 			this.Write("\"");
 
 			if (this.StringEncoder is not null)

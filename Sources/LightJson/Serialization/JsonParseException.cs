@@ -52,7 +52,7 @@ namespace LightJson.Serialization
 			switch (type)
 			{
 				case ErrorType.IncompleteMessage:
-					return "The string ended before a value could be parsed.";
+					return "The string ended before a value could be parsed. Perhaps the JSON string is incomplete?";
 
 				case ErrorType.InvalidOrUnexpectedCharacter:
 					return "The parser encountered an invalid or unexpected character.";
