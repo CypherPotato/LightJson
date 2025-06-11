@@ -78,9 +78,10 @@ static class JsonDeserializer
 				}
 			}
 
-			if (options.SerializerContext is { } jcontext)
+			if (options.SerializerContext is { } jcontext &&
+				TryDeserializeWithTypeInfo(value, objectType, deepness, jcontext.TypeResolver, jcontext.SerializerOptions, enableConverters, options, out var deserializeResult))
 			{
-				return DeserializeWithTypeInfo(value, objectType, deepness, jcontext.TypeResolver, jcontext.SerializerOptions, enableConverters, options);
+				return deserializeResult;
 			}
 
 			throw new JsonException($"Unable to deserialize the JSON value at {value.Path}: no converter matched the specified type.");
@@ -88,16 +89,10 @@ static class JsonDeserializer
 	}
 
 #pragma warning disable IL2072, IL3050
-	static object DeserializeWithTypeInfo(JsonValue value, Type objectType, int deepness, IJsonTypeInfoResolver typeResolver, JsonSerializerOptions serializerOptions, bool enableConverters, JsonOptions lightJsonOptions)
+	static bool TryDeserializeWithTypeInfo(JsonValue value, Type objectType, int deepness, IJsonTypeInfoResolver typeResolver, JsonSerializerOptions serializerOptions, bool enableConverters, JsonOptions lightJsonOptions, [NotNullWhen(true)] out object? result)
 	{
 		var typeInfo = typeResolver.GetTypeInfo(objectType, serializerOptions);
-
-		if (typeInfo is null)
-		{
-			throw new JsonException($"Couldn't find any suitable TypeInfo to deserialize {objectType.Name}.");
-		}
-
-		switch (typeInfo.Kind)
+		switch (typeInfo?.Kind)
 		{
 			case JsonTypeInfoKind.Object:
 
@@ -177,7 +172,8 @@ static class JsonDeserializer
 						property.Set(createdEntity, propertyValue);
 					}
 
-					return createdEntity;
+					result = createdEntity;
+					return true;
 				}
 
 			case JsonTypeInfoKind.Enumerable:
@@ -194,10 +190,11 @@ static class JsonDeserializer
 #if NET9_0_OR_GREATER
 					var destArray = Array.CreateInstanceFromArrayType(objectType, array.Count);
 					array.CopyTo(destArray);
-					return destArray;
+					result = destArray;
 #else
-					return array.ToArray(elementType);
+					result = array.ToArray(elementType);
 #endif
+					return true;
 				}
 
 			case JsonTypeInfoKind.Dictionary:
@@ -219,11 +216,12 @@ static class JsonDeserializer
 						((IDictionary)createdEntity).Add(item.Key, valueItem);
 					}
 
-					return createdEntity;
+					result = createdEntity;
+					return true;
 				}
-
-			default:
-				throw new JsonException($"The type {objectType.Name} is not supported.");
 		}
+
+		result = null;
+		return false;
 	}
 }

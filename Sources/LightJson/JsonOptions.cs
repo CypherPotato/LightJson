@@ -215,6 +215,13 @@ public sealed class JsonOptions
 	public string SerializeJson(object? value) => this.Serialize(value).ToString();
 
 	/// <summary>
+	/// Serializes the specified object into an JSON string.
+	/// </summary>
+	/// <param name="value">The object to serialize into an JSON string.</param>
+	/// <param name="pretty">If true, the JSON output will be formatted with indentation.</param>
+	public string SerializeJson(object? value, bool pretty) => JsonWriter.Serialize(this.Serialize(value), prettyOutput: true, unquotedPropertyKeys: false, namingPolicy: this.NamingPolicy);
+
+	/// <summary>
 	/// Serializes the specified object into a UTF-8 encoded byte array.
 	/// </summary>
 	/// <param name="value">The object to serialize into a UTF-8 encoded byte array.</param>

@@ -37,7 +37,7 @@ namespace LightJson
 		/// </summary>
 		/// <param name="index">The zero-based index of the value to get or set.</param>
 		/// <remarks>
-		/// The getter will return JsonValue.Null if the given index is out of range.
+		/// The getter will return <see cref="JsonValue.Undefined"/> if the given index is out of range.
 		/// </remarks>
 		public JsonValue this[int index]
 		{

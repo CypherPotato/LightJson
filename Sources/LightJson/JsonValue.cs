@@ -63,7 +63,7 @@ namespace LightJson
 		{
 			get
 			{
-				return this.Type is JsonValueType.Null or JsonValueType.Undefined;
+				return this.Type == JsonValueType.Null || this.Type == JsonValueType.Undefined;
 			}
 		}
 
@@ -184,7 +184,7 @@ namespace LightJson
 		/// <summary>
 		/// Tries to get the value as the specified type.
 		/// </summary>
-		/// <typeparam name="T">The type to convert the value to.</typeparam>
+		/// <typeparam name="T">The type to convert to.</typeparam>
 		/// <returns>The value converted to the specified type, or <see langword="default"/> if the conversion fails.</returns>
 		public T? TryGet<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.All)] T>()
 		{
@@ -196,6 +196,36 @@ namespace LightJson
 			{
 				return default;
 			}
+		}
+
+		/// <summary>
+		/// Tries to get the value at the specified array index as the specified type.
+		/// </summary>
+		/// <typeparam name="T">The type to convert to.</typeparam>
+		/// <param name="arrayIndex">The array index.</param>
+		/// <returns>The value at the specified array index converted to the specified type, or <see langword="default"/> if the conversion fails or the value is not a JSON array.</returns>
+		public T? TryGet<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.All)] T>(int arrayIndex)
+		{
+			if (this.IsJsonArray)
+			{
+				return this.GetJsonArray()[arrayIndex].TryGet<T>();
+			}
+			return default;
+		}
+
+		/// <summary>
+		/// Tries to get the value of the specified property as the specified type.
+		/// </summary>
+		/// <typeparam name="T">The type to convert to.</typeparam>
+		/// <param name="propertyName">The property name.</param>
+		/// <returns>The value of the specified property converted to the specified type, or <see langword="default"/> if the conversion fails or the value is not a JSON object.</returns>
+		public T? TryGet<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.All)] T>(string propertyName)
+		{
+			if (this.IsJsonObject)
+			{
+				return this.GetJsonObject()[propertyName].TryGet<T>();
+			}
+			return default;
 		}
 
 		/// <summary>

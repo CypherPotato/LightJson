@@ -80,24 +80,19 @@ static class JsonSerializer
 			return dynamicResult;
 		}
 
-		if (options.SerializerContext is { } jcontext)
+		if (options.SerializerContext is { } jcontext &&
+			TrySerializeObjectWithTypeInfo(value, deepness, convertersEnabled, jcontext.TypeResolver, jcontext.SerializerOptions, options, out var typeInfoResult))
 		{
-			return SerializeObjectWithTypeInfo(value, deepness, convertersEnabled, jcontext.TypeResolver, jcontext.SerializerOptions, options);
+			return typeInfoResult;
 		}
 
 		throw new JsonException($"Unable to serialize the JSON value of type {value.GetType().Name}: no converter matched the specified type.");
 	}
 
-	static JsonValue SerializeObjectWithTypeInfo(object value, int deepness, bool convertersEnabled, IJsonTypeInfoResolver typeResolver, JsonSerializerOptions serializerOptions, JsonOptions options)
+	static bool TrySerializeObjectWithTypeInfo(object value, int deepness, bool convertersEnabled, IJsonTypeInfoResolver typeResolver, JsonSerializerOptions serializerOptions, JsonOptions options, out JsonValue result)
 	{
 		var typeInfo = typeResolver.GetTypeInfo(value.GetType(), serializerOptions);
-
-		if (typeInfo is null)
-		{
-			throw new JsonException($"Couldn't find any suitable TypeInfo to serialize {value.GetType().Name}.");
-		}
-
-		switch (typeInfo.Kind)
+		switch (typeInfo?.Kind)
 		{
 			case JsonTypeInfoKind.Object:
 				{
@@ -117,7 +112,8 @@ static class JsonSerializer
 						obj.Add(prop.Name, propValueJson);
 					}
 
-					return obj;
+					result = obj;
+					return true;
 				}
 
 			case JsonTypeInfoKind.Enumerable:
@@ -128,7 +124,9 @@ static class JsonSerializer
 						var itemJson = SerializeObject(item, deepness + 1, convertersEnabled, options);
 						arr.Add(itemJson);
 					}
-					return arr;
+
+					result = arr;
+					return true;
 				}
 
 			case JsonTypeInfoKind.Dictionary:
@@ -161,11 +159,12 @@ static class JsonSerializer
 						}
 					}
 
-					return obj;
+					result = obj;
+					return true;
 				}
 		}
 
-		Debug.Fail("Invalid type info kind");
-		return JsonValue.Null;
+		result = JsonValue.Undefined;
+		return false;
 	}
 }
