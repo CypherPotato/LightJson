@@ -1,33 +1,49 @@
-﻿using System.Text.Json;
-using System.Text.Json.Serialization;
-using LightJson;
+﻿using LightJson;
+using LightJson.Converters;
 using LightJson.Serialization;
-using Microsoft.Diagnostics.Tracing.Parsers.AspNet;
-using static LighJsonTester.Program;
+using System.Diagnostics;
+using System.Text.Json;
+using System.Text.Json.Serialization;
 
 namespace LighJsonTester;
 
-internal class Program
+class Program
 {
-    static void Main(string[] args)
+    static void Main()
     {
-        JsonOptions.Default.SerializerContext = new JsonOptionsSerializerContext(AppJsonContext.Default, new JsonSerializerOptions());
-
-        var json = """
-            { 
-                "__id": 12,
-                "name": "foo"
+        JsonValue jsonA = JsonOptions.Default.Deserialize("""
+            {
+                "stringValue": "string",
+                "number": "5123",
+                "arr": [
+                    {
+                        "foo": "bar",
+                        "kaz": "daz"
+                    }
+                ]
             }
-            """;
+            """);
 
-        UserRecord user = JsonOptions.Default.Deserialize<UserRecord>(json);
+        JsonValue jsonB = JsonOptions.Default.Deserialize("""
+            {
+                "stringValue": "string",
+                "number": "5123",
+                "arr": [
+                    {
+                        "foo": "bar",
+                        "kaz": "daz",
+                        "hehe": true
+                    }
+                ]
+            }
+            """);
+
+        var validator = new JsonStructureValidator
+        {
+            AllowNullValues = false,
+            AllowEmptyArrays = false
+        };
+        var result = validator.StructureEquals(jsonA, jsonB);
         ;
     }
-
-    public record UserRecord(int id, string? name = null);
-}
-
-[JsonSerializable(typeof(UserRecord))]
-partial class AppJsonContext : JsonSerializerContext
-{
 }
