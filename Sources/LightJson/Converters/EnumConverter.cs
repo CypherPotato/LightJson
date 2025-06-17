@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
+using System.Drawing;
 using System.Linq;
 using System.Reflection;
 using System.Text.Json;
@@ -66,6 +67,8 @@ public sealed class EnumConverter : JsonConverter
 	/// <inheritdoc/>
 	public override object Deserialize(JsonValue value, Type requestedType, JsonOptions currentOptions)
 	{
+		bool isEnumFlagged = requestedType.GetCustomAttributes<FlagsAttribute>().Any();
+
 		if (value.IsInteger)
 		{
 			return Enum.ToObject(requestedType, value.GetInteger());
@@ -73,7 +76,13 @@ public sealed class EnumConverter : JsonConverter
 		else if (value.IsJsonArray)
 		{
 			int result = 0;
-			foreach (var item in value.GetJsonArray())
+			var varray = value.GetJsonArray();
+
+			if (!isEnumFlagged && varray.Count > 1)
+			{
+				throw new JsonException($"The enum type of \"{requestedType.Name}\" expects only one value.");
+			}
+			foreach (var item in varray)
 			{
 				result |= (int)GetEnumValue(requestedType, item.GetString(), currentOptions);
 			}
@@ -82,7 +91,13 @@ public sealed class EnumConverter : JsonConverter
 		else if (value.IsString)
 		{
 			int result = 0;
-			foreach (var part in value.GetString().Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries))
+			var varray = value.GetString().Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
+
+			if (!isEnumFlagged && varray.Length > 1)
+			{
+				throw new JsonException($"The enum type of \"{requestedType.Name}\" expects only one value.");
+			}
+			foreach (var part in varray)
 			{
 				result |= (int)GetEnumValue(requestedType, part, currentOptions);
 			}
@@ -94,9 +109,7 @@ public sealed class EnumConverter : JsonConverter
 		}
 		else
 		{
-			// throw invalid cast
-			value.GetString();
-			return default!;
+			throw new JsonException($"Expected a number, string or array of strings. Got {value.Type} instead.");
 		}
 	}
 

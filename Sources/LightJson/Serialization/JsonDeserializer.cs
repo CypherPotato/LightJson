@@ -60,11 +60,14 @@ static class JsonDeserializer
 			}
 
 			// find a JsonConverter to match the specified type
-			IList<JsonConverter> converters;
-			converters = enableConverters ? options.Converters : JsonOptions.RequiredConverters;
-			for (int i = 0; i < options.Converters.Count; i++)
+			IList<JsonConverter> converters =
+				enableConverters ?
+				[.. options.Converters, .. JsonOptions.RequiredConverters] :
+				JsonOptions.RequiredConverters;
+
+			for (int i = 0; i < converters.Count; i++)
 			{
-				JsonConverter mapper = options.Converters[i];
+				JsonConverter mapper = converters[i];
 				if (mapper.CanSerialize(objectType, options))
 				{
 					try

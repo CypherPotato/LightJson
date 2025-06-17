@@ -67,7 +67,7 @@ public sealed class JsonOptions
 	/// <summary>
 	/// Gets or sets an list of <see cref="JsonConverter"/>.
 	/// </summary>
-	public IList<JsonConverter> Converters { get; set; }
+	public IList<JsonConverter> Converters { get; set; } = [];
 
 	/// <summary>
 	/// Gets or sets the function that transforms the property name of a JSON object to JSON output.
@@ -110,8 +110,6 @@ public sealed class JsonOptions
 	/// </summary>
 	public JsonOptions()
 	{
-		this.Converters = [.. RequiredConverters];
-
 		if (RuntimeFeature.IsDynamicCodeSupported)
 		{
 #pragma warning disable IL2026, IL3050

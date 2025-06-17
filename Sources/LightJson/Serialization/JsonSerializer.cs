@@ -56,11 +56,14 @@ static class JsonSerializer
 			return new JsonValue(JsonValueType.Boolean, nbool ? 1 : 0, null, options);
 		}
 
-		IList<JsonConverter> converters;
-		converters = convertersEnabled ? options.Converters : JsonOptions.RequiredConverters;
+		IList<JsonConverter> converters =
+			convertersEnabled ?
+			[.. options.Converters, .. JsonOptions.RequiredConverters] :
+			JsonOptions.RequiredConverters;
+
 		for (int i = 0; i < converters.Count; i++)
 		{
-			JsonConverter mapper = options.Converters[i];
+			JsonConverter mapper = converters[i];
 			if (mapper.CanSerialize(itemType, options))
 			{
 				try
