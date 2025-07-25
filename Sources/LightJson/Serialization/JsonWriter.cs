@@ -319,6 +319,11 @@ namespace LightJson.Serialization
 
 		private void Render(JsonObject value)
 		{
+			if (value.Count == 0)
+			{
+				this.Write("{}");
+				return;
+			}
 			this.AddRenderingCollection(value);
 			this.WriteLine("{");
 			this.indent += 1;
@@ -380,6 +385,30 @@ namespace LightJson.Serialization
 		}
 
 		/// <summary>
+		/// Resets the indentation level to zero.
+		/// </summary>
+		public void ResetIndent()
+		{
+			this.indent = 0;
+		}
+
+		/// <summary>
+		/// Increases the indentation level.
+		/// </summary>
+		public void IncreaseIndent()
+		{
+			this.indent++;
+		}
+
+		/// <summary>
+		/// Reduces the indentation level.
+		/// </summary>
+		public void ReduceIndent()
+		{
+			this.indent--;
+		}
+
+		/// <summary>
 		/// Writes the given value to the writer.
 		/// </summary>
 		/// <param name="jsonValue">The JsonValue to write.</param>
@@ -408,17 +437,21 @@ namespace LightJson.Serialization
 
 			if (multiLine)
 			{
+				this.WriteIndentation();
 				this.InnerWriter.WriteLine("/*");
 				for (int i = 0; i < lines.Length; i++)
 				{
-					this.InnerWriter.WriteLine(this.IndentString + lines[i].TrimEnd());
+					this.WriteIndentation();
+					this.InnerWriter.WriteLine(" * " + lines[i].TrimEnd());
 				}
+				this.WriteIndentation();
 				this.InnerWriter.WriteLine("*/");
 			}
 			else
 			{
 				for (int i = 0; i < lines.Length; i++)
 				{
+					this.WriteIndentation();
 					this.InnerWriter.WriteLine("// " + lines[i].TrimEnd());
 				}
 			}

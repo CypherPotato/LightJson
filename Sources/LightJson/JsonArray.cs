@@ -5,6 +5,8 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
+using System.Net.Http;
+using System.Text;
 using System.Text.Json.Serialization;
 
 namespace LightJson
@@ -100,7 +102,7 @@ namespace LightJson
 		/// </summary>
 		/// <param name="options">Specifies the <see cref="JsonOptions"/> used for this JsonArray.</param>
 		/// <param name="values">The collection of <see cref="JsonValue"/> to be added to this JsonArray.</param>
-		public JsonArray(JsonOptions options, IEnumerable<JsonValue> values) : this(options)
+		public JsonArray(JsonOptions options, IEnumerable<object?> values) : this(options)
 		{
 			if (values == null)
 			{
@@ -109,7 +111,7 @@ namespace LightJson
 
 			foreach (var value in values)
 			{
-				this.items.Add(value);
+				this.items.Add(options.Serialize(value));
 			}
 		}
 
@@ -121,7 +123,7 @@ namespace LightJson
 		{
 			foreach (var value in values)
 			{
-				this.items.Add(JsonOptions.Default.Serialize(value));
+				this.items.Add(this.options.Serialize(value));
 			}
 		}
 
@@ -292,5 +294,8 @@ namespace LightJson
 		{
 			return JsonWriter.Serialize(this.AsJsonValue(), options);
 		}
+
+		/// <exclude/>
+		public static implicit operator HttpContent(JsonArray value) => new StringContent(value.ToString(), Encoding.UTF8, "application/json");
 	}
 }

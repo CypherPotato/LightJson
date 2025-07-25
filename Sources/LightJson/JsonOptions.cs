@@ -1,4 +1,5 @@
 ﻿using LightJson.Converters;
+using LightJson.Schema;
 using LightJson.Serialization;
 using System;
 using System.Collections.Generic;
@@ -167,6 +168,43 @@ public sealed class JsonOptions
 	/// </summary>
 	public JsonArray CreateJsonArray() => new JsonArray(this);
 
+	/// <summary>
+	/// Creates a new <see cref="JsonArray"/> instance using this <see cref="JsonOptions"/> options and populates it with the specified items.
+	/// </summary>
+	/// <param name="items">The items to populate the array with.</param>
+	public JsonArray CreateJsonArray(params IEnumerable<object?> items) => new JsonArray(this, items);
+
+	/// <summary>
+	/// Creates a new <see cref="JsonSchema"/> instance from a JSON schema string.
+	/// </summary>
+	/// <param name="jsonSchemaString">The JSON schema string.</param>
+	/// <returns>A new <see cref="JsonSchema"/> instance.</returns>
+	public JsonSchema CreateJsonSchema(string jsonSchemaString)
+	{
+		var jsonObj = this.Deserialize<JsonObject>(jsonSchemaString);
+		return new JsonSchema(jsonObj);
+	}
+
+	/// <summary>
+	/// Creates a new <see cref="JsonSchema"/> instance from a <see cref="JsonObject"/>.
+	/// </summary>
+	/// <param name="jsonSchema">The <see cref="JsonObject"/> representing the JSON schema.</param>
+	/// <returns>A new <see cref="JsonSchema"/> instance.</returns>
+	public JsonSchema CreateJsonSchema(JsonObject jsonSchema)
+	{
+		return new JsonSchema(jsonSchema);
+	}
+
+	/// <summary>
+	/// Asynchronously creates a new <see cref="JsonSchema"/> instance from a JSON schema string.
+	/// </summary>
+	/// <param name="jsonSchemaString">The JSON schema string.</param>
+	/// <returns>A task that represents the asynchronous operation. The task result contains a new <see cref="JsonSchema"/> instance.</returns>
+	public async Task<JsonSchema> CreateJsonSchemaAsync(string jsonSchemaString)
+	{
+		var jsonObj = await this.DeserializeAsync<JsonObject>(jsonSchemaString);
+		return new JsonSchema(jsonObj);
+	}
 	#region Serialize methods
 	/// <summary>
 	/// Serializes the specified object to a <see cref="JsonValue"/>.
@@ -217,7 +255,7 @@ public sealed class JsonOptions
 	/// </summary>
 	/// <param name="value">The object to serialize into an JSON string.</param>
 	/// <param name="pretty">If true, the JSON output will be formatted with indentation.</param>
-	public string SerializeJson(object? value, bool pretty) => JsonWriter.Serialize(this.Serialize(value), prettyOutput: true, unquotedPropertyKeys: false, namingPolicy: this.NamingPolicy);
+	public string SerializeJson(object? value, bool pretty) => JsonWriter.Serialize(this.Serialize(value), prettyOutput: pretty, unquotedPropertyKeys: false, namingPolicy: this.NamingPolicy);
 
 	/// <summary>
 	/// Serializes the specified object into a UTF-8 encoded byte array.
@@ -590,6 +628,50 @@ public sealed class JsonOptions
 		return this.TryDeserializeAsync(new StringReader((encoding ?? Encoding.UTF8).GetString(jsonText.Span)), cancellation);
 	}
 
+	/// <summary>
+	/// Asynchronously attempts to deserialize a JSON value of type <typeparamref name="T"/> from the specified <see cref="TextReader"/>.
+	/// </summary>
+	/// <typeparam name="T">The type to deserialize the JSON value to.</typeparam>
+	/// <param name="reader">The <see cref="TextReader"/> containing the JSON data to deserialize.</param>
+	/// <param name="cancellation">The cancellation token to use for the asynchronous operation. Defaults to <see cref="CancellationToken.None"/>.</param>
+	/// <returns>A task representing the asynchronous deserialization operation, returning a <see cref="JsonDeserializationResult{T}"/>.</returns>
+	public async Task<JsonDeserializationResult<T>> TryDeserializeAsync<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.All)] T>(TextReader reader, CancellationToken cancellation = default)
+	{
+		using var jr = new JsonReader(reader, this);
+		var resultJson = await jr.TryParseAsync(cancellation);
+		if (resultJson.Success)
+		{
+			var resultObject = resultJson.Result.TryGet<T>();
+			return new JsonDeserializationResult<T>(null, resultJson.Result, (T?)resultObject);
+		}
+
+		return new JsonDeserializationResult<T>(resultJson.Error, resultJson.Result, default);
+	}
+
+	/// <summary>
+	/// Asynchronously attempts to deserialize a JSON value of type <typeparamref name="T"/> from the specified string.
+	/// </summary>
+	/// <typeparam name="T">The type to deserialize the JSON value to.</typeparam>
+	/// <param name="jsonText">The string containing the JSON data to deserialize.</param>
+	/// <param name="cancellation">The cancellation token to use for the asynchronous operation. Defaults to <see cref="CancellationToken.None"/>.</param>
+	/// <returns>A task representing the asynchronous deserialization operation, returning a <see cref="JsonDeserializationResult{T}"/>.</returns>
+	public Task<JsonDeserializationResult<T>> TryDeserializeAsync<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.All)] T>(string jsonText, CancellationToken cancellation = default)
+	{
+		return this.TryDeserializeAsync<T>(new StringReader(jsonText), cancellation);
+	}
+
+	/// <summary>
+	/// Asynchronously attempts to deserialize a JSON value of type <typeparamref name="T"/> from the specified <paramref name="jsonText"/> read-only memory of bytes.
+	/// </summary>
+	/// <typeparam name="T">The type to deserialize the JSON value to.</typeparam>
+	/// <param name="jsonText">The read-only memory of bytes containing the JSON data to deserialize.</param>
+	/// <param name="encoding">The encoding to use when converting the bytes to a string. Defaults to <see cref="Encoding.UTF8"/> if <see langword="null"/>.</param>
+	/// <param name="cancellation">The cancellation token to use for the asynchronous operation. Defaults to <see cref="CancellationToken.None"/>.</param>
+	/// <returns>A task representing the asynchronous deserialization operation, returning a <see cref="JsonDeserializationResult{T}"/>.</returns>
+	public Task<JsonDeserializationResult<T>> TryDeserializeAsync<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.All)] T>(ReadOnlyMemory<byte> jsonText, Encoding? encoding, CancellationToken cancellation = default)
+	{
+		return this.TryDeserializeAsync<T>(new StringReader((encoding ?? Encoding.UTF8).GetString(jsonText.Span)), cancellation);
+	}
 	#endregion
 
 	#region IsValid methods

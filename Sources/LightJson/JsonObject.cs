@@ -3,6 +3,8 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
+using System.Net.Http;
+using System.Text;
 using System.Text.Json.Serialization;
 
 namespace LightJson
@@ -252,5 +254,8 @@ namespace LightJson
 		{
 			return this.properties.Remove(key);
 		}
+
+		/// <exclude/>
+		public static implicit operator HttpContent(JsonObject value) => new StringContent(value.ToString(), Encoding.UTF8, "application/json");
 	}
 }

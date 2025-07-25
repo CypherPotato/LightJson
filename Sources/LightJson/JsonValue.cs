@@ -1,4 +1,5 @@
 using LightJson.Converters;
+using LightJson.Schema;
 using LightJson.Serialization;
 using System;
 using System.Diagnostics;
@@ -186,16 +187,9 @@ namespace LightJson
 		/// </summary>
 		/// <typeparam name="T">The type to convert to.</typeparam>
 		/// <returns>The value converted to the specified type, or <see langword="default"/> if the conversion fails.</returns>
-		public T? TryGet<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.All)] T>()
+		public object? TryGet<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.All)] T>()
 		{
-			try
-			{
-				return (T?)this.TryGet(typeof(T));
-			}
-			catch
-			{
-				return default;
-			}
+			return this.TryGet(typeof(T));
 		}
 
 		/// <summary>
@@ -204,7 +198,7 @@ namespace LightJson
 		/// <typeparam name="T">The type to convert to.</typeparam>
 		/// <param name="arrayIndex">The array index.</param>
 		/// <returns>The value at the specified array index converted to the specified type, or <see langword="default"/> if the conversion fails or the value is not a JSON array.</returns>
-		public T? TryGet<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.All)] T>(int arrayIndex)
+		public object? TryGet<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.All)] T>(int arrayIndex)
 		{
 			if (this.IsJsonArray)
 			{
@@ -219,7 +213,7 @@ namespace LightJson
 		/// <typeparam name="T">The type to convert to.</typeparam>
 		/// <param name="propertyName">The property name.</param>
 		/// <returns>The value of the specified property converted to the specified type, or <see langword="default"/> if the conversion fails or the value is not a JSON object.</returns>
-		public T? TryGet<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.All)] T>(string propertyName)
+		public object? TryGet<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.All)] T>(string propertyName)
 		{
 			if (this.IsJsonObject)
 			{
@@ -655,9 +649,9 @@ namespace LightJson
 		/// generated JavaScript or JSON code.
 		/// </remarks>
 		/// <param name="options">Specifies the JsonOptions used to render this Json value.</param>
-		public string ToString(JsonOptions options)
+		public string ToString(JsonOptions? options)
 		{
-			return JsonWriter.Serialize(this, options);
+			return JsonWriter.Serialize(this, options ?? JsonOptions.Default);
 		}
 
 		/// <inheritdoc/>
@@ -753,6 +747,8 @@ namespace LightJson
 		public static implicit operator JsonValue(char value) => new JsonValue(value);
 		/// <exclude/>
 		public static implicit operator JsonValue(JsonObject? value) => value?.AsJsonValue() ?? JsonValue.Null;
+		/// <exclude/>
+		public static implicit operator JsonValue(JsonSchema? value) => value?.AsJsonValue() ?? JsonValue.Null;
 		/// <exclude/>
 		public static implicit operator JsonValue(JsonArray? value) => value?.AsJsonValue() ?? JsonValue.Null;
 		/// <exclude/>

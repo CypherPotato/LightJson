@@ -1,4 +1,5 @@
-﻿using System;
+﻿using LightJson.Schema;
+using System;
 using System.Text.Json;
 
 namespace LightJson;
@@ -66,6 +67,30 @@ public sealed class JsonObjectInternalConverter : System.Text.Json.Serialization
 
 	/// <inheritdoc/>
 	public override void Write(Utf8JsonWriter writer, JsonObject value, JsonSerializerOptions options)
+	{
+		string json = JsonOptions.Default.SerializeJson(value);
+		writer.WriteRawValue(json);
+	}
+}
+
+
+/// <summary>
+/// Provides a custom JSON converter for <see cref="JsonObject"/>.
+/// </summary>
+public sealed class JsonSchemaInternalConverter : System.Text.Json.Serialization.JsonConverter<JsonSchema>
+{
+	/// <inheritdoc/>
+	public override JsonSchema Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+	{
+		using (var jsonDocument = JsonDocument.ParseValue(ref reader))
+		{
+			var jsonText = jsonDocument.RootElement.GetRawText();
+			return JsonOptions.Default.Deserialize(jsonText).Get<JsonSchema>();
+		}
+	}
+
+	/// <inheritdoc/>
+	public override void Write(Utf8JsonWriter writer, JsonSchema value, JsonSerializerOptions options)
 	{
 		string json = JsonOptions.Default.SerializeJson(value);
 		writer.WriteRawValue(json);

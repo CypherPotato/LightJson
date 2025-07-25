@@ -15,7 +15,7 @@ namespace LightJson;
 public record JsonStructureValidationResult(bool Success, string? Error, string? ErrorPath);
 
 /// <summary>
-/// Validates the structure of two JSON values.
+/// Validates the structure and format of two JSON values.
 /// </summary>
 public sealed class JsonStructureValidator
 {
@@ -30,6 +30,11 @@ public sealed class JsonStructureValidator
 	public bool AllowNullValues { get; set; } = true;
 
 	/// <summary>
+	/// Gets or sets whether the validator should ignore empty objects during validation.
+	/// </summary>
+	public bool IgnoreEmptyObjects { get; set; } = true;
+
+	/// <summary>
 	/// Checks the structure of the provided <paramref name="input"/> against the given <paramref name="schema"/>.
 	/// </summary>
 	/// <param name="input">The JSON value to validate.</param>
@@ -37,14 +42,16 @@ public sealed class JsonStructureValidator
 	/// <returns>A <see cref="JsonStructureValidationResult"/> indicating the result of the validation.</returns>
 	public JsonStructureValidationResult CheckStructure(in JsonValue input, in JsonValue schema)
 	{
-		JsonStructureValidationResult ConfirmJsonObject(JsonObject a, JsonObject b)
+		JsonStructureValidationResult ConfirmJsonObject(JsonObject inputObj, JsonObject schemaObj)
 		{
-			if (a.Count != b.Count)
-				return new JsonStructureValidationResult(false, $"The count of properties of the input object ({a.Count} properties) is different than the schema provided object ({b.Count} properties).", a.path);
+			if (this.IgnoreEmptyObjects && schemaObj.Count == 0)
+				return new JsonStructureValidationResult(true, null, null);
+			if (inputObj.Count != schemaObj.Count)
+				return new JsonStructureValidationResult(false, $"The count of properties of the input object ({inputObj.Count} properties) is different than the schema provided object ({schemaObj.Count} properties).", inputObj.path);
 
-			foreach (var propertyA in a)
+			foreach (var propertyA in inputObj)
 			{
-				var propertyB = b[propertyA.Key];
+				var propertyB = schemaObj[propertyA.Key];
 
 				if (!propertyB.IsDefined)
 				{
@@ -113,6 +120,10 @@ public sealed class JsonStructureValidator
 					{
 						return ConfirmJsonValue(input[0], schema[0]);
 					}
+				}
+				else if (this.AllowEmptyArrays)
+				{
+					return new JsonStructureValidationResult(true, null, null);
 				}
 				else
 				{

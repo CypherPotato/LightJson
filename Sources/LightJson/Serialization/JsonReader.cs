@@ -273,7 +273,6 @@ namespace LightJson.Serialization
 				}
 
 				// IdentifierName
-
 				if (char.IsLetterOrDigit(c) || c == '_' || c == '-' || c == '$')
 				{
 					_ = builder.Append(c);
@@ -300,6 +299,9 @@ namespace LightJson.Serialization
 			bool isSingleQuoted = false;
 			char h = this.scanner.AssertAny(['"', '\'']);
 
+			bool isParsingMultilineLiteral = false;
+			int quoteCount = 1;
+
 			_ = this.scanner.Read();
 
 			if (h == '\'')
@@ -314,140 +316,211 @@ namespace LightJson.Serialization
 				}
 			}
 
-			bool usedNlLiteral = false;
-			while (true)
+			while (this.options.SerializationFlags.HasFlag(JsonSerializationFlags.MultilineStringLiterals))
 			{
-				cancellation.ThrowIfCancellationRequested();
-				var c = this.scanner.Read();
-
-				if (c == '\\')
+				var current = this.scanner.Peek();
+				if (current == h)
 				{
-					c = this.scanner.Read();
-
-					switch (char.ToLower(c))
-					{
-						case '"':  // "
-						case '\'': // '
-						case '\\': // \
-						case '/':  // /
-							_ = builder.Append(c);
-							break;
-						case 'b':
-							_ = builder.Append('\b');
-							break;
-						case 'f':
-							_ = builder.Append('\f');
-							break;
-						case 'n':
-							_ = builder.Append('\n');
-							break;
-						case 'r':
-							_ = builder.Append('\r');
-							break;
-						case 't':
-							_ = builder.Append('\t');
-							break;
-						case 'u':
-							_ = builder.Append(this.ReadUnicodeLiteral());
-							break;
-						case '\n' or '\r':
-							if (this.options.SerializationFlags.HasFlag(JsonSerializationFlags.AllowStringLineBreaks))
-							{
-								usedNlLiteral = true;
-								_ = builder.Append("\\\n");
-							}
-							else
-							{
-								throw new JsonParseException(
-									ErrorType.InvalidOrUnexpectedCharacter,
-									this.scanner.Position
-								);
-							}
-							break;
-
-						default:
-							throw new JsonParseException(
-								ErrorType.InvalidOrUnexpectedCharacter,
-								this.scanner.Position
-							);
-					}
+					char c = this.scanner.Read();
+					builder.Append(c);
+					quoteCount++;
 				}
-				else if (!isSingleQuoted && c == '"')
+				else if (current == '\n' || current == '\r')
 				{
-					break;
-				}
-				else if (isSingleQuoted && c == '\'')
-				{
+					isParsingMultilineLiteral = quoteCount > 1;
+					builder.Clear();
 					break;
 				}
 				else
 				{
-					// According to the spec:
-					//
-					// unescaped = %x20-21 / %x23-5B / %x5D-10FFFF
-					//
-					// i.e. c cannot be < 0x20, be 0x22 (a double quote) or a
-					// backslash (0x5C).
-					//
-					// c cannot be a back slash or double quote as the above
-					// would have hit. So just check for < 0x20.
-					//
-					// > 0x10FFFF is unnecessary *I think* because it's obviously
-					// out of the range of a character but we might need to look ahead
-					// to get the whole utf-16 codepoint.
-					if (c < '\u0020')
+					builder.Clear();
+					break;
+				}
+			}
+
+			if (isParsingMultilineLiteral)
+			{
+				int currentIncidenceCount = 0;
+				while (true)
+				{
+					cancellation.ThrowIfCancellationRequested();
+					var c = this.scanner.Read();
+
+					if (c == h)
 					{
-						if ((c is '\n' or '\r') && this.options.SerializationFlags.HasFlag(JsonSerializationFlags.AllowStringLineBreaks))
+						currentIncidenceCount++;
+						if (currentIncidenceCount == quoteCount)
 						{
-							usedNlLiteral = true;
-							_ = builder.Append(c);
+							StringBuilder finalResult = new StringBuilder();
+							int startLineCount = -1;
+							foreach (var line in builder.ToString().Split('\n'))
+							{
+								if (startLineCount == -1 && line.Length > 0)
+								{
+									startLineCount = line.Length - line.TrimStart().Length;
+								}
+
+								if (line.Length >= startLineCount && startLineCount >= 0)
+								{
+									finalResult.AppendLine(line[startLineCount..]);
+								}
+								else
+								{
+									finalResult.AppendLine(line);
+								}
+							}
+
+							return finalResult.ToString().Trim();
+						}
+					}
+					else
+					{
+						if (currentIncidenceCount > 0)
+						{
+							builder.Append(new string(h, currentIncidenceCount));
+							currentIncidenceCount = 0;
+						}
+						builder.Append(c);
+					}
+				}
+			}
+			else
+			{
+				bool usedNlLiteral = false;
+				while (true)
+				{
+					cancellation.ThrowIfCancellationRequested();
+					var c = this.scanner.Read();
+
+					if (c == '\\')
+					{
+						c = this.scanner.Read();
+
+						switch (char.ToLower(c))
+						{
+							case '"':  // "
+							case '\'': // '
+							case '\\': // \
+							case '/':  // /
+								_ = builder.Append(c);
+								break;
+							case 'b':
+								_ = builder.Append('\b');
+								break;
+							case 'f':
+								_ = builder.Append('\f');
+								break;
+							case 'n':
+								_ = builder.Append('\n');
+								break;
+							case 'r':
+								_ = builder.Append('\r');
+								break;
+							case 't':
+								_ = builder.Append('\t');
+								break;
+							case 'u':
+								_ = builder.Append(this.ReadUnicodeLiteral());
+								break;
+							case '\n' or '\r':
+								if (this.options.SerializationFlags.HasFlag(JsonSerializationFlags.AllowStringLineBreaks))
+								{
+									usedNlLiteral = true;
+									_ = builder.Append("\\\n");
+								}
+								else
+								{
+									throw new JsonParseException(
+										ErrorType.InvalidOrUnexpectedCharacter,
+										this.scanner.Position
+									);
+								}
+								break;
+
+							default:
+								throw new JsonParseException(
+									ErrorType.InvalidOrUnexpectedCharacter,
+									this.scanner.Position
+								);
+						}
+					}
+					else if (!isSingleQuoted && c == '"')
+					{
+						break;
+					}
+					else if (isSingleQuoted && c == '\'')
+					{
+						break;
+					}
+					else
+					{
+						// According to the spec:
+						//
+						// unescaped = %x20-21 / %x23-5B / %x5D-10FFFF
+						//
+						// i.e. c cannot be < 0x20, be 0x22 (a double quote) or a
+						// backslash (0x5C).
+						//
+						// c cannot be a back slash or double quote as the above
+						// would have hit. So just check for < 0x20.
+						//
+						// > 0x10FFFF is unnecessary *I think* because it's obviously
+						// out of the range of a character but we might need to look ahead
+						// to get the whole utf-16 codepoint.
+						if (c < '\u0020')
+						{
+							if ((c is '\n' or '\r') && this.options.SerializationFlags.HasFlag(JsonSerializationFlags.AllowStringLineBreaks))
+							{
+								usedNlLiteral = true;
+								_ = builder.Append(c);
+							}
+							else
+								throw new JsonParseException(
+								ErrorType.InvalidOrUnexpectedCharacter,
+								this.scanner.Position
+							);
 						}
 						else
-							throw new JsonParseException(
-							ErrorType.InvalidOrUnexpectedCharacter,
-							this.scanner.Position
-						);
-					}
-					else
-					{
-						_ = builder.Append(c);
+						{
+							_ = builder.Append(c);
+						}
 					}
 				}
-			}
 
-			if (usedNlLiteral)
-			{
-				string[] copyLines = builder.ToString().Split('\n');
-				_ = builder.Clear();
-
-				bool nextIsContinuation = false;
-				for (int i = 0; i < copyLines.Length; i++)
+				if (usedNlLiteral)
 				{
-					string line = copyLines[i].TrimEnd();
+					string[] copyLines = builder.ToString().Split('\n');
+					_ = builder.Clear();
 
-					if (nextIsContinuation)
+					bool nextIsContinuation = false;
+					for (int i = 0; i < copyLines.Length; i++)
 					{
-						line = line.TrimStart();
-						nextIsContinuation = false;
-					}
+						string line = copyLines[i].TrimEnd();
 
-					if (line.EndsWith('\\'))
-					{
-						nextIsContinuation = true;
-						_ = builder.Append(line[new Range(0, Index.FromEnd(1))]);
-					}
-					else if (i == copyLines.Length - 1)
-					{
-						_ = builder.Append(line);
-					}
-					else
-					{
-						_ = builder.AppendLine(line);
+						if (nextIsContinuation)
+						{
+							line = line.TrimStart();
+							nextIsContinuation = false;
+						}
+
+						if (line.EndsWith('\\'))
+						{
+							nextIsContinuation = true;
+							_ = builder.Append(line[new Range(0, Index.FromEnd(1))]);
+						}
+						else if (i == copyLines.Length - 1)
+						{
+							_ = builder.Append(line);
+						}
+						else
+						{
+							_ = builder.AppendLine(line);
+						}
 					}
 				}
-			}
 
-			return builder.ToString();
+				return builder.ToString();
+			}
 		}
 
 		private int ReadHexDigit()

@@ -59,7 +59,12 @@ public enum JsonSerializationFlags
 	NumericUnderscoreLiterals = 1 << 11,
 
 	/// <summary>
-	/// Defines that all flags are defined.
+	/// Defines that the <see cref="JsonReader"/> should allow multiline string literals.
+	/// </summary>
+	MultilineStringLiterals = 1 << 12,
+
+	/// <summary>
+	/// Defines that all JSON5 are defined.
 	/// </summary>
 	Json5 =
 		IgnoreComments |
@@ -71,5 +76,12 @@ public enum JsonSerializationFlags
 		HexadecimalNumberLiterals |
 		AllowPositiveSign |
 		AllowSingleQuotes |
-		NumericUnderscoreLiterals
+		NumericUnderscoreLiterals,
+
+	/// <summary>
+	/// Defines that all flags are defined
+	/// </summary>
+	All =
+		Json5 |
+		MultilineStringLiterals
 }
