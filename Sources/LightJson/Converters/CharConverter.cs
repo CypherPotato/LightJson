@@ -33,6 +33,6 @@ public sealed class CharConverter : JsonConverter
 	/// <inheritdoc/>
 	public override JsonValue Serialize(object value, JsonOptions currentOptions)
 	{
-		return new JsonValue(value.ToString()!);
+		return new JsonValue(value.ToString()!, currentOptions);
 	}
 }

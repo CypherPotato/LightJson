@@ -13,9 +13,9 @@
 
 		<Nullable>enable</Nullable>
 		<LangVersion>latest</LangVersion>
-		<Version>0.14.0-beta8</Version>
+		<Version>0.14.1</Version>
 		<Authors>CypherPotato</Authors>
-		<Description>A maintained fork from MarcosLopezC.LightJson with options, converters, naming policies, type info, Native AOT and JSON5 support.</Description>
+		<Description>A maintained fork from MarcosLopezC.LightJson with options, converters, naming policies, type info, JSON schema, Native AOT and JSON5 support.</Description>
 		<Copyright>Copyright © 2024 CypherPotato</Copyright>
 		<PackageLicenseExpression>MIT</PackageLicenseExpression>
 		<PackageId>CypherPotato.LightJson</PackageId>

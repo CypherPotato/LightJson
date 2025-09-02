@@ -23,6 +23,6 @@ public sealed class TimeSpanConverter : JsonConverter
 	public override JsonValue Serialize(object value, JsonOptions currentOptions)
 	{
 		TimeSpan s = (TimeSpan)value;
-		return new JsonValue(s.Ticks);
+		return new JsonValue(s.Ticks, currentOptions);
 	}
 }

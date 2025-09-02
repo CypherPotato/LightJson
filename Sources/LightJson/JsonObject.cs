@@ -3,6 +3,8 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
+using System.Globalization;
+using System.Linq;
 using System.Net.Http;
 using System.Text;
 using System.Text.Json.Serialization;
@@ -14,7 +16,7 @@ namespace LightJson
 	/// </summary>
 	[DebuggerDisplay("Count = {Count}")]
 	[JsonConverter(typeof(JsonObjectInternalConverter))]
-	public sealed class JsonObject : IEnumerable<KeyValuePair<string, JsonValue>>, IEnumerable<JsonValue>, IDictionary<string, JsonValue>, IImplicitJsonValue
+	public sealed class JsonObject : IEnumerable<KeyValuePair<string, JsonValue>>, IEnumerable<JsonValue>, IDictionary<string, JsonValue>, IImplicitJsonValue, IEquatable<JsonObject>, IEquatable<JsonValue>
 	{
 		internal string path;
 		internal readonly IDictionary<string, JsonValue> properties;
@@ -46,6 +48,12 @@ namespace LightJson
 		public bool IsReadOnly => false;
 
 		/// <summary>
+		/// Gets or sets a value indicating whether to preserve the exact property names on this object properties.
+		/// Setting this property doens't affect nested JSON object from this object.
+		/// </summary>
+		public bool PreserveExactNamingConvention { get; set; }
+
+		/// <summary>
 		/// Gets or sets the property with the given key.
 		/// </summary>
 		/// <param name="key">The key of the property to get or set.</param>
@@ -62,14 +70,23 @@ namespace LightJson
 				}
 				else
 				{
-					var nullValue = JsonValue.Undefined;
-					nullValue.path = this.path + "." + key;
+					var nullValue = new JsonValue(JsonValueType.Undefined, default, default, this.options)
+					{
+						path = this.path + "." + key
+					};
 					return nullValue;
 				}
 			}
 			set
 			{
-				this.properties[key] = value;
+				if (value.Type == JsonValueType.Undefined)
+				{
+					this.Remove(key);
+				}
+				else
+				{
+					this.properties[key] = value;
+				}
 			}
 		}
 
@@ -130,7 +147,7 @@ namespace LightJson
 		/// </summary>
 		/// <param name="key">The key to search for in the JSON object.</param>
 		/// <param name="comparer">The <see cref="StringComparison"/> to use when comparing the key.</param>
-		/// <returns>The <see cref="JsonValue"/> associated with the key, or <see cref="JsonValue.Null"/> if the key is not found.</returns>
+		/// <returns>The <see cref="JsonValue"/> associated with the key, or <see cref="JsonValue.Undefined"/> if the key is not found.</returns>
 		public JsonValue GetValue(string key, IEqualityComparer<string> comparer)
 		{
 			foreach (var item in this.properties)
@@ -140,7 +157,17 @@ namespace LightJson
 					return item.Value;
 				}
 			}
-			return JsonValue.Null;
+			return JsonValue.Undefined;
+		}
+
+		/// <summary>
+		/// Retrieves a <see cref="JsonValue"/> from the JSON object by key using the <see cref="JsonOptions"/> property name comparer.
+		/// </summary>
+		/// <param name="key">The key to search for in the JSON object.</param>
+		/// <returns>The <see cref="JsonValue"/> associated with the key, or <see cref="JsonValue.Undefined"/> if the key is not found.</returns>
+		public JsonValue GetValue(string key)
+		{
+			return this.GetValue(key, this.options.PropertyNameComparer);
 		}
 
 		/// <inheritdoc/>
@@ -207,6 +234,19 @@ namespace LightJson
 			return JsonWriter.Serialize(this.AsJsonValue(), options);
 		}
 
+		/// <summary>
+		/// Adds a key-value pair to the collection, converting the value to an implicit JSON value.
+		/// </summary>
+		/// <typeparam name="TValue">The type of the value, which must implement <see cref="IImplicitJsonValue"/>.</typeparam>
+		/// <param name="key">The key of the element to add.</param>
+		/// <param name="value">The value of the element to add. This value will be converted to its JSON representation.</param>
+		/// <returns>The original value that was added.</returns>
+		public TValue Add<TValue>(string key, TValue value) where TValue : IImplicitJsonValue
+		{
+			this.properties.Add(key, value.AsJsonValue());
+			return value;
+		}
+
 		/// <inheritdoc/>
 		public void Add(string key, JsonValue value)
 		{
@@ -253,6 +293,47 @@ namespace LightJson
 		public bool Remove(string key)
 		{
 			return this.properties.Remove(key);
+		}
+
+		/// <inheritdoc/>
+		public bool Equals(JsonObject? other)
+		{
+			if (other is null)
+				return false;
+
+			return this.properties.ToArray().SequenceEqual(other.properties.ToArray());
+		}
+
+		/// <inheritdoc/>
+		public bool Equals(JsonValue other)
+		{
+			return other.Type == JsonValueType.Object && this.Equals(other.GetJsonObject());
+		}
+
+		/// <inheritdoc/>
+		public override bool Equals(object? obj)
+		{
+			if (obj is JsonObject jobj)
+			{
+				return this.Equals(jobj);
+			}
+			else if (obj is JsonValue jval)
+			{
+				return this.Equals(jval);
+			}
+
+			return false;
+		}
+
+		/// <inheritdoc/>
+		public override int GetHashCode()
+		{
+			int carry = UInt16.MaxValue;
+			foreach (var item in this.properties)
+			{
+				carry ^= HashCode.Combine(item.Key, item.Value);
+			}
+			return carry;
 		}
 
 		/// <exclude/>

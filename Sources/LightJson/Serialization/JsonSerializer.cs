@@ -135,12 +135,13 @@ static class JsonSerializer
 			case JsonTypeInfoKind.Dictionary:
 				{
 					var obj = options.CreateJsonObject();
+					obj.PreserveExactNamingConvention = options.PreserveDictionaryNamingPolicy;
 
 					void PushEntry(object? entryKey, object? entryValue)
 					{
 						string? ikey = entryKey?.ToString();
 
-						if (string.IsNullOrEmpty(ikey))
+						if (ikey == null)
 							throw new JsonException($"The dictionary key is null.");
 
 						JsonValue valueSerialized = SerializeObject(entryValue, deepness + 1, convertersEnabled, options);

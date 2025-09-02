@@ -16,7 +16,7 @@ namespace LightJson
 	/// </summary>
 	[DebuggerDisplay("Count = {Count}")]
 	[JsonConverter(typeof(JsonArrayInternalConverter))]
-	public sealed class JsonArray : IEnumerable<JsonValue>, IList<JsonValue>, IImplicitJsonValue
+	public sealed class JsonArray : IEnumerable<JsonValue>, IList<JsonValue>, IImplicitJsonValue, IReadOnlyList<JsonValue>, IEquatable<JsonArray>, IEquatable<JsonValue>
 	{
 		internal string path = "";
 		private readonly IList<JsonValue> items;
@@ -293,6 +293,45 @@ namespace LightJson
 		public string ToString(JsonOptions options)
 		{
 			return JsonWriter.Serialize(this.AsJsonValue(), options);
+		}
+
+		/// <inheritdoc />
+		public bool Equals(JsonArray? other)
+		{
+			if (other is null)
+				return false;
+			return other.items.SequenceEqual(this.items);
+		}
+
+		/// <inheritdoc />
+		public bool Equals(JsonValue other)
+		{
+			return other.Type == JsonValueType.Array && this.Equals(other.GetJsonArray());
+		}
+
+		/// <inheritdoc />
+		public override bool Equals(object? obj)
+		{
+			if (obj is JsonArray jarr)
+			{
+				return this.Equals(jarr);
+			}
+			else if (obj is JsonValue jval)
+			{
+				return this.Equals(jval);
+			}
+			return false;
+		}
+
+		/// <inheritdoc />
+		public override int GetHashCode()
+		{
+			int carry = UInt16.MaxValue;
+			foreach (var item in this.items)
+			{
+				carry ^= HashCode.Combine(item);
+			}
+			return carry;
 		}
 
 		/// <exclude/>

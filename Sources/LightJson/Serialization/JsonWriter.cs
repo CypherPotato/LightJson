@@ -334,7 +334,8 @@ namespace LightJson.Serialization
 				while (hasNext)
 				{
 					string key = enumerator.Current.Key;
-					key = this.NamingPolicy?.ConvertName(key) ?? key;
+					if (!value.PreserveExactNamingConvention)
+						key = this.NamingPolicy?.ConvertName(key) ?? key;
 
 					this.WriteJsonKey(key);
 					this.Write(":");

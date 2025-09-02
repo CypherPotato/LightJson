@@ -22,6 +22,6 @@ public sealed class GuidConverter : JsonConverter
 	/// <inheritdoc/>
 	public override JsonValue Serialize(Object value, JsonOptions currentOptions)
 	{
-		return new JsonValue(value.ToString()!);
+		return new JsonValue(value.ToString()!, currentOptions);
 	}
 }

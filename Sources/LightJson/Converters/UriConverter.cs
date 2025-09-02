@@ -23,6 +23,6 @@ public sealed class UriConverter : JsonConverter
 	public override JsonValue Serialize(object value, JsonOptions currentOptions)
 	{
 		var str = ((Uri)value).ToString();
-		return new JsonValue(str);
+		return new JsonValue(str, currentOptions);
 	}
 }

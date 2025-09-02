@@ -1,8 +1,11 @@
 using LightJson.Serialization;
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using System.Net;
+using System.Net.Mail;
+using System.Reflection.Metadata.Ecma335;
 using System.Text.Json.Serialization;
 using System.Text.RegularExpressions;
 
@@ -13,9 +16,18 @@ namespace LightJson.Schema
 	/// This implementation covers a core subset of the JSON Schema Draft 7 specification.
 	/// </summary>
 	[JsonConverter(typeof(JsonSchemaInternalConverter))]
-	public sealed class JsonSchema : IJsonSerializable<JsonSchema>, IImplicitJsonValue
+	public sealed class JsonSchema : IJsonSerializable<JsonSchema>, IImplicitJsonValue, IEquatable<JsonSchema>, IEquatable<JsonValue>
 	{
 		private readonly JsonObject schema;
+
+		/// <summary>
+		/// Gets an empty JSON schema that has no properties defined.
+		/// </summary>
+		public static readonly JsonSchema Empty = new JsonSchema(new JsonObject()
+		{
+			["type"] = "object",
+			["properties"] = new JsonObject()
+		});
 
 		/// <summary>
 		/// Creates a JSON schema for strings.
@@ -70,6 +82,20 @@ namespace LightJson.Schema
 		}
 
 		/// <summary>
+		/// Creates a JSON schema for booleans.
+		/// </summary>
+		/// <param name="description">A description of the schema. Can be <see langword="null"/>.</param>
+		/// <returns>A <see cref="JsonSchema"/> for booleans.</returns>
+		public static JsonSchema CreateBooleanSchema(string? description = null)
+		{
+			var schema = new JsonObject()
+			{
+				["type"] = "boolean"
+			};
+			return new JsonSchema(schema);
+		}
+
+		/// <summary>
 		/// Creates a JSON schema for objects.
 		/// </summary>
 		/// <param name="properties">The properties of the object, where the key is the property name and the value is the schema for the property. Can be <see langword="null"/>.</param>
@@ -78,6 +104,10 @@ namespace LightJson.Schema
 		/// <returns>A <see cref="JsonSchema"/> for objects.</returns>
 		public static JsonSchema CreateObjectSchema(IDictionary<string, JsonSchema>? properties = null, IEnumerable<string>? requiredProperties = null, string? description = null)
 		{
+			if (properties is null || properties.Count == 0)
+			{
+				return Empty;
+			}
 			var schema = new JsonObject
 			{
 				["type"] = "object"
@@ -195,7 +225,11 @@ namespace LightJson.Schema
 				expectedTypes = typeSchema.GetJsonArray().ToArray(n => MapJsonType(n.GetString()));
 			}
 
-			if (expectedTypes.Length > 0 && !expectedTypes.Contains(instance.Type))
+			if (expectedTypes.Contains(JsonValueType.Null) && instance.IsNull)
+			{
+				return true;
+			}
+			else if (expectedTypes.Length > 0 && !expectedTypes.Contains(instance.Type))
 			{
 				errors.Add(new JsonSchemaValidationError(path, "type", $"Instance type '{instance.Type}' is not one of the expected types: {string.Join(", ", expectedTypes)}."));
 				return false;
@@ -298,25 +332,47 @@ namespace LightJson.Schema
 					case "date-time":
 						if (!DateTime.TryParse(instance, out _))
 						{
-							errors.Add(new JsonSchemaValidationError(path, "format", "String is not a valid date-time format."));
+							errors.Add(new JsonSchemaValidationError(path, "format", "String is not a valid ISO 8601 date-time format (yyyy-MM-dd'T'HH:mm:ss.ffff)."));
 						}
 						break;
-					case "email":
-						if (!Regex.IsMatch(instance, @"^[^@\s]+@[^@\s]+\.[^@\s]+$"))
+					case "date":
+						if (!DateOnly.TryParse(instance, out _))
 						{
-							errors.Add(new JsonSchemaValidationError(path, "format", "String is not a valid email format."));
+							errors.Add(new JsonSchemaValidationError(path, "format", "String is not a valid date format (yyyy-MM-dd)."));
 						}
 						break;
 					case "time":
 						if (!TimeOnly.TryParse(instance, out _))
 						{
-							errors.Add(new JsonSchemaValidationError(path, "format", "String is not a valid time format."));
+							errors.Add(new JsonSchemaValidationError(path, "format", "String is not a valid time format (HH:mm:ss.ffff)."));
 						}
 						break;
 					case "duration":
+					case "time-span":
 						if (!TimeSpan.TryParse(instance, out _))
 						{
-							errors.Add(new JsonSchemaValidationError(path, "format", "String is not a valid ISO 8601 duration format."));
+							errors.Add(new JsonSchemaValidationError(path, "format", "String is not a valid ISO 8601 duration format (d.hh:mm:ss.ffff)."));
+						}
+						break;
+					case "email":
+						if (!Regex.IsMatch(instance, @"^[^@\s]+@[^@\s]+\.[^@\s]+$", RegexOptions.Compiled))
+						{
+							errors.Add(new JsonSchemaValidationError(path, "format", "String is not a valid email format."));
+						}
+						break;
+					case "idn-email":
+						if (!MailAddress.TryCreate(instance, out _))
+						{
+							errors.Add(new JsonSchemaValidationError(path, "format", "String is not a valid internationalized email."));
+						}
+						break;
+					case "idn-hostname":
+						{
+							var ascii = new IdnMapping().GetAscii(instance);
+							if (!Regex.IsMatch(ascii, @"^[a-z0-9](?:[a-z0-9\-]{0,61}[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9\-]{0,61}[a-z0-9])?)*$", RegexOptions.IgnoreCase))
+							{
+								errors.Add(new JsonSchemaValidationError(path, "format", "String is not a valid internationalized hostname."));
+							}
 						}
 						break;
 					case "uri":
@@ -345,7 +401,12 @@ namespace LightJson.Schema
 							errors.Add(new JsonSchemaValidationError(path, "format", "String is not a valid UUID/GUID format."));
 						}
 						break;
-
+					case "hostname":
+						if (!Regex.IsMatch(instance, @"[a-z\.]+\.[a-z]{2,}", RegexOptions.Compiled))
+						{
+							errors.Add(new JsonSchemaValidationError(path, "format", "String is not a valid hostname."));
+						}
+						break;
 					default:
 						throw new ArgumentNullException($"Unsupported string format: {format}");
 				}
@@ -354,25 +415,37 @@ namespace LightJson.Schema
 
 		private void ValidateNumber(double instance, JsonObject nodeSchema, string path, List<JsonSchemaValidationError> errors)
 		{
-			if (nodeSchema["minimum"].TryGet<double>() is double { } minimum && instance <= minimum)
+			if (nodeSchema["minimum"].TryGet<double>() is double minimum && instance < minimum)
 			{
-				errors.Add(new JsonSchemaValidationError(path, "minimum", $"Number must be at least {minimum}, but is {instance}."));
+				errors.Add(new JsonSchemaValidationError(
+					path,
+					"minimum",
+					$"Number must be at least {minimum}, but is {instance}."));
 			}
-			if (nodeSchema["exclusiveMinimum"].TryGet<double>() is double { } exclusiveMinimum && instance < exclusiveMinimum)
+			if (nodeSchema["exclusiveMinimum"].TryGet<double>() is double exclusiveMinimum && instance <= exclusiveMinimum)
 			{
-				errors.Add(new JsonSchemaValidationError(path, "minimum", $"Number must be at greater than {exclusiveMinimum}, but is {instance}."));
+				errors.Add(new JsonSchemaValidationError(
+					path,
+					"exclusiveMinimum",
+					$"Number must be greater than {exclusiveMinimum}, but is {instance}."));
 			}
-			if (nodeSchema["maximum"].TryGet<double>() is double { } maximum && instance >= maximum)
+			if (nodeSchema["maximum"].TryGet<double>() is double maximum && instance > maximum)
 			{
-				errors.Add(new JsonSchemaValidationError(path, "minimum", $"Number must be at most {maximum}, but is {instance}."));
+				errors.Add(new JsonSchemaValidationError(
+					path,
+					"maximum",
+					$"Number must be at most {maximum}, but is {instance}."));
 			}
-			if (nodeSchema["exclusiveMaximum"].TryGet<double>() is double { } exclusiveMaximum && instance > exclusiveMaximum)
+			if (nodeSchema["exclusiveMaximum"].TryGet<double>() is double exclusiveMaximum && instance >= exclusiveMaximum)
 			{
-				errors.Add(new JsonSchemaValidationError(path, "minimum", $"Number must be at less than {exclusiveMaximum}, but is {instance}."));
+				errors.Add(new JsonSchemaValidationError(
+					path,
+					"exclusiveMaximum",
+					$"Number must be less than {exclusiveMaximum}, but is {instance}."));
 			}
 			if (nodeSchema["multipleOf"].TryGet<double>() is double { } multipleOf && instance % multipleOf != 0)
 			{
-				errors.Add(new JsonSchemaValidationError(path, "minimum", $"Number must be a multiple of {multipleOf}."));
+				errors.Add(new JsonSchemaValidationError(path, "multipleOf", $"Number must be a multiple of {multipleOf}."));
 			}
 		}
 
@@ -389,6 +462,12 @@ namespace LightJson.Schema
 		}
 
 		/// <inheritdoc/>
+		public override string ToString()
+		{
+			return this.ToString(JsonOptions.Default);
+		}
+
+		/// <inheritdoc/>
 		public string ToString(JsonOptions options)
 		{
 			return this.schema.ToString(options);
@@ -398,6 +477,31 @@ namespace LightJson.Schema
 		public JsonValue AsJsonValue()
 		{
 			return this.schema.AsJsonValue();
+		}
+
+		/// <inheritdoc/>
+		public bool Equals(JsonSchema? other)
+		{
+			if (other == null) return false;
+			return this.schema.Equals(other.schema);
+		}
+
+		/// <inheritdoc/>
+		public bool Equals(JsonValue other)
+		{
+			return this.schema.Equals(other);
+		}
+
+		/// <inheritdoc/>
+		public override bool Equals(object? obj)
+		{
+			return this.schema.Equals(obj);
+		}
+
+		/// <inheritdoc/>
+		public override int GetHashCode()
+		{
+			return this.schema.GetHashCode();
 		}
 	}
 }

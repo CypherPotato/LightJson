@@ -76,7 +76,7 @@ public sealed class JsonOptions
 	public JsonNamingPolicy? NamingPolicy { get; set; }
 
 	/// <summary>
-	/// Gets or sets the encoder to use when escaping strings, or <see langword="null"/> to use the default encoder.
+	/// Gets or sets the encoder to use when encoding strings, or <see langword="null"/> to use the default encoder.
 	/// </summary>
 	public JavaScriptEncoder? StringEncoder { get; set; }
 
@@ -105,6 +105,11 @@ public sealed class JsonOptions
 	/// Gets or sets the output for the JSON writer when writing double Infinity numbers.
 	/// </summary>
 	public JsonInfinityHandleOption InfinityHandler { get; set; } = JsonInfinityHandleOption.WriteNull;
+
+	/// <summary>
+	/// Gets or sets whether dictionary keys should be written to JSON in the exact way they come (true) or if they should respect the <see cref="JsonNamingPolicy"/> of these options (false).
+	/// </summary>
+	public bool PreserveDictionaryNamingPolicy { get; set; } = false;
 
 	/// <summary>
 	/// Creates an new <see cref="JsonOptions"/> instance with default parameters.

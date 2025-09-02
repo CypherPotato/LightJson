@@ -33,6 +33,6 @@ public sealed class DateOnlyConverter : JsonConverter
 	public override JsonValue Serialize(object value, JsonOptions currentOptions)
 	{
 		DateOnly d = (DateOnly)value;
-		return new JsonValue(d.ToString(Format, FormatProvider));
+		return new JsonValue(d.ToString(Format, FormatProvider), currentOptions);
 	}
 }

@@ -24,6 +24,6 @@ public sealed class IpAddressConverter : JsonConverter
 	public override JsonValue Serialize(Object value, JsonOptions currentOptions)
 	{
 		var str = ((IPAddress)value).ToString();
-		return new JsonValue(str);
+		return new JsonValue(str, currentOptions);
 	}
 }

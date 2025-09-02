@@ -49,6 +49,9 @@ public sealed class EnumConverter : JsonConverter
 				string fieldRealName = field.Name;
 				string fieldJsonName = field.GetCustomAttribute<JsonStringEnumMemberNameAttribute>()?.Name ?? fieldRealName;
 
+				if (field.GetCustomAttribute<JsonIgnoreAttribute>() != null)
+					continue;
+
 				object fieldValue = field.GetValue(null)!;
 				buildingCache.Add(new EnumFieldInfo(fieldJsonName, fieldValue));
 			}
@@ -131,13 +134,13 @@ public sealed class EnumConverter : JsonConverter
 				}
 				else
 				{
-					return new JsonValue(valueString);
+					return new JsonValue(valueString, currentOptions);
 				}
 			}
 		}
 		else
 		{
-			return new JsonValue((int)value);
+			return new JsonValue((int)value, currentOptions);
 		}
 	}
 }

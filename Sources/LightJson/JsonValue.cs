@@ -2,6 +2,8 @@ using LightJson.Converters;
 using LightJson.Schema;
 using LightJson.Serialization;
 using System;
+using System.Collections;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
@@ -20,7 +22,7 @@ namespace LightJson
 	[DebuggerDisplay("{ToString(),nq}", Type = "JsonValue({Type})")]
 	[DebuggerTypeProxy(typeof(JsonValueDebugView))]
 	[JsonConverter(typeof(JsonInternalConverter))]
-	public struct JsonValue : IEquatable<JsonValue>, IImplicitJsonValue
+	public struct JsonValue : IEquatable<JsonValue>, IImplicitJsonValue, IParsable<JsonValue>
 	{
 		private readonly JsonValueType type = JsonValueType.Undefined;
 		private readonly object reference = null!;
@@ -180,6 +182,55 @@ namespace LightJson
 				}
 			}
 			return JsonDeserializer.Deserialize(this, type, 0, enableConverters, this.options);
+		}
+
+		/// <summary>
+		/// Attempts to evaluate the current <see cref="JsonValue"/> using the provided evaluator function.
+		/// </summary>
+		/// <typeparam name="TResult">The type of the result to be returned.</typeparam>
+		/// <param name="evaluator">A function that takes the current <see cref="JsonValue"/> and returns a result of type <typeparamref name="TResult"/>.</param>
+		/// <param name="defaultValue">The default value to return if the evaluation fails or the current <see cref="JsonValue"/> is not defined.</param>
+		/// <returns>The result of the evaluation if successful, otherwise the <paramref name="defaultValue"/>.</returns>
+		public TResult? TryEvaluate<TResult>(Func<JsonValue, TResult?> evaluator, TResult? defaultValue = default)
+		{
+			if (this.IsDefined)
+			{
+				try
+				{
+					return evaluator(this);
+				}
+				catch
+				{
+					;
+				}
+			}
+			return defaultValue;
+		}
+
+		/// <summary>
+		/// Attempts to evaluate the current <see cref="JsonValue"/> using a sequence of evaluator functions.
+		/// </summary>
+		/// <typeparam name="TResult">The type of the result to be returned.</typeparam>
+		/// <param name="evaluatingFunctions">An enumerable collection of functions, each taking the current <see cref="JsonValue"/> and returning a result of type <typeparamref name="TResult"/>.</param>
+		/// <param name="defaultValue">The default value to return if none of the evaluations succeed or the current <see cref="JsonValue"/> is not defined.</param>
+		/// <returns>The result of the first successful evaluation, otherwise the <paramref name="defaultValue"/>.</returns>
+		public TResult? TryEvaluateFirst<TResult>(IEnumerable<Func<JsonValue, TResult?>> evaluatingFunctions, TResult? defaultValue = default)
+		{
+			if (this.IsDefined)
+			{
+				foreach (var evaluator in evaluatingFunctions)
+				{
+					try
+					{
+						return evaluator(this);
+					}
+					catch
+					{
+						;
+					}
+				}
+			}
+			return defaultValue;
 		}
 
 		/// <summary>
@@ -344,7 +395,11 @@ namespace LightJson
 			}
 			set
 			{
-				if (this.IsJsonObject)
+				if (value.type == JsonValueType.Undefined)
+				{
+					((JsonObject)this.reference).Remove(key);
+				}
+				else if (this.IsJsonObject)
 				{
 					_ = ((JsonObject)this.reference)[key] = value;
 				}
@@ -515,6 +570,16 @@ namespace LightJson
 		}
 
 		/// <summary>
+		/// Initializes an default, <see langword="null"/> JSON value.
+		/// </summary>
+		public JsonValue()
+		{
+			this.type = JsonValueType.Null;
+			this.path = "$";
+			this.options = JsonOptions.Default;
+		}
+
+		/// <summary>
 		/// Returns a value indicating whether the two given JsonValues are equal.
 		/// </summary>
 		/// <param name="a">A JsonValue to compare.</param>
@@ -617,7 +682,15 @@ namespace LightJson
 		/// Returns an string representation of the value of this <see cref="JsonValue"/>,
 		/// regardless of its type.
 		/// </summary>
-		public readonly string? ToValueString()
+		public readonly string? ToValueString() => this.ToValueString(formatProvider: null);
+
+		/// <summary>
+		/// Returns an string representation of the value of this <see cref="JsonValue"/>,
+		/// regardless of its type, using the specified format provider.
+		/// </summary>
+		/// <param name="formatProvider">An object that supplies culture-specific formatting information.</param>
+		/// <returns>A string representation of the value.</returns>
+		public readonly string? ToValueString(IFormatProvider? formatProvider = null)
 		{
 			if (this.reference is { } r)
 			{
@@ -625,7 +698,7 @@ namespace LightJson
 			}
 			else
 			{
-				return this.value.ToString();
+				return this.value.ToString(formatProvider);
 			}
 		}
 
@@ -658,6 +731,23 @@ namespace LightJson
 		public JsonValue AsJsonValue()
 		{
 			return this;
+		}
+
+		/// <inheritdoc/>
+		public static JsonValue Parse(string s, IFormatProvider? provider)
+		{
+			return JsonOptions.Default.Deserialize(s);
+		}
+
+		/// <inheritdoc/>
+		public static bool TryParse([NotNullWhen(true)] string? s, IFormatProvider? provider, [MaybeNullWhen(false)] out JsonValue result)
+		{
+			if (s is null)
+			{
+				result = JsonValue.Undefined;
+				return false;
+			}
+			return JsonOptions.Default.TryDeserialize(s, out result);
 		}
 
 		private class JsonValueDebugView

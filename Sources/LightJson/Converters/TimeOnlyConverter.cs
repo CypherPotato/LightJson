@@ -23,6 +23,6 @@ public sealed class TimeOnlyConverter : JsonConverter
 	public override JsonValue Serialize(object value, JsonOptions currentOptions)
 	{
 		TimeOnly d = (TimeOnly)value;
-		return new JsonValue(d.ToLongTimeString());
+		return new JsonValue(d.ToLongTimeString(), currentOptions);
 	}
 }

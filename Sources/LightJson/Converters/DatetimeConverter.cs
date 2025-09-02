@@ -28,6 +28,6 @@ public sealed class DateTimeConverter : JsonConverter
 	public override JsonValue Serialize(Object value, JsonOptions currentOptions)
 	{
 		DateTime t = (DateTime)value;
-		return new JsonValue(t.ToString(Format));
+		return new JsonValue(t.ToString(Format), currentOptions);
 	}
 }
