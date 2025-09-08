@@ -298,6 +298,9 @@ namespace LightJson.Serialization
 				var hasNext = enumerator.MoveNext();
 				while (hasNext)
 				{
+					if (!enumerator.Current.IsDefined)
+						continue;
+
 					this.Render(enumerator.Current);
 					hasNext = enumerator.MoveNext();
 
@@ -333,6 +336,9 @@ namespace LightJson.Serialization
 				var hasNext = enumerator.MoveNext();
 				while (hasNext)
 				{
+					if (!enumerator.Current.Value.IsDefined)
+						continue;
+
 					string key = enumerator.Current.Key;
 					if (!value.PreserveExactNamingConvention)
 						key = this.NamingPolicy?.ConvertName(key) ?? key;
