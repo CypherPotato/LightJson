@@ -3,7 +3,6 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
-using System.Globalization;
 using System.Linq;
 using System.Net.Http;
 using System.Text;
@@ -243,6 +242,10 @@ namespace LightJson
 		/// <returns>The original value that was added.</returns>
 		public TValue Add<TValue>(string key, TValue value) where TValue : IImplicitJsonValue
 		{
+			if (properties.TryGetValue(key, out var existingValue) && existingValue.Equals(value.AsJsonValue()))
+			{
+				return value;
+			}
 			this.properties.Add(key, value.AsJsonValue());
 			return value;
 		}

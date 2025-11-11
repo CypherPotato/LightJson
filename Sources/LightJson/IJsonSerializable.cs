@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Concurrent;
+using System.Diagnostics.CodeAnalysis;
 using System.Reflection;
 using System.Text.Json;
 
@@ -43,7 +44,7 @@ internal static class JsonSerializableHelpers
 	private const string DeserializeMethodName = nameof(IJsonSerializable<DummySerializable>.DeserializeFromJson);
 	private const BindingFlags PublicStaticFlags = BindingFlags.Public | BindingFlags.Static;
 
-	private static bool ImplementsISerilizable(Type type)
+	private static bool ImplementsISerilizable([DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.Interfaces)] Type type)
 	{
 		if (s_interfaceImplementationCache.TryGetValue(type, out bool result))
 		{
@@ -69,7 +70,7 @@ internal static class JsonSerializableHelpers
 		return implements;
 	}
 
-	public static bool TryDynamicSerialize(object value, Type valueType, JsonOptions options, out JsonValue result)
+	public static bool TryDynamicSerialize(object value, [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.Interfaces)] Type valueType, JsonOptions options, out JsonValue result)
 	{
 		if (value == null || value.GetType() != valueType)
 		{
@@ -114,7 +115,7 @@ internal static class JsonSerializableHelpers
 		}
 	}
 
-	public static bool TryDynamicDeserialize(in JsonValue json, JsonOptions options, Type targetType, out object? result)
+	public static bool TryDynamicDeserialize(in JsonValue json, JsonOptions options, [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.Interfaces)] Type targetType, out object? result)
 	{
 		result = null;
 		if (targetType == null)

@@ -190,13 +190,35 @@ static class JsonDeserializer
 						_ = array.Add(arrayItem);
 					}
 
-#if NET9_0_OR_GREATER
-					var destArray = Array.CreateInstanceFromArrayType(objectType, array.Count);
-					array.CopyTo(destArray);
-					result = destArray;
-#else
-					result = array.ToArray(elementType);
-#endif
+					var arr = array.ToArray(elementType);
+					var genTypeDefinition = typeInfo.Type.IsGenericType switch
+					{
+						true => typeInfo.Type.GetGenericTypeDefinition(),
+						false => typeInfo.Type
+					};
+					if (typeInfo.CreateObject is { } factory)
+					{
+						var list = factory();
+						foreach (var item in arr)
+						{
+							((IList)list).Add(item);
+						}
+						result = list;
+					}
+					else if (genTypeDefinition == typeof(ArrayList))
+					{
+						result = array;
+					}
+					else if (genTypeDefinition.IsArray)
+					{
+						result = array.ToArray(elementType);
+					}
+					else
+					{
+						result = null;
+						throw new JsonException($"The collection type '{typeInfo.Type.Name}' is not supported. Use a array, HashSet<>, List<> or IList implementation instead.");
+					}
+
 					return true;
 				}
 

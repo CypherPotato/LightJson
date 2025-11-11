@@ -10,10 +10,11 @@
 		<ContinuousIntegrationBuild Condition="'$(GITHUB_ACTIONS)' == 'true'">True</ContinuousIntegrationBuild>
 
 		<IsAotCompatible>true</IsAotCompatible>
+		<EnableTrimAnalyzer>true</EnableTrimAnalyzer>
 
 		<Nullable>enable</Nullable>
 		<LangVersion>latest</LangVersion>
-		<Version>0.14.2</Version>
+		<Version>0.14.5</Version>
 		<Authors>CypherPotato</Authors>
 		<Description>A maintained fork from MarcosLopezC.LightJson with options, converters, naming policies, type info, JSON schema, Native AOT and JSON5 support.</Description>
 		<Copyright>Copyright © 2024 CypherPotato</Copyright>

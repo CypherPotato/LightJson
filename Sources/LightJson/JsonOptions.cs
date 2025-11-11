@@ -29,7 +29,7 @@ public sealed class JsonOptions
 	static JsonOptions()
 	{
 		RequiredConverters = [
-			//new DictionaryConverter(),
+			new ByteArrayConverter(),
 			new GuidConverter(),
 			new EnumConverter(),
 			new DateTimeConverter(),
@@ -253,7 +253,7 @@ public sealed class JsonOptions
 	/// Serializes the specified object into an JSON string.
 	/// </summary>
 	/// <param name="value">The object to serialize into an JSON string.</param>
-	public string SerializeJson(object? value) => this.Serialize(value).ToString();
+	public string SerializeJson(object? value) => SerializeJson(value, pretty: false);
 
 	/// <summary>
 	/// Serializes the specified object into an JSON string.
@@ -261,6 +261,21 @@ public sealed class JsonOptions
 	/// <param name="value">The object to serialize into an JSON string.</param>
 	/// <param name="pretty">If true, the JSON output will be formatted with indentation.</param>
 	public string SerializeJson(object? value, bool pretty) => JsonWriter.Serialize(this.Serialize(value), prettyOutput: pretty, unquotedPropertyKeys: false, namingPolicy: this.NamingPolicy);
+
+	/// <summary>
+	/// Serializes the specified object into a JSON5 string.
+	/// </summary>
+	/// <param name="value">The object to serialize into a JSON5 string. May be <see langword="null"/>.</param>
+	/// <returns>The JSON5 string representation of <paramref name="value"/>.</returns>
+	public string SerializeJson5(object? value) => SerializeJson5(value, pretty: false);
+
+	/// <summary>
+	/// Serializes the specified object into a JSON5 string.
+	/// </summary>
+	/// <param name="value">The object to serialize into a JSON5 string. May be <see langword="null"/>.</param>
+	/// <param name="pretty">If <see langword="true"/>, the JSON5 output will be formatted with indentation.</param>
+	/// <returns>The JSON5 string representation of <paramref name="value"/>.</returns>
+	public string SerializeJson5(object? value, bool pretty) => JsonWriter.SerializeJson5(Serialize(value), pretty, NamingPolicy);
 
 	/// <summary>
 	/// Serializes the specified object into a UTF-8 encoded byte array.

@@ -2,11 +2,11 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.Text.Json;
 using System.Text.Json.Serialization.Metadata;
 
 namespace LightJson.Serialization;
+
 static class JsonSerializer
 {
 	public static JsonValue SerializeObject(object? value, int deepness, bool convertersEnabled, JsonOptions options)
@@ -78,10 +78,12 @@ static class JsonSerializer
 			}
 		}
 
+#pragma warning disable IL2072
 		if (JsonSerializableHelpers.TryDynamicSerialize(value, itemType, options, out var dynamicResult))
 		{
 			return dynamicResult;
 		}
+#pragma warning restore IL2072
 
 		if (options.SerializerContext is { } jcontext &&
 			TrySerializeObjectWithTypeInfo(value, deepness, convertersEnabled, jcontext.TypeResolver, jcontext.SerializerOptions, options, out var typeInfoResult))
@@ -94,7 +96,8 @@ static class JsonSerializer
 
 	static bool TrySerializeObjectWithTypeInfo(object value, int deepness, bool convertersEnabled, IJsonTypeInfoResolver typeResolver, JsonSerializerOptions serializerOptions, JsonOptions options, out JsonValue result)
 	{
-		var typeInfo = typeResolver.GetTypeInfo(value.GetType(), serializerOptions);
+		var valueType = value.GetType();
+		var typeInfo = typeResolver.GetTypeInfo(valueType, serializerOptions);
 		switch (typeInfo?.Kind)
 		{
 			case JsonTypeInfoKind.Object:
@@ -122,11 +125,19 @@ static class JsonSerializer
 			case JsonTypeInfoKind.Enumerable:
 				{
 					var arr = options.CreateJsonArray();
-					foreach (var item in (IEnumerable)value)
+					if (value is IEnumerable)
 					{
-						var itemJson = SerializeObject(item, deepness + 1, convertersEnabled, options);
-						arr.Add(itemJson);
+						foreach (var item in (IEnumerable)value)
+						{
+							var itemJson = SerializeObject(item, deepness + 1, convertersEnabled, options);
+							arr.Add(itemJson);
+						}
 					}
+					else
+					{
+						throw new JsonException("The JSON serialization expected an enumerable type but the value is not IEnumerable.");
+					}
+
 
 					result = arr;
 					return true;

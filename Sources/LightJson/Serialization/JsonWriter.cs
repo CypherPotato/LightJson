@@ -299,7 +299,10 @@ namespace LightJson.Serialization
 				while (hasNext)
 				{
 					if (!enumerator.Current.IsDefined)
+					{
+						hasNext = enumerator.MoveNext();
 						continue;
+					}
 
 					this.Render(enumerator.Current);
 					hasNext = enumerator.MoveNext();
@@ -512,6 +515,28 @@ namespace LightJson.Serialization
 				jsonWriter.Write(value);
 				return sw.ToString();
 			}
+		}
+
+		/// <summary>
+		/// Serializes a <see cref="JsonValue"/> into a JSON5 string with optional formatting options.
+		/// </summary>
+		/// <param name="value">The <see cref="JsonValue"/> to serialize.</param>
+		/// <param name="prettyOutput">If <c>true</c>, the JSON5 output will be formatted with indentation.</param>
+		/// <param name="namingPolicy">The <see cref="JsonNamingPolicy"/> to use for serialization. If <see langword="null"/>, the default naming policy will be used.</param>
+		/// <returns>A JSON5 string representation of the <paramref name="value"/>.</returns>
+		public static string SerializeJson5(JsonValue value, bool prettyOutput = false, JsonNamingPolicy? namingPolicy = null)
+		{
+			return Serialize(value, prettyOutput, unquotedPropertyKeys: true, namingPolicy);
+		}
+
+		/// <summary>
+		/// Serializes a <see cref="JsonValue"/> into a JSON5 string with property keys unquoted.
+		/// </summary>
+		/// <param name="value">The <see cref="JsonValue"/> to serialize.</param>
+		/// <returns>A JSON5 string representation of the <paramref name="value"/> with unquoted property keys.</returns>
+		public static string SerializeJson5(JsonValue value)
+		{
+			return Serialize(value, prettyOutput: false, unquotedPropertyKeys: true, namingPolicy: null);
 		}
 
 		/// <summary>

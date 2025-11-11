@@ -1,11 +1,9 @@
-using LightJson.Serialization;
 using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
 using System.Net;
 using System.Net.Mail;
-using System.Reflection.Metadata.Ecma335;
 using System.Text.Json.Serialization;
 using System.Text.RegularExpressions;
 
@@ -177,6 +175,33 @@ namespace LightJson.Schema
 			this.ValidateNode(instance, this.schema, "$", errors);
 			return new JsonSchemaValidationResult(errors);
 		}
+
+		/// <summary>
+		/// Combines multiple JSON value types into a single schema.
+		/// </summary>
+		/// <param name="types">The JSON value types to combine.</param>
+		/// <returns>A new <see cref="JsonSchema"/> with the combined types.</returns>
+		/// <exception cref="ArgumentException">Thrown if 'undefined' type is included in the types to combine.</exception>
+		public JsonSchema CombineType(params JsonValueType[] types)
+		{
+			if (types.Any(t => t == JsonValueType.Undefined))
+				throw new ArgumentException("Cannot combine 'undefined' type in JSON Schema.", nameof(types));
+
+			string[] newTypes = [
+				this.schema["type"].GetString(),
+				.. types.Select(s => s.ToString().ToLowerInvariant())
+			];
+
+			return new JsonSchema(new JsonObject(JsonOptions.Default, [
+				..this.schema.properties.Where(p => !p.Key.Equals("type", StringComparison.OrdinalIgnoreCase)),
+				new KeyValuePair<string, JsonValue>("type", new JsonArray(newTypes.Distinct(StringComparer.OrdinalIgnoreCase)))]));
+		}
+
+		/// <summary>
+		/// Creates a new schema that allows null values.
+		/// </summary>
+		/// <returns>A new <see cref="JsonSchema"/> that allows null values.</returns>
+		public JsonSchema Nullable() => this.CombineType(JsonValueType.Null);
 
 		private void ValidateNode(JsonValue instance, JsonObject nodeSchema, string path, List<JsonSchemaValidationError> errors)
 		{
