@@ -33,7 +33,6 @@ public interface IJsonSerializable<TSelf> where TSelf : IJsonSerializable<TSelf>
 	public static abstract TSelf DeserializeFromJson(JsonValue json, JsonOptions options);
 }
 
-#pragma warning disable IL2070
 internal static class JsonSerializableHelpers
 {
 	private static readonly ConcurrentDictionary<Type, MethodInfo?> s_serializeMethodCache = new();
@@ -70,7 +69,7 @@ internal static class JsonSerializableHelpers
 		return implements;
 	}
 
-	public static bool TryDynamicSerialize(object value, [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.Interfaces)] Type valueType, JsonOptions options, out JsonValue result)
+	public static bool TryDynamicSerialize(object value, [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.Interfaces | DynamicallyAccessedMemberTypes.PublicMethods)] Type valueType, JsonOptions options, out JsonValue result)
 	{
 		if (value == null || value.GetType() != valueType)
 		{
@@ -84,13 +83,13 @@ internal static class JsonSerializableHelpers
 			return false;
 		}
 
-		MethodInfo? serializeMethod = s_serializeMethodCache.GetOrAdd(valueType, type =>
+		MethodInfo? serializeMethod = s_serializeMethodCache.GetOrAdd(valueType, _ =>
 		{
-			return type.GetMethod(
+			return valueType.GetMethod(
 				SerializeMethodName,
 				PublicStaticFlags,
 				null,
-				new Type[] { type, typeof(JsonOptions) },
+				new Type[] { valueType, typeof(JsonOptions) },
 				null);
 		});
 
@@ -115,7 +114,7 @@ internal static class JsonSerializableHelpers
 		}
 	}
 
-	public static bool TryDynamicDeserialize(in JsonValue json, JsonOptions options, [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.Interfaces)] Type targetType, out object? result)
+	public static bool TryDynamicDeserialize(in JsonValue json, JsonOptions options, [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.Interfaces | DynamicallyAccessedMemberTypes.PublicMethods)] Type targetType, out object? result)
 	{
 		result = null;
 		if (targetType == null)
@@ -128,9 +127,9 @@ internal static class JsonSerializableHelpers
 			return false;
 		}
 
-		MethodInfo? deserializeMethod = s_deserializeMethodCache.GetOrAdd(targetType, type =>
+		MethodInfo? deserializeMethod = s_deserializeMethodCache.GetOrAdd(targetType, _ =>
 		{
-			return type.GetMethod(
+			return targetType.GetMethod(
 				DeserializeMethodName,
 				PublicStaticFlags,
 				null,

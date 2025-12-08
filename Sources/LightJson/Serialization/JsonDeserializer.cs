@@ -91,11 +91,97 @@ static class JsonDeserializer
 		}
 	}
 
-#pragma warning disable IL2072, IL3050
 	static bool TryDeserializeWithTypeInfo(JsonValue value, Type objectType, int deepness, IJsonTypeInfoResolver typeResolver, JsonSerializerOptions serializerOptions, bool enableConverters, JsonOptions lightJsonOptions, [NotNullWhen(true)] out object? result)
 	{
 		var typeInfo = typeResolver.GetTypeInfo(objectType, serializerOptions);
-		switch (typeInfo?.Kind)
+		if (typeInfo == null)
+		{
+			result = null;
+			return false;
+		}
+
+		result = Deserialize(value, typeInfo, deepness, enableConverters, lightJsonOptions, typeResolver, serializerOptions);
+		return true;
+	}
+
+	private static object Deserialize(JsonValue value, JsonTypeInfo typeInfo, int deepness, bool enableConverters, JsonOptions lightJsonOptions, IJsonTypeInfoResolver typeResolver, JsonSerializerOptions serializerOptions)
+	{
+		Type objectType = typeInfo.Type;
+
+		if (objectType.IsGenericType && objectType.GetGenericTypeDefinition() == typeof(Nullable<>))
+		{
+			objectType = Nullable.GetUnderlyingType(objectType)!;
+			var underlyingTypeInfo = typeResolver.GetTypeInfo(objectType, serializerOptions);
+			if (underlyingTypeInfo != null)
+			{
+				return Deserialize(value, underlyingTypeInfo, deepness, enableConverters, lightJsonOptions, typeResolver, serializerOptions);
+			}
+		}
+
+		if (deepness > lightJsonOptions.DynamicObjectMaxDepth)
+		{
+			throw new JsonException("The JSON deserialization reached it's maximum depth.");
+		}
+		else if (objectType == typeof(JsonValue))
+		{
+			return value;
+		}
+		else if (objectType == typeof(JsonObject))
+		{
+			return value.GetJsonObject();
+		}
+		else if (objectType == typeof(JsonArray))
+		{
+			return value.GetJsonArray();
+		}
+		else if (objectType == typeof(int) || objectType == typeof(uint) ||
+				   objectType == typeof(long) || objectType == typeof(ulong) ||
+				   objectType == typeof(double) || objectType == typeof(float) ||
+				   objectType == typeof(byte) || objectType == typeof(sbyte) ||
+				   objectType == typeof(decimal))
+		{
+			return Convert.ChangeType(value.GetNumber(), objectType);
+		}
+		else if (objectType == typeof(string))
+		{
+			return value.GetString();
+		}
+		else if (objectType == typeof(bool))
+		{
+			return value.GetBoolean();
+		}
+
+		// find a JsonConverter to match the specified type
+		IList<JsonConverter> converters =
+			enableConverters ?
+			[.. lightJsonOptions.Converters, .. JsonOptions.RequiredConverters] :
+			JsonOptions.RequiredConverters;
+
+		for (int i = 0; i < converters.Count; i++)
+		{
+			JsonConverter mapper = converters[i];
+			if (mapper.CanSerialize(objectType, lightJsonOptions))
+			{
+				try
+				{
+					return mapper.Deserialize(value, objectType, lightJsonOptions);
+				}
+				catch (Exception ex)
+				{
+					throw new JsonException($"Unhandled exception while trying to convert {value.path} to {objectType.Name} through {mapper.GetType().Name}: {ex.Message}", ex);
+				}
+			}
+		}
+
+#pragma warning disable IL2072
+		// IJsonSerializable is a dynamic feature. In AOT, this might fail if the type is not preserved.
+		if (JsonSerializableHelpers.TryDynamicDeserialize(value, lightJsonOptions, objectType, out var customResult))
+		{
+			return customResult!;
+		}
+#pragma warning restore IL2072
+
+		switch (typeInfo.Kind)
 		{
 			case JsonTypeInfoKind.Object:
 
@@ -133,7 +219,9 @@ static class JsonDeserializer
 							}
 							else
 							{
-								parametersObjectList[i] = Deserialize(matchedValue, param.ParameterType, deepness + 1, enableConverters, lightJsonOptions);
+								var paramTypeInfo = typeResolver.GetTypeInfo(param.ParameterType, serializerOptions)
+									?? throw new JsonException($"Type {param.ParameterType} is not supported in AOT context.");
+								parametersObjectList[i] = Deserialize(matchedValue, paramTypeInfo, deepness + 1, enableConverters, lightJsonOptions, typeResolver, serializerOptions);
 							}
 
 							_ = shouldIgnoreProperties.Add(param.Name);
@@ -179,14 +267,15 @@ static class JsonDeserializer
 						}
 						else
 						{
-							propertyValue = Deserialize(matchedProperty, property.PropertyType, deepness + 1, enableConverters, lightJsonOptions);
+							var propTypeInfo = typeResolver.GetTypeInfo(property.PropertyType, serializerOptions)
+								?? throw new JsonException($"Type {property.PropertyType} is not supported in AOT context.");
+							propertyValue = Deserialize(matchedProperty, propTypeInfo, deepness + 1, enableConverters, lightJsonOptions, typeResolver, serializerOptions);
 						}
 
 						property.Set(createdEntity, propertyValue);
 					}
 
-					result = createdEntity;
-					return true;
+					return createdEntity;
 				}
 
 			case JsonTypeInfoKind.Enumerable:
@@ -194,13 +283,15 @@ static class JsonDeserializer
 					ArrayList array = [];
 
 					var elementType = typeInfo.ElementType!;
+					var elementTypeInfo = typeResolver.GetTypeInfo(elementType, serializerOptions)
+						?? throw new JsonException($"Type {elementType} is not supported in AOT context.");
+
 					foreach (var item in value.GetJsonArray())
 					{
-						object? arrayItem = Deserialize(item, elementType, deepness + 1, enableConverters, lightJsonOptions);
+						object? arrayItem = Deserialize(item, elementTypeInfo, deepness + 1, enableConverters, lightJsonOptions, typeResolver, serializerOptions);
 						_ = array.Add(arrayItem);
 					}
 
-					var arr = array.ToArray(elementType);
 					var genTypeDefinition = typeInfo.Type.IsGenericType switch
 					{
 						true => typeInfo.Type.GetGenericTypeDefinition(),
@@ -209,27 +300,31 @@ static class JsonDeserializer
 					if (typeInfo.CreateObject is { } factory)
 					{
 						var list = factory();
-						foreach (var item in arr)
+						foreach (var item in array)
 						{
 							((IList)list).Add(item);
 						}
-						result = list;
+						return list;
 					}
 					else if (genTypeDefinition == typeof(ArrayList))
 					{
-						result = array;
+						return array;
 					}
 					else if (genTypeDefinition.IsArray)
 					{
-						result = array.ToArray(elementType);
+						// Array.CreateInstance is marked as RequiresDynamicCode, but for arrays of types
+						// that are already known/preserved (which is implied by having JsonTypeInfo),
+						// this should generally work or is the only way to create an array of a runtime Type.
+#pragma warning disable IL3050
+						var resultArr = Array.CreateInstance(elementType, array.Count);
+#pragma warning restore IL3050
+						array.CopyTo(resultArr);
+						return resultArr;
 					}
 					else
 					{
-						result = null;
 						throw new JsonException($"The collection type '{typeInfo.Type.Name}' is not supported. Use a array, HashSet<>, List<> or IList implementation instead.");
 					}
-
-					return true;
 				}
 
 			case JsonTypeInfoKind.Dictionary:
@@ -255,9 +350,12 @@ static class JsonDeserializer
 						}
 					}
 
+					var valueTypeInfo = typeResolver.GetTypeInfo(typeInfo.ElementType!, serializerOptions)
+						?? throw new JsonException($"Type {typeInfo.ElementType} is not supported in AOT context.");
+
 					foreach (var item in dict)
 					{
-						object? valueItem = Deserialize(item.Value, typeInfo.ElementType!, deepness + 1, enableConverters, lightJsonOptions);
+						object? valueItem = Deserialize(item.Value, valueTypeInfo, deepness + 1, enableConverters, lightJsonOptions, typeResolver, serializerOptions);
 
 						object key = item.Key;
 						if (keyType != typeof(string))
@@ -268,12 +366,10 @@ static class JsonDeserializer
 						((IDictionary)createdEntity).Add(key, valueItem);
 					}
 
-					result = createdEntity;
-					return true;
+					return createdEntity;
 				}
 		}
 
-		result = null;
-		return false;
+		throw new JsonException($"Unable to deserialize the JSON value at {value.Path}: no converter matched the specified type.");
 	}
 }
