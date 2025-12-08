@@ -55,5 +55,22 @@ namespace LightJsonTests
 
             Assert.AreEqual(expectedMessage, message);
         }
+
+        private class ClassWithPrivateProperties
+        {
+            public string PublicProp { get; set; } = "Public";
+            private string PrivateProp { get; set; } = "Private";
+        }
+
+        [TestMethod]
+        public void Serialize_IgnoresPrivateProperties()
+        {
+            var obj = new ClassWithPrivateProperties();
+            var json = JsonValue.Serialize(obj);
+
+            Assert.IsTrue(json.IsJsonObject);
+            Assert.IsTrue(json.GetJsonObject().ContainsKey("PublicProp"));
+            Assert.IsFalse(json.GetJsonObject().ContainsKey("PrivateProp"));
+        }
     }
 }

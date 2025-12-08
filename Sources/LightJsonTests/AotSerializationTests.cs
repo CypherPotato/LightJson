@@ -1,14 +1,12 @@
 using LightJson;
-using LightJson.Serialization;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
-using System;
+using System.Text.Json;
 using System.Text.Json.Serialization;
-using System.Text.Json.Serialization.Metadata;
 
 namespace LightJsonTests
 {
     [TestClass]
-    public class AotSerializationTests
+    public partial class AotSerializationTests
     {
         public class AotPerson
         {
@@ -16,34 +14,57 @@ namespace LightJsonTests
             public int Age { get; set; }
         }
 
-        [TestMethod]
-        public void AotSerialization_WithSourceGeneratedContext_Serializes()
+        public class NotMappedAotPerson
         {
-            var person = new AotPerson { Name = "AOT", Age = 42 };
-            var resolver = new DefaultJsonTypeInfoResolver();
-            var options = new JsonOptions
-            {
-                SerializerContext = new JsonOptionsSerializerContext(resolver, new System.Text.Json.JsonSerializerOptions())
-            };
+            public string? Name { get; set; }
+        }
 
-            var jsonVal = JsonValue.Serialize(person, options);
-            Assert.AreEqual("AOT", jsonVal["Name"].GetString());
-            Assert.AreEqual(42, jsonVal["Age"].GetInteger());
+        [JsonSerializable(typeof(AotPerson))]
+        internal partial class MyAotContext : JsonSerializerContext
+        {
         }
 
         [TestMethod]
-        public void AotDeserialization_WithSourceGeneratedContext_Deserializes()
+        public void AotSerialization_WithGeneratedContext_Serializes()
         {
-            var json = "{\"Name\": \"AOT\", \"Age\": 42}";
-            var resolver = new DefaultJsonTypeInfoResolver();
+            var person = new AotPerson { Name = "AOT Generated", Age = 99 };
             var options = new JsonOptions
             {
-                SerializerContext = new JsonOptionsSerializerContext(resolver, new System.Text.Json.JsonSerializerOptions())
+                SerializerContext = MyAotContext.Default
+            };
+
+            var jsonVal = JsonValue.Serialize(person, options);
+            Assert.AreEqual("AOT Generated", jsonVal["Name"].GetString());
+            Assert.AreEqual(99, jsonVal["Age"].GetInteger());
+        }
+
+        [TestMethod]
+        public void AotDeserialization_WithGeneratedContext_Deserializes()
+        {
+            var json = "{\"Name\": \"AOT Generated\", \"Age\": 99}";
+            var options = new JsonOptions
+            {
+                SerializerContext = MyAotContext.Default
             };
 
             var person = options.Deserialize(json).Get<AotPerson>();
-            Assert.AreEqual("AOT", person.Name);
-            Assert.AreEqual(42, person.Age);
+            Assert.AreEqual("AOT Generated", person.Name);
+            Assert.AreEqual(99, person.Age);
+        }
+
+        [TestMethod]
+        public void AotDeserialization_WithoutTypeInfo_Throws()
+        {
+            var json = "{\"Name\": \"Unknown\"}";
+            var options = new JsonOptions
+            {
+                SerializerContext = MyAotContext.Default
+            };
+
+            Assert.ThrowsException<JsonException>(() =>
+            {
+                options.Deserialize(json).Get<NotMappedAotPerson>();
+            });
         }
     }
 }
