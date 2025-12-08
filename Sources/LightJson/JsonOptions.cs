@@ -830,5 +830,15 @@ public enum JsonInfinityHandleOption
 	/// <summary>
 	/// Write JSON zero on Infinity numbers.
 	/// </summary>
-	WriteZero
+	WriteZero,
+
+	/// <summary>
+	/// Write JSON string "Infinity", "-Infinity" or "NaN".
+	/// </summary>
+	ReplaceWithString,
+
+	/// <summary>
+	/// Throws an exception when an Infinity or NaN number is encountered.
+	/// </summary>
+	ThrowException
 }

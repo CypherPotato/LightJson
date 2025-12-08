@@ -249,15 +249,40 @@ namespace LightJson.Serialization
 
 				case JsonValueType.Number:
 					var number = value.GetNumber();
-					if (double.IsPositiveInfinity(number) || double.IsNegativeInfinity(number))
+					if (double.IsNaN(number))
 					{
-						if (this.InfinityHandleOption == JsonInfinityHandleOption.WriteZero)
+						switch (this.InfinityHandleOption)
 						{
-							this.Write("0");
+							case JsonInfinityHandleOption.WriteZero:
+								this.Write("0");
+								break;
+							case JsonInfinityHandleOption.ReplaceWithString:
+								this.Write("\"NaN\"");
+								break;
+							case JsonInfinityHandleOption.ThrowException:
+								throw new JsonSerializationException(ErrorType.InvalidValueType); // Or a specific error
+							case JsonInfinityHandleOption.WriteNull:
+							default:
+								this.Write("null");
+								break;
 						}
-						else
+					}
+					else if (double.IsPositiveInfinity(number) || double.IsNegativeInfinity(number))
+					{
+						switch (this.InfinityHandleOption)
 						{
-							this.Write("null");
+							case JsonInfinityHandleOption.WriteZero:
+								this.Write("0");
+								break;
+							case JsonInfinityHandleOption.ReplaceWithString:
+								this.Write(double.IsPositiveInfinity(number) ? "\"Infinity\"" : "\"-Infinity\"");
+								break;
+							case JsonInfinityHandleOption.ThrowException:
+								throw new JsonSerializationException(ErrorType.InvalidValueType);
+							case JsonInfinityHandleOption.WriteNull:
+							default:
+								this.Write("null");
+								break;
 						}
 					}
 					else

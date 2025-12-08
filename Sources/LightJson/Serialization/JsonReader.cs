@@ -85,6 +85,8 @@ namespace LightJson.Serialization
 				case '-':
 				case '.':
 				case '+':
+				case 'I':
+				case 'N':
 					return this.ReadNumber(cancellation);
 
 				case 't':
@@ -222,10 +224,16 @@ namespace LightJson.Serialization
 
 			string s = builder.ToString();
 
-			if (s.Length > 1 && s[0] == '0' && s[1] == 'x' && this.options.SerializationFlags.HasFlag(JsonSerializationFlags.HexadecimalNumberLiterals))
+			var hexCheck = s;
+			if (hexCheck.StartsWith("+"))
+			{
+				hexCheck = hexCheck.Substring(1);
+			}
+
+			if (hexCheck.Length > 1 && hexCheck[0] == '0' && hexCheck[1] == 'x' && this.options.SerializationFlags.HasFlag(JsonSerializationFlags.HexadecimalNumberLiterals))
 			{
 				// hex literal
-				string hex = s[2..];
+				string hex = hexCheck[2..];
 
 				if (hex == "")
 				{

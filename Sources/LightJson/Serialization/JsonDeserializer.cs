@@ -153,8 +153,18 @@ static class JsonDeserializer
 							continue;
 						}
 
+						string jsonKey = property.Name;
+						if (property.AttributeProvider?.GetCustomAttributes(typeof(System.Text.Json.Serialization.JsonPropertyNameAttribute), false) is object[] { Length: > 0 } attrs)
+						{
+							jsonKey = ((System.Text.Json.Serialization.JsonPropertyNameAttribute)attrs[0]).Name;
+						}
+						else if (lightJsonOptions.NamingPolicy != null)
+						{
+							jsonKey = lightJsonOptions.NamingPolicy.ConvertName(property.Name);
+						}
+
 						object? propertyValue;
-						JsonValue matchedProperty = jobj[property.Name];
+						JsonValue matchedProperty = jobj[jsonKey];
 						if (matchedProperty.Type == JsonValueType.Undefined)
 						{
 							if (property.IsRequired)
@@ -235,10 +245,27 @@ static class JsonDeserializer
 						throw new JsonException($"Couldn't create an instance of the {objectType.Name} type.");
 					}
 
+					Type keyType = typeof(string);
+					if (objectType.IsGenericType)
+					{
+						var args = objectType.GetGenericArguments();
+						if (args.Length == 2)
+						{
+							keyType = args[0];
+						}
+					}
+
 					foreach (var item in dict)
 					{
 						object? valueItem = Deserialize(item.Value, typeInfo.ElementType!, deepness + 1, enableConverters, lightJsonOptions);
-						((IDictionary)createdEntity).Add(item.Key, valueItem);
+
+						object key = item.Key;
+						if (keyType != typeof(string))
+						{
+							key = Convert.ChangeType(item.Key, keyType);
+						}
+
+						((IDictionary)createdEntity).Add(key, valueItem);
 					}
 
 					result = createdEntity;

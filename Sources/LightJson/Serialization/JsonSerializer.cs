@@ -45,9 +45,37 @@ static class JsonSerializer
 		}
 		else if (value is double ndbl)
 		{
+			if (double.IsInfinity(ndbl) || double.IsNaN(ndbl))
+			{
+				switch (options.InfinityHandler)
+				{
+					case JsonInfinityHandleOption.WriteNull:
+						return JsonValue.Null;
+					case JsonInfinityHandleOption.ReplaceWithString:
+						return new JsonValue(ndbl.ToString(System.Globalization.CultureInfo.InvariantCulture));
+					case JsonInfinityHandleOption.ThrowException:
+						throw new JsonSerializationException(JsonSerializationException.ErrorType.InvalidNumber);
+				}
+			}
 			return new JsonValue(JsonValueType.Number, ndbl, null, options);
 		}
-		else if (value is float || value is decimal)
+		else if (value is float nflt)
+		{
+			if (float.IsInfinity(nflt) || float.IsNaN(nflt))
+			{
+				switch (options.InfinityHandler)
+				{
+					case JsonInfinityHandleOption.WriteNull:
+						return JsonValue.Null;
+					case JsonInfinityHandleOption.ReplaceWithString:
+						return new JsonValue(nflt.ToString(System.Globalization.CultureInfo.InvariantCulture));
+					case JsonInfinityHandleOption.ThrowException:
+						throw new JsonSerializationException(JsonSerializationException.ErrorType.InvalidNumber);
+				}
+			}
+			return new JsonValue(JsonValueType.Number, Convert.ToDouble(value), null, options);
+		}
+		else if (value is decimal)
 		{
 			return new JsonValue(JsonValueType.Number, Convert.ToDouble(value), null, options);
 		}
