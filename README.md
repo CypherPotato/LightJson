@@ -1,50 +1,34 @@
 # LightJson
 
-> This project was based in the awesome work of [LightJson](https://github.com/MarcosLopezC/LightJson), originally made by Marcos Lopez C.
+> This project is a fork of the excellent [LightJson](https://github.com/MarcosLopezC/LightJson) library by Marcos Lopez C.
 
-This fork includes some personal tweaks. It is a JSON library focused on not using reflection, where object mapping is made manually and requires mapping to serialize/deserialize typed JSON messages.
+LightJson is a lightweight, versatile JSON library for .NET, designed with a focus on manual mapping and minimal reflection overhead. This fork significantly expands the original capabilities, introducing modern features such as JSON5 support, JSON Schema validation, TOON serialization, and seamless integration with `System.Text.Json`.
 
-Almost everything in this class is inherited from the main project mentioned above, with new features:
+## Key Features
 
-- Unlike the original project, a `JsonValue` does not contain any `As[Type]` properties, but has a method for each JSON type, like `GetString()` or even `GetNumber()`, and the main difference is that you cannot get an implicit value of what the `JsonValue` is. For example, you cannot read `JsonValue.GetBoolean()` if the stored value is a string, even if it's value is `"true"` or `0`.
-- All functions that return an object converted from a JsonValue, such as `JsonValue.GetString()` for example, do not return nullable values, neither accepts it. You can check for nullable JSON values using `JsonValue.MaybeNull()`. Null values would throw an exception if not used with `MaybeNull()`.
-- Added `JsonOptions`, which contains:
-    - `PropertyNameComparer`, which sets the default string comparer used for comparing property names and constructor parameters names.
-    - `Converters`, which aims to manage JSON converters.
-    - `NamingPolicy`, which transforms the property name of a JSON object on the JSON output.
-    - `WriteIndented`, which sets whether the JSON serializer should write indentend, pretty formatted, output.
-    - `StringEncoder`, which sets the encoder used for escaping strings.
-    - `ThrowOnDuplicateObjectKeys`, which sets an boolean indicating where the JSON parser should throw on duplicated object keys.
-    - `DynamicObjectMaxDepth`, sets the maximum depth for serializing or deserializing objects.
-    - `AllowNumbersAsStrings`, sets whether the JSON deserializer should allow parsing string JSON values into numeric types.
-    - `SerializationFlags`, which allows to pass `JsonSerializationFlags` flags to the JSON serializer/deserializer, such as the JSON5 deserializer.
-    - `InfinityHandler` which sets the output for the JSON writer when writing double Infinity numbers.
-    - `SerializerContext` which allows you to specify an [IJsonTypeInfoResolver](https://learn.microsoft.com/en-us/dotnet/api/system.text.json.serialization.metadata.ijsontypeinforesolver?view=net-9.0) used for serialization and deserialization of dynamic objects.
-- Experimental [JSON5](https://github.com/json5/json5) support with `SerializationFlags.All`.
-- Undefined values, as it is, values which aren't defined or does not exist in the parent object/array, will come with `JsonValueType.Undefined` type instead of `JsonValueType.Null`.
-- This projects targets .NET 6 and above.
-- Experimental support for including the JSON value path into error messages.
-- Source generation support through `SerializerContext`.
+- **Explicit Typing**: `JsonValue` provides explicit methods like `GetString()` or `GetNumber()`. Implicit conversions are avoided to ensure type safety.
+- **Null Safety**: Accessor methods do not return nulls by default. Use `MaybeNull()` to safely handle potential null values.
+- **Advanced Options**: `JsonOptions` allows extensive customization, including naming policies, indentation, and custom converters.
+- **JSON5 Support**: Full support for the [JSON5](https://github.com/json5/json5) standard, including comments, trailing commas, and unquoted keys.
+- **JSON Schema**: Built-in support for creating and validating JSON Schemas.
+- **TOON Serialization**: Support for Token-Oriented Object Notation (TOON).
+- **System.Text.Json Compatibility**: High compatibility with .NET's native JSON library, including support for attributes and `JsonTypeInfo`.
+- **Functional Extensions**: Methods like `TryEvaluate`, `TryEvaluateFirst`, and `TryGet` for functional-style JSON manipulation.
 
-## Serialize and deserialize data
+## Serialize and Deserialize
 
-All serialized or deserialized information results in the `JsonValue` structure. From this object, you can manipulate the JSON document.
-In the examples below, we will show how serialization and deserialization works.
+All serialized or deserialized data is represented by the `JsonValue` structure, which serves as the entry point for manipulating JSON documents.
 
-```cs
-// serialize primitive values
-json = new JsonValue("hello").ToString();
+```csharp
+// Serialize primitive values
+string json = new JsonValue("hello").ToString();
 Console.WriteLine(json); // "hello"
 
-// serialize complex objects
+// Serialize complex objects
 json = JsonOptions.Default.Serialize(new { prop1 = "hello", prop2 = "world" }).ToString();
 Console.WriteLine(json); // {"prop1":"hello","prop2":"world"}
 
-// for custom types, an converter must be defined in the JsonOptions.Converters
-json = JsonOptions.Default.Serialize(Guid.NewGuid()).ToString();
-Console.WriteLine(json); // "9d282aa8-9385-4158-a094-55a01a39feae"
-
-// deserialize primitive values
+// Deserialize
 json = """
     {
         "number": 12.52,
@@ -57,115 +41,126 @@ json = """
     """;
 
 var objJson = JsonOptions.Default.Deserialize(json);
-        
-// implicitly converts the JsonValue into an JsonObject when acessing
-// through key value
+
+// Access values
 double objNumber = objJson["number"].GetNumber();
-
-// MaybeNull() indicates that the value at $.name can be null
 string? name = objJson["name"].MaybeNull()?.GetString();
-
-// gets $.arrayOfInts[1] as integer. it must be an non-null number
 int intAtIndex1 = objJson["arrayOfInts"][1].GetInteger();
-
-// explicitly gets an Guid from $.object.guid
 Guid convertedValue = objJson["object"]["guid"].Get<Guid>();
 ```
 
-## JSON converters
+## Functional Features
 
-Here's an example of an `System.DateTime` converter, which serializes and deserializes values into it:
+`JsonValue` includes functional methods to simplify safe data retrieval and manipulation.
 
-```cs
-static void Main(string[] args)
+### TryEvaluate & TryEvaluateFirst
+
+Safely evaluate functions on a `JsonValue`, returning a default value if an exception occurs or the value is invalid.
+
+```csharp
+// TryEvaluate: Returns "default" if GetString() fails
+var value = json["prop"].TryEvaluate(v => v.GetString(), "default");
+
+// TryEvaluateFirst: Tries multiple functions in order
+var result = json["prop"].TryEvaluateFirst(new Func<JsonValue, string?>[] {
+    v => v.GetString(),
+    v => v.GetInteger().ToString()
+}, "default");
+```
+
+### TryGet
+
+Safely attempts to retrieve a value, converting it to the specified type.
+
+```csharp
+// Try to get an integer
+if (json["age"].TryGet<int>(out var age))
 {
-    JsonOptions.Default.Converters.Add(new DateTimeConverter());
-    string json = JsonOptions.Default.SerializeJson(DateTime.Now);    
-    Console.WriteLine(json);
+    Console.WriteLine($"Age is {age}");
 }
 
-public sealed class DateTimeConverter : JsonConverter
+// Try to get by key
+var name = json.TryGet<string>("name");
+```
+
+## JSON Schema
+
+LightJson supports creating and validating JSON Schemas to ensure data integrity.
+
+```csharp
+using LightJson.Schema;
+
+// Create a schema
+var schema = JsonSchema.CreateStringSchema(minLength: 5);
+
+// Validate
+var result = schema.Validate(new JsonValue("hello"));
+if (result.IsValid)
 {
-	public override Boolean CanSerialize(Type type, JsonOptions currentOptions)
-	{
-		return type == typeof(DateTime);
-	}
-	
-	public override Object Deserialize(JsonValue value, Type requestedType, JsonOptions currentOptions)
-	{
-		return DateTime.Parse(value.GetString());
-	}
-	
-	public override JsonValue Serialize(Object value, JsonOptions currentOptions)
-	{
-		return new JsonValue(t.ToString("s"));
-	}
+    Console.WriteLine("Valid!");
 }
 ```
 
-These types already has converters defined for them:
+## JSON5 Support
 
-- Char
-- DateOnly
-- DateTime
-- Enums
-- Guid
-- IpAddress
-- TimeOnly
-- TimeSpan
-- Uri
-- Dictionaries (only classes which inherits `IDictionary` and `IDictionary<string, object?` are supported)
+Enable JSON5 features such as comments, single quotes, and unquoted keys using `JsonSerializationFlags`.
 
-## Fluent syntax for retrieving items
+```csharp
+var options = new JsonOptions { SerializationFlags = JsonSerializationFlags.Json5 };
 
-```cs
-string json = """
+var json5 = """
     {
-        "foobar": "hello",
-        "bazdaz": null,
-        "duzkaz": [
-            "foo",
-            "bar",
-            "daz"
-        ],
-        "user": {
-            "name": "John McAffee", "age": 52
-        }
+        key: 'value', // Single quotes and unquoted keys
+        /* Multi-line
+           comment */
+        list: [1, 2, 3,] // Trailing comma
     }
     """;
 
-var obj = JsonOptions.Default.Deserialize(json);
-
-// $.foobar must be present, non null and carry an string value.
-string stringValue = obj["foobar"].GetString();
-
-// $.bazdaz can be null or undefined, but if not, it must be an string.
-string? optionalValue = obj["bazdaz"].MaybeNull()?.GetString();
-
-// $.duzkaz must be present, non null, be an json array and every children on it
-// must be an string value.
-string[] arrayItems = obj["duzkaz"].GetJsonArray().Select(i => i.GetString()).ToArray();
-// or
-string[] arrayItems = obj["duzkaz"].GetJsonArray().ToArray<string>();
-// or
-IEnumerable<string> arrayItems = obj["duzkaz"].GetJsonArray().EveryAs<string>();
-// or
-IEnumerable<string?> arrayItems = obj["duzkaz"].GetJsonArray().EveryAsNullable<string>();
-
-// $.user must be present, non null, and must be converted to the User type, which it's converter
-// is defined on JsonOptions.Converters.
-User user = obj["user"].Get<User>();
-// nullable
-User? user = obj["user"].MaybeNull()?.Get<User>();
+var value = options.Deserialize(json5);
 ```
 
-## System.Text.Json interop
+## TOON Serialization
 
-This library can be used in conjunction with the native System.Text.Json of .NET. Most of the JSON functions of .NET can be used with LightJson, including attributes, type infos and serialize json value.
+Support for TOON (Token-Oriented Object Notation), a format designed for specific serialization needs.
 
 ```csharp
-JsonArray arr = new JsonArray(JsonOptions.Default, "hello", "world");
+using LightJson.Serialization;
 
-string jsonEncoded = JsonSerializer.Serialize(arr);
-Console.WriteLine(jsonEncoded); // {"foo": "bar"}
+using var writer = new StringWriter();
+using var toonWriter = new JsonToonWriter(writer);
+
+toonWriter.Write(jsonValue);
+var toonOutput = writer.ToString();
 ```
+
+## System.Text.Json Compatibility
+
+LightJson is designed to work seamlessly with `System.Text.Json`. Types like `JsonValue`, `JsonObject`, and `JsonArray` are decorated with `[JsonConverter]` attributes, allowing them to be directly handled by `System.Text.Json.JsonSerializer`.
+
+```csharp
+using System.Text.Json;
+
+var val = new JsonValue("Test");
+
+// Serialize using System.Text.Json
+var json = JsonSerializer.Serialize(val); // "Test"
+
+// Deserialize using System.Text.Json
+var deserialized = JsonSerializer.Deserialize<JsonValue>(json);
+```
+
+It also supports `IJsonTypeInfoResolver` via `JsonOptions.SerializerContext` for advanced scenarios.
+
+## JSON Converters
+
+Custom converters can be registered in `JsonOptions.Converters` to handle specific types.
+
+```csharp
+JsonOptions.Default.Converters.Add(new DateTimeConverter());
+```
+
+The library includes built-in converters for:
+- Char, DateOnly, DateTime, TimeOnly, TimeSpan
+- Enum, Guid, IpAddress, Uri
+- Dictionaries
