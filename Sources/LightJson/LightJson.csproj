@@ -15,7 +15,7 @@
 
 		<Nullable>enable</Nullable>
 		<LangVersion>latest</LangVersion>
-		<Version>0.15</Version>
+		<Version>0.15.1</Version>
 		<Authors>CypherPotato</Authors>
 		<Description>A maintained fork from MarcosLopezC.LightJson with options, converters, naming policies, type info compatibility, JSON schema, Native AOT, JSON5 and TOON support.</Description>
 		<Copyright>Copyright © 2024 CypherPotato</Copyright>

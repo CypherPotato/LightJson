@@ -154,10 +154,10 @@ public sealed class JsonToonWriter : IDisposable
 
 	#region Private Methods
 
-	private void WriteObject(JsonObject obj, int depth)
+	private void WriteObject(JsonObject obj, int depth, bool disableFolding = false, int baseFoldDepth = 0)
 	{
 		bool first = true;
-		foreach (var (path, value) in GetFlattenedProperties(obj))
+		foreach (var (path, value, childrenFoldingDisabled) in GetFlattenedProperties(obj, baseFoldDepth, disableFolding))
 		{
 			if (!first)
 			{
@@ -175,41 +175,62 @@ public sealed class JsonToonWriter : IDisposable
 				_writer.Write(':');
 			}
 
-			WriteObjectFieldValue(value, depth);
+			// Calculate new base depth for the child value
+			// The path length represents how many segments were added to the key chain.
+			// However, GetFlattenedProperties returns the full path relative to 'obj'.
+			// So path.Count is the number of segments.
+			// The new depth will be baseFoldDepth + path.Count.
+			WriteObjectFieldValue(value, depth, false, childrenFoldingDisabled, baseFoldDepth + path.Count);
 		}
 	}
 
-	private IEnumerable<(List<string> Path, JsonValue Value)> GetFlattenedProperties(JsonObject obj, int currentFoldDepth = 0)
+	private IEnumerable<(List<string> Path, JsonValue Value, bool DisableChildrenFolding)> GetFlattenedProperties(JsonObject obj, int currentFoldDepth = 0, bool disableFolding = false)
 	{
 		foreach (var kvp in obj)
 		{
-			if (CanFold(kvp.Key, kvp.Value, currentFoldDepth))
+			bool collisionDetected = false;
+			if (KeyFolding == ToonKeyFolding.Safe)
 			{
-				var childObj = kvp.Value.GetJsonObject();
-				// Add child object to rendering collections to detect cycles during flattening?
-				// Or just rely on the fact that we will eventually write it?
-				// Cycle detection usually happens during write.
-				// If we have a cycle in the structure we are flattening, GetFlattenedProperties will stack overflow.
-				// We should probably check cycles here too.
-
-				if (_renderingCollections.Contains(childObj))
+				foreach (var otherKvp in obj)
 				{
-					throw new JsonSerializationException(JsonSerializationException.ErrorType.CircularReference);
+					if (otherKvp.Key.StartsWith(kvp.Key + ".", StringComparison.Ordinal))
+					{
+						collisionDetected = true;
+						break;
+					}
 				}
-				_renderingCollections.Add(childObj);
+			}
 
-				foreach (var childKvp in GetFlattenedProperties(childObj, currentFoldDepth + 1))
+			if (!disableFolding && !collisionDetected && CanFold(kvp.Key, kvp.Value, currentFoldDepth))
+			{
+				// If we are at the limit of folding depth, we treat this as a leaf
+				// to avoid folding children into this key.
+				if (currentFoldDepth + 1 >= FlattenDepth)
 				{
-					var newPath = new List<string> { kvp.Key };
-					newPath.AddRange(childKvp.Path);
-					yield return (newPath, childKvp.Value);
+					yield return (new List<string> { kvp.Key }, kvp.Value, collisionDetected);
 				}
+				else
+				{
+					var childObj = kvp.Value.GetJsonObject();
+					if (_renderingCollections.Contains(childObj))
+					{
+						throw new JsonSerializationException(JsonSerializationException.ErrorType.CircularReference);
+					}
+					_renderingCollections.Add(childObj);
 
-				_renderingCollections.Remove(childObj);
+					foreach (var childKvp in GetFlattenedProperties(childObj, currentFoldDepth + 1, false))
+					{
+						var newPath = new List<string> { kvp.Key };
+						newPath.AddRange(childKvp.Path);
+						yield return (newPath, childKvp.Value, childKvp.DisableChildrenFolding);
+					}
+
+					_renderingCollections.Remove(childObj);
+				}
 			}
 			else
 			{
-				yield return (new List<string> { kvp.Key }, kvp.Value);
+				yield return (new List<string> { kvp.Key }, kvp.Value, collisionDetected);
 			}
 		}
 	}
@@ -219,8 +240,19 @@ public sealed class JsonToonWriter : IDisposable
 		if (KeyFolding != ToonKeyFolding.Safe) return false;
 		if (currentFoldDepth >= FlattenDepth) return false;
 		if (value.Type != JsonValueType.Object) return false;
+
+		// In Safe mode, do not fold if the key requires quotes
+		if (!IsValidUnquotedKey(key)) return false;
+
 		var obj = value.GetJsonObject();
 		if (obj.Count == 0) return false;
+
+		// In Safe mode, do not fold if any child key requires quotes
+		foreach (var kvp in obj)
+		{
+			if (!IsValidUnquotedKey(kvp.Key)) return false;
+		}
+
 		return true;
 	}
 
@@ -236,7 +268,7 @@ public sealed class JsonToonWriter : IDisposable
 		}
 	}
 
-	private void WriteObjectFieldValue(JsonValue value, int depth, bool skipColonForArray = false)
+	private void WriteObjectFieldValue(JsonValue value, int depth, bool skipColonForArray = false, bool disableFolding = false, int baseFoldDepth = 0)
 	{
 		switch (value.Type)
 		{
@@ -251,7 +283,7 @@ public sealed class JsonToonWriter : IDisposable
 				{
 					AddRenderingCollection(nestedObj);
 					_writer.Write(NewLine);
-					WriteObject(nestedObj, depth + 1);
+					WriteObject(nestedObj, depth + 1, disableFolding, baseFoldDepth);
 					RemoveRenderingCollection(nestedObj);
 				}
 				break;
@@ -307,8 +339,11 @@ public sealed class JsonToonWriter : IDisposable
 		{
 			// Root inline primitive array: [N]: v1,v2,...
 			WriteArrayHeader(null, array.Count);
-			_writer.Write(' ');
-			WritePrimitiveArrayValues(array);
+			if (array.Count > 0)
+			{
+				_writer.Write(' ');
+				WritePrimitiveArrayValues(array);
+			}
 		}
 		else if (IsTabularArray(array, out var fieldNames))
 		{
@@ -523,11 +558,14 @@ public sealed class JsonToonWriter : IDisposable
 			firstItem = false;
 
 			var innerArray = item.GetJsonArray();
-			WriteIndentation(depth);
+			WriteIndentation(depth + 1);
 			_writer.Write("- ");
 			WriteArrayHeader(null, innerArray.Count);
-			_writer.Write(' ');
-			WritePrimitiveArrayValues(innerArray);
+			if (innerArray.Count > 0)
+			{
+				_writer.Write(' ');
+				WritePrimitiveArrayValues(innerArray);
+			}
 		}
 	}
 
@@ -549,8 +587,11 @@ public sealed class JsonToonWriter : IDisposable
 			WriteIndentation(1);
 			_writer.Write("- ");
 			WriteArrayHeader(null, innerArray.Count);
-			_writer.Write(' ');
-			WritePrimitiveArrayValues(innerArray);
+			if (innerArray.Count > 0)
+			{
+				_writer.Write(' ');
+				WritePrimitiveArrayValues(innerArray);
+			}
 		}
 	}
 
@@ -570,7 +611,7 @@ public sealed class JsonToonWriter : IDisposable
 			}
 			firstItem = false;
 
-			WriteListItem(item, depth);
+			WriteListItem(item, depth + 1);
 		}
 	}
 
@@ -588,7 +629,7 @@ public sealed class JsonToonWriter : IDisposable
 			}
 			firstItem = false;
 
-			WriteListItem(item, 0);
+			WriteListItem(item, 1);
 		}
 	}
 
@@ -672,7 +713,7 @@ public sealed class JsonToonWriter : IDisposable
 			return;
 		}
 
-		var (firstPath, firstValue) = flattened[0];
+		var (firstPath, firstValue, firstDisableChildFolding) = flattened[0];
 
 		// Check if first field is a tabular array
 		if (firstValue.Type == JsonValueType.Array)
@@ -729,7 +770,7 @@ public sealed class JsonToonWriter : IDisposable
 				// Write remaining fields at depth + 1
 				for (int i = 1; i < flattened.Count; i++)
 				{
-					var (path, value) = flattened[i];
+					var (path, value, disableChildFolding) = flattened[i];
 					_writer.Write(NewLine);
 					WriteIndentation(depth + 1);
 					WriteKeyPath(path);
@@ -737,7 +778,7 @@ public sealed class JsonToonWriter : IDisposable
 					{
 						_writer.Write(':');
 					}
-					WriteObjectFieldValue(value, depth + 1);
+					WriteObjectFieldValue(value, depth + 1, false, disableChildFolding, path.Count);
 				}
 				return;
 			}
@@ -757,7 +798,7 @@ public sealed class JsonToonWriter : IDisposable
 				AddRenderingCollection(nestedObj);
 				_writer.Write(NewLine);
 				// Nested fields at depth + 2 (per Section 10)
-				WriteObject(nestedObj, depth + 2);
+				WriteObject(nestedObj, depth + 2, firstDisableChildFolding, firstPath.Count);
 				RemoveRenderingCollection(nestedObj);
 			}
 		}
@@ -779,7 +820,7 @@ public sealed class JsonToonWriter : IDisposable
 		// Write remaining fields at depth + 1
 		for (int i = 1; i < flattened.Count; i++)
 		{
-			var (path, value) = flattened[i];
+			var (path, value, disableChildFolding) = flattened[i];
 			_writer.Write(NewLine);
 			WriteIndentation(depth + 1);
 			WriteKeyPath(path);
@@ -787,7 +828,7 @@ public sealed class JsonToonWriter : IDisposable
 			{
 				_writer.Write(':');
 			}
-			WriteObjectFieldValue(value, depth + 1);
+			WriteObjectFieldValue(value, depth + 1, false, disableChildFolding, path.Count);
 		}
 	}
 
@@ -835,11 +876,14 @@ public sealed class JsonToonWriter : IDisposable
 				firstItem = false;
 
 				var innerArray = item.GetJsonArray();
-				WriteIndentation(depth + 1);
+				WriteIndentation(depth + 2);
 				_writer.Write("- ");
 				WriteArrayHeader(null, innerArray.Count);
-				_writer.Write(' ');
-				WritePrimitiveArrayValues(innerArray);
+				if (innerArray.Count > 0)
+				{
+					_writer.Write(' ');
+					WritePrimitiveArrayValues(innerArray);
+				}
 			}
 		}
 		else
@@ -855,7 +899,7 @@ public sealed class JsonToonWriter : IDisposable
 					_writer.Write(NewLine);
 				}
 				firstItem = false;
-				WriteListItem(item, depth + 1);
+				WriteListItem(item, depth + 2);
 			}
 		}
 	}
@@ -963,15 +1007,29 @@ public sealed class JsonToonWriter : IDisposable
 			number = 0;
 		}
 
-		// Use decimal for better precision and to avoid scientific notation
-		decimal decValue = (decimal)number;
-		string result = decValue.ToString(CultureInfo.InvariantCulture);
+		// Check if it's an integer value within long range to avoid precision issues with decimal conversion
+		// for very large integers (like MAX_SAFE_INTEGER)
+		if (number >= long.MinValue && number <= long.MaxValue && Math.Truncate(number) == number)
+		{
+			_writer.Write(((long)number).ToString(CultureInfo.InvariantCulture));
+			return;
+		}
 
-		// Ensure no exponent notation (decimal.ToString shouldn't produce it, but verify)
+		// Use shortest round-trippable string
+		string result = number.ToString(CultureInfo.InvariantCulture);
+
+		// If scientific notation is used, convert to decimal notation
 		if (result.Contains('E') || result.Contains('e'))
 		{
-			// Fallback: format without exponent
-			result = decValue.ToString("F15", CultureInfo.InvariantCulture).TrimEnd('0').TrimEnd('.');
+			try
+			{
+				decimal dec = decimal.Parse(result, NumberStyles.Float, CultureInfo.InvariantCulture);
+				result = dec.ToString("0.################################", CultureInfo.InvariantCulture);
+			}
+			catch
+			{
+				// Fallback
+			}
 		}
 
 		_writer.Write(result);

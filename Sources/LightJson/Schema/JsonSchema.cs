@@ -162,7 +162,33 @@ namespace LightJson.Schema
 		/// <summary>
 		/// Gets an indication of whether this schema is empty (i.e., has no properties).
 		/// </summary>
-		public bool IsEmpty => !this.schema.properties.Any();
+		public bool IsEmpty
+		{
+			get
+			{
+				if (schema is null)
+					return true;
+
+				var type = schema["type"];
+				if (type.IsNull)
+					return true;
+
+				if (type.IsString && type.GetString() == "object")
+				{
+					var properties = schema["properties"];
+					if (properties.IsNull)
+						return true;
+					if (properties.IsJsonObject && properties.GetJsonObject().Count == 0)
+						return true;
+				}
+				else
+				{
+					return schema.Count == 1; // Only "type" property exists
+				}
+
+				return false;
+			}
+		}
 
 		/// <summary>
 		/// Validates a <see cref="JsonValue"/> against this schema.
