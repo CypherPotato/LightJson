@@ -1,4 +1,5 @@
-﻿using System;
+﻿using LightJson.Schema;
+using System;
 
 namespace LightJson.Converters;
 
@@ -24,5 +25,11 @@ public sealed class TimeOnlyConverter : JsonConverter
 	{
 		TimeOnly d = (TimeOnly)value;
 		return new JsonValue(d.ToLongTimeString(), currentOptions);
+	}
+
+	/// <inheritdoc/>
+	public override JsonSchema GetSchema(JsonOptions options)
+	{
+		return JsonSchema.CreateStringSchema(format: JsonSchemaStringFormat.Time, description: "Time string");
 	}
 }

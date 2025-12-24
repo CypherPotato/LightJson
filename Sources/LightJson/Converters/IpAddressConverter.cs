@@ -1,4 +1,5 @@
-﻿using System;
+﻿using LightJson.Schema;
+using System;
 using System.Net;
 
 namespace LightJson.Converters;
@@ -25,5 +26,11 @@ public sealed class IpAddressConverter : JsonConverter
 	{
 		var str = ((IPAddress)value).ToString();
 		return new JsonValue(str, currentOptions);
+	}
+
+	/// <inheritdoc/>
+	public override JsonSchema GetSchema(JsonOptions options)
+	{
+		return JsonSchema.CreateStringSchema(description: "IP address (IPv4 or IPv6)");
 	}
 }

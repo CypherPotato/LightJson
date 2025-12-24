@@ -1,4 +1,5 @@
-﻿using System;
+﻿using LightJson.Schema;
+using System;
 
 namespace LightJson.Converters;
 
@@ -32,5 +33,15 @@ public abstract class JsonConverter
 	/// <param name="currentOptions">Gets the current <see cref="JsonOptions"/> settings.</param>
 	/// <returns>The converted object.</returns>
 	public abstract object Deserialize(JsonValue value, Type requestedType, JsonOptions currentOptions);
-}
 
+	/// <summary>
+	/// Returns a JSON schema that describes the structure produced or consumed by this converter.
+	/// Override this method to provide a custom schema for the types this converter handles.
+	/// </summary>
+	/// <param name="options">The <see cref="JsonOptions"/> to use when generating the schema.</param>
+	/// <returns>A <see cref="JsonSchema"/> instance representing the converter's schema, or null if no custom schema is provided.</returns>
+	public virtual JsonSchema? GetSchema(JsonOptions options)
+	{
+		return null;
+	}
+}

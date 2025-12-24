@@ -1,4 +1,5 @@
-﻿using System;
+﻿using LightJson.Schema;
+using System;
 
 namespace LightJson.Converters;
 
@@ -23,5 +24,11 @@ public sealed class GuidConverter : JsonConverter
 	public override JsonValue Serialize(Object value, JsonOptions currentOptions)
 	{
 		return new JsonValue(value.ToString()!, currentOptions);
+	}
+
+	/// <inheritdoc/>
+	public override JsonSchema GetSchema(JsonOptions options)
+	{
+		return JsonSchema.CreateStringSchema(format: JsonSchemaStringFormat.Uuid, description: "UUID/GUID string");
 	}
 }

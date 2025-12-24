@@ -1,4 +1,5 @@
-﻿using System;
+﻿using LightJson.Schema;
+using System;
 
 namespace LightJson.Converters;
 
@@ -29,5 +30,11 @@ public sealed class DateTimeConverter : JsonConverter
 	{
 		DateTime t = (DateTime)value;
 		return new JsonValue(t.ToString(Format), currentOptions);
+	}
+
+	/// <inheritdoc/>
+	public override JsonSchema GetSchema(JsonOptions options)
+	{
+		return JsonSchema.CreateStringSchema(format: JsonSchemaStringFormat.DateTime, description: "ISO 8601 date-time string");
 	}
 }

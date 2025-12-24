@@ -1,4 +1,5 @@
-﻿using System;
+﻿using LightJson.Schema;
+using System;
 
 namespace LightJson.Converters;
 
@@ -24,5 +25,11 @@ public sealed class UriConverter : JsonConverter
 	{
 		var str = ((Uri)value).ToString();
 		return new JsonValue(str, currentOptions);
+	}
+
+	/// <inheritdoc/>
+	public override JsonSchema GetSchema(JsonOptions options)
+	{
+		return JsonSchema.CreateStringSchema(format: JsonSchemaStringFormat.Uri, description: "URI string");
 	}
 }

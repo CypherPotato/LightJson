@@ -1,8 +1,6 @@
-﻿using System;
+﻿using LightJson.Schema;
+using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace LightJson.Converters;
 
@@ -34,5 +32,17 @@ public sealed class ExceptionConverter : JsonConverter
 			["Type"] = value.GetType().Name,
 			["Message"] = ex.Message
 		};
+	}
+
+	/// <inheritdoc/>
+	public override JsonSchema GetSchema(JsonOptions options)
+	{
+		return JsonSchema.CreateObjectSchema(
+			new Dictionary<string, JsonSchema>
+			{
+				["Type"] = JsonSchema.CreateStringSchema(description: "Exception type name"),
+				["Message"] = JsonSchema.CreateStringSchema(description: "Exception message")
+			},
+			description: "Exception object");
 	}
 }

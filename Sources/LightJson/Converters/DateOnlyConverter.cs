@@ -1,4 +1,5 @@
-﻿using System;
+﻿using LightJson.Schema;
+using System;
 
 namespace LightJson.Converters;
 
@@ -34,5 +35,11 @@ public sealed class DateOnlyConverter : JsonConverter
 	{
 		DateOnly d = (DateOnly)value;
 		return new JsonValue(d.ToString(Format, FormatProvider), currentOptions);
+	}
+
+	/// <inheritdoc/>
+	public override JsonSchema GetSchema(JsonOptions options)
+	{
+		return JsonSchema.CreateStringSchema(format: JsonSchemaStringFormat.Date, description: "Date string in yyyy-MM-dd format");
 	}
 }

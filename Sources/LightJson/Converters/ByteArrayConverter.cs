@@ -1,4 +1,5 @@
-﻿using System;
+﻿using LightJson.Schema;
+using System;
 
 namespace LightJson.Converters;
 
@@ -46,6 +47,21 @@ public sealed class ByteArrayConverter : JsonConverter
 		else
 		{
 			return new JsonValue(Convert.ToBase64String((byte[])value));
+		}
+	}
+
+	/// <inheritdoc/>
+	public override JsonSchema GetSchema(JsonOptions options)
+	{
+		if (EncodeAsArrays)
+		{
+			return JsonSchema.CreateArraySchema(
+				JsonSchema.CreateNumberSchema(minimum: 0, maximum: 255),
+				description: "Array of bytes (0-255)");
+		}
+		else
+		{
+			return JsonSchema.CreateStringSchema(description: "Base64 encoded byte array");
 		}
 	}
 }

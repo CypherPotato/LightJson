@@ -1,4 +1,5 @@
-﻿using System;
+﻿using LightJson.Schema;
+using System;
 
 namespace LightJson.Converters;
 
@@ -34,5 +35,11 @@ public sealed class CharConverter : JsonConverter
 	public override JsonValue Serialize(object value, JsonOptions currentOptions)
 	{
 		return new JsonValue(value.ToString()!, currentOptions);
+	}
+
+	/// <inheritdoc/>
+	public override JsonSchema GetSchema(JsonOptions options)
+	{
+		return JsonSchema.CreateStringSchema(minLength: 1, maxLength: 1, description: "Single character");
 	}
 }

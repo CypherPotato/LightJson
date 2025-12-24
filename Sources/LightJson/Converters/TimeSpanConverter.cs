@@ -1,4 +1,5 @@
-﻿using System;
+﻿using LightJson.Schema;
+using System;
 
 namespace LightJson.Converters;
 
@@ -24,5 +25,11 @@ public sealed class TimeSpanConverter : JsonConverter
 	{
 		TimeSpan s = (TimeSpan)value;
 		return new JsonValue(s.Ticks, currentOptions);
+	}
+
+	/// <inheritdoc/>
+	public override JsonSchema GetSchema(JsonOptions options)
+	{
+		return JsonSchema.CreateNumberSchema(description: "TimeSpan represented as ticks (Int64)");
 	}
 }

@@ -1,4 +1,5 @@
-﻿using System;
+﻿using LightJson.Schema;
+using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
@@ -58,6 +59,22 @@ public sealed class EnumConverter : JsonConverter
 
 			return GetEnumValue(enumType, name, options);
 		}
+	}
+
+	[SuppressMessage("Trimming", "IL2070:'this' argument does not satisfy 'DynamicallyAccessedMembersAttribute' in call to target method. The parameter of method does not have matching annotations.",
+		Justification = "We just hope enumType.GetFields() bring all required enum fields")]
+	internal static List<string> GetEnumNames(Type enumType)
+	{
+		var names = new List<string>();
+		foreach (FieldInfo field in enumType.GetFields(BindingFlags.Public | BindingFlags.Static))
+		{
+			if (field.GetCustomAttribute<JsonIgnoreAttribute>() != null)
+				continue;
+
+			var enumMemberName = field.GetCustomAttribute<JsonStringEnumMemberNameAttribute>();
+			names.Add(enumMemberName?.Name ?? field.Name);
+		}
+		return names;
 	}
 
 	/// <inheritdoc/>
@@ -140,6 +157,23 @@ public sealed class EnumConverter : JsonConverter
 		else
 		{
 			return new JsonValue((int)value, currentOptions);
+		}
+	}
+
+	/// <inheritdoc/>
+	/// <remarks>
+	/// This method returns a generic schema for enums. For type-specific enum schemas,
+	/// use <see cref="JsonSchema.CreateFromType{T}"/> directly.
+	/// </remarks>
+	public override JsonSchema GetSchema(JsonOptions options)
+	{
+		if (EnumToString)
+		{
+			return JsonSchema.CreateStringSchema(description: "Enum value as string");
+		}
+		else
+		{
+			return JsonSchema.CreateNumberSchema(description: "Enum value as integer");
 		}
 	}
 }

@@ -28,6 +28,40 @@ namespace LightJson.Schema
 		});
 
 		/// <summary>
+		/// Creates a <see cref="JsonSchema"/> from the specified type parameter.
+		/// </summary>
+		/// <typeparam name="T">The type to generate the schema for. Must be a non-nullable reference type.</typeparam>
+		/// <param name="options">Optional <see cref="JsonOptions"/> to customize schema generation. If <see langword="null"/>, <see cref="JsonOptions.Default"/> is used.</param>
+		/// <returns>A <see cref="JsonSchema"/> representing the structure of <typeparamref name="T"/>.</returns>
+		public static JsonSchema CreateFromType<T>(JsonOptions? options = default) where T : notnull
+		{
+			return JsonSchemaLoader.CreateFromTypeCore(typeof(T), options ?? JsonOptions.Default);
+		}
+
+		/// <summary>
+		/// Creates a <see cref="JsonSchema"/> from the specified <see cref="Type"/>.
+		/// </summary>
+		/// <param name="t">The <see cref="Type"/> to generate the schema for.</param>
+		/// <param name="options">Optional <see cref="JsonOptions"/> to customize schema generation. If <see langword="null"/>, <see cref="JsonOptions.Default"/> is used.</param>
+		/// <returns>A <see cref="JsonSchema"/> representing the structure of the specified type.</returns>
+		public static JsonSchema CreateFromType(Type t, JsonOptions? options = default)
+		{
+			return JsonSchemaLoader.CreateFromTypeCore(t, options ?? JsonOptions.Default);
+		}
+
+		/// <summary>
+		/// Creates a <see cref="JsonSchema"/> from the signature of the specified <see cref="Delegate"/>.
+		/// </summary>
+		/// <param name="d">The <see cref="Delegate"/> whose signature will be used to generate the schema.</param>
+		/// <param name="options">Optional <see cref="JsonOptions"/> to customize schema generation. If <see langword="null"/>, <see cref="JsonOptions.Default"/> is used.</param>
+		/// <returns>A <see cref="JsonSchema"/> representing the parameter and return types of the delegate.</returns>
+		public static JsonSchema CreateFromDelegate(Delegate d, JsonOptions? options = default)
+		{
+			return JsonSchemaLoader.CreateFromDelegateCore(d, options ?? JsonOptions.Default);
+		}
+
+
+		/// <summary>
 		/// Creates a JSON schema for strings.
 		/// </summary>
 		/// <param name="minLength">The minimum length of the string. Can be <see langword="null"/>.</param>
@@ -213,8 +247,24 @@ namespace LightJson.Schema
 			if (types.Any(t => t == JsonValueType.Undefined))
 				throw new ArgumentException("Cannot combine 'undefined' type in JSON Schema.", nameof(types));
 
+			var existingType = this.schema["type"];
+			List<string> existingTypes = [];
+
+			if (existingType.IsString)
+			{
+				existingTypes.Add(existingType.GetString());
+			}
+			else if (existingType.IsJsonArray)
+			{
+				foreach (var t in existingType.GetJsonArray())
+				{
+					if (t.IsString)
+						existingTypes.Add(t.GetString());
+				}
+			}
+
 			string[] newTypes = [
-				this.schema["type"].GetString(),
+				.. existingTypes,
 				.. types.Select(s => s.ToString().ToLowerInvariant())
 			];
 
