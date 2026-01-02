@@ -133,8 +133,9 @@ namespace LightJson.Schema
 		/// <param name="properties">The properties of the object, where the key is the property name and the value is the schema for the property. Can be <see langword="null"/>.</param>
 		/// <param name="requiredProperties">A list of required property names. Can be <see langword="null"/>.</param>
 		/// <param name="description">A description of the schema. Can be <see langword="null"/>.</param>
+		/// <param name="additionalProperties">If the object schema should allow additional properties. Can be null.</param>
 		/// <returns>A <see cref="JsonSchema"/> for objects.</returns>
-		public static JsonSchema CreateObjectSchema(IDictionary<string, JsonSchema>? properties = null, IEnumerable<string>? requiredProperties = null, string? description = null)
+		public static JsonSchema CreateObjectSchema(IDictionary<string, JsonSchema>? properties = null, IEnumerable<string>? requiredProperties = null, string? description = null, bool? additionalProperties = null)
 		{
 			if (properties is null || properties.Count == 0)
 			{
@@ -156,6 +157,7 @@ namespace LightJson.Schema
 			}
 			if (requiredProperties is { }) schema["required"] = new JsonArray(requiredProperties);
 			if (description is { }) schema["description"] = description;
+			if (additionalProperties is { }) schema["additionalProperties"] = additionalProperties.Value;
 
 			return new JsonSchema(schema);
 		}

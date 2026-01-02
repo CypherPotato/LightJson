@@ -84,6 +84,12 @@ static class JsonSchemaLoader
 			return innerSchema.Nullable();
 		}
 
+		// Check for JsonSchemaIgnore attribute
+		if (type.GetCustomAttribute<JsonSchemaIgnore>() is { })
+		{
+			return JsonSchema.Empty;
+		}
+
 		// Check if there's a custom converter for this type
 		var converterSchema = TryGetSchemaFromConverter(type, options);
 		if (converterSchema != null)
@@ -243,6 +249,10 @@ static class JsonSchemaLoader
 
 		foreach (var prop in typeInfo.Properties)
 		{
+			if (prop.PropertyType.GetCustomAttribute<JsonSchemaIgnore>() is { } ||
+				prop.AttributeProvider?.GetCustomAttributes(typeof(JsonSchemaIgnore), inherit: true).Length > 0)
+				continue;
+
 			if (prop.Get is null && prop.Set is null)
 				continue;
 
@@ -325,6 +335,8 @@ static class JsonSchemaLoader
 		// Process public properties
 		foreach (var prop in type.GetProperties(BindingFlags.Public | BindingFlags.Instance))
 		{
+			if (prop.PropertyType.GetCustomAttribute<JsonSchemaIgnore>() is { })
+				continue;
 			if (prop.GetIndexParameters().Length > 0)
 				continue;
 
