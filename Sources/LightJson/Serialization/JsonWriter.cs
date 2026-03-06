@@ -412,11 +412,30 @@ namespace LightJson.Serialization
 		/// <summary>
 		/// Sets this <see cref="JsonWriter"/> to write using an pretty, indented JSON syntax.
 		/// </summary>
-		public void UseIndentedSyntax()
+		public void UseIndentedSyntax() => UseIndentedSyntax(true);
+
+		/// <summary>
+		/// Enables or disables indented syntax formatting for output.
+		/// </summary>
+		/// <remarks>When indented syntax is enabled, output will include four-space indentation, single spaces
+		/// between elements, and line breaks for improved readability. Disabling indented syntax produces more compact
+		/// output, which may be preferable for minimizing file size or transmission costs.</remarks>
+		/// <param name="enableIndentedSyntax">true to enable indented syntax with spaces and new lines; false to use compact formatting without indentation or
+		/// extra spacing.</param>
+		public void UseIndentedSyntax(bool enableIndentedSyntax)
 		{
-			this.IndentString = new string(' ', 4);
-			this.SpacingString = " ";
-			this.NewLineString = "\n";
+			if (enableIndentedSyntax)
+			{
+				this.IndentString = new string(' ', 4);
+				this.SpacingString = " ";
+				this.NewLineString = "\n";
+			}
+			else
+			{
+				this.IndentString = null;
+				this.SpacingString = null;
+				this.NewLineString = null;
+			}
 		}
 
 		/// <summary>

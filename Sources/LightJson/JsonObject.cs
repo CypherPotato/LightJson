@@ -1,4 +1,3 @@
-using LightJson.Serialization;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -7,16 +6,15 @@ using System.Linq;
 using System.Net.Http;
 using System.Text;
 using System.Text.Json.Serialization;
+using LightJson.Serialization;
 
-namespace LightJson
-{
+namespace LightJson {
 	/// <summary>
 	/// Represents a key-value pair collection of <see cref="JsonValue"/> objects.
 	/// </summary>
-	[DebuggerDisplay("Count = {Count}")]
-	[JsonConverter(typeof(JsonObjectInternalConverter))]
-	public sealed class JsonObject : IEnumerable<KeyValuePair<string, JsonValue>>, IEnumerable<JsonValue>, IDictionary<string, JsonValue>, IImplicitJsonValue, IEquatable<JsonObject>, IEquatable<JsonValue>
-	{
+	[DebuggerDisplay ( "Count = {Count}" )]
+	[JsonConverter ( typeof ( JsonObjectInternalConverter ) )]
+	public sealed class JsonObject : IEnumerable<KeyValuePair<string, JsonValue>>, IEnumerable<JsonValue>, IDictionary<string, JsonValue>, IImplicitJsonValue, IEquatable<JsonObject>, IEquatable<JsonValue> {
 		internal string path;
 		internal readonly IDictionary<string, JsonValue> properties;
 		private readonly JsonOptions options;
@@ -29,10 +27,8 @@ namespace LightJson
 		/// <summary>
 		/// Gets the number of properties in this JsonObject.
 		/// </summary>
-		public int Count
-		{
-			get
-			{
+		public int Count {
+			get {
 				return this.properties.Count;
 			}
 		}
@@ -59,32 +55,24 @@ namespace LightJson
 		/// <remarks>
 		/// The getter will return JsonValue.Null if the given key is not assosiated with any value.
 		/// </remarks>
-		public JsonValue this[string key]
-		{
-			get
-			{
-				if (this.properties.TryGetValue(key, out var value))
-				{
+		public JsonValue this [ string key ] {
+			get {
+				if (this.properties.TryGetValue ( key, out var value )) {
 					return value;
 				}
-				else
-				{
-					var nullValue = new JsonValue(JsonValueType.Undefined, default, default, this.options)
-					{
+				else {
+					var nullValue = new JsonValue ( JsonValueType.Undefined, default, default, this.options ) {
 						path = this.path + "." + key
 					};
 					return nullValue;
 				}
 			}
-			set
-			{
-				if (value.Type == JsonValueType.Undefined)
-				{
-					this.Remove(key);
+			set {
+				if (value.Type == JsonValueType.Undefined) {
+					this.Remove ( key );
 				}
-				else
-				{
-					this.properties[key] = value;
+				else {
+					this.properties [ key ] = value;
 				}
 			}
 		}
@@ -92,19 +80,17 @@ namespace LightJson
 		/// <summary>
 		/// Initializes a new instance of JsonObject.
 		/// </summary>
-		public JsonObject() : this(JsonOptions.Default)
-		{
+		public JsonObject () : this ( JsonOptions.Default ) {
 		}
 
 		/// <summary>
 		/// Initializes a new instance of JsonObject with the specified <see cref="JsonOptions"/>.
 		/// </summary>
 		/// <param name="options">Specifies the JsonOptions used to compare values.</param>
-		public JsonObject(JsonOptions options)
-		{
+		public JsonObject ( JsonOptions options ) {
 			this.path = "$";
 			this.options = options;
-			this.properties = new Dictionary<string, JsonValue>(options.PropertyNameComparer);
+			this.properties = new Dictionary<string, JsonValue> ( options.PropertyNameComparer );
 		}
 
 		/// <summary>
@@ -112,18 +98,17 @@ namespace LightJson
 		/// </summary>
 		/// <param name="options">Specifies the <see cref="JsonOptions"/> used to compare values.</param>
 		/// <param name="values">A collection of key-value pairs to initialize the JsonObject.</param>
-		public JsonObject(JsonOptions options, IEnumerable<KeyValuePair<string, JsonValue>> values)
-		{
+		public JsonObject ( JsonOptions options, IEnumerable<KeyValuePair<string, JsonValue>> values ) {
 			this.path = "$";
 			this.options = options;
-			this.properties = new Dictionary<string, JsonValue>(values, options.PropertyNameComparer);
+			this.properties = new Dictionary<string, JsonValue> ( values, options.PropertyNameComparer );
 		}
 
 		/// <summary>
 		/// Returns an <see cref="JsonValue"/> representating this <see cref="JsonObject"/>.
 		/// </summary>
 		/// <returns></returns>
-		public JsonValue AsJsonValue() => new JsonValue(this, this.options);
+		public JsonValue AsJsonValue () => new JsonValue ( this, this.options );
 
 		/// <summary>
 		/// Adds a value associated with a key to this collection only if the value is not null.
@@ -131,11 +116,9 @@ namespace LightJson
 		/// <param name="key">The key of the property to be added.</param>
 		/// <param name="value">The value of the property to be added.</param>
 		/// <returns>Returns this JsonObject.</returns>
-		public JsonObject AddIfNotNull(string key, JsonValue value)
-		{
-			if (!value.IsNull)
-			{
-				this.Add(key, value);
+		public JsonObject AddIfNotNull ( string key, JsonValue value ) {
+			if (!value.IsNull) {
+				this.Add ( key, value );
 			}
 
 			return this;
@@ -147,12 +130,9 @@ namespace LightJson
 		/// <param name="key">The key to search for in the JSON object.</param>
 		/// <param name="comparer">The <see cref="StringComparison"/> to use when comparing the key.</param>
 		/// <returns>The <see cref="JsonValue"/> associated with the key, or <see cref="JsonValue.Undefined"/> if the key is not found.</returns>
-		public JsonValue GetValue(string key, IEqualityComparer<string> comparer)
-		{
-			foreach (var item in this.properties)
-			{
-				if (comparer.Equals(item.Key, key))
-				{
+		public JsonValue GetValue ( string key, IEqualityComparer<string> comparer ) {
+			foreach (var item in this.properties) {
+				if (comparer.Equals ( item.Key, key )) {
 					return item.Value;
 				}
 			}
@@ -164,39 +144,34 @@ namespace LightJson
 		/// </summary>
 		/// <param name="key">The key to search for in the JSON object.</param>
 		/// <returns>The <see cref="JsonValue"/> associated with the key, or <see cref="JsonValue.Undefined"/> if the key is not found.</returns>
-		public JsonValue GetValue(string key)
-		{
-			return this.GetValue(key, this.options.PropertyNameComparer);
+		public JsonValue GetValue ( string key ) {
+			return this.GetValue ( key, this.options.PropertyNameComparer );
 		}
 
 		/// <inheritdoc/>
-		public bool ContainsKey(string key)
-		{
-			return this.properties.ContainsKey(key);
+		public bool ContainsKey ( string key ) {
+			return this.properties.ContainsKey ( key );
 		}
 
 		/// <summary>
 		/// Returns an enumerator that iterates through this collection.
 		/// </summary>
-		public IEnumerator<KeyValuePair<string, JsonValue>> GetEnumerator()
-		{
-			return this.properties.GetEnumerator();
+		public IEnumerator<KeyValuePair<string, JsonValue>> GetEnumerator () {
+			return this.properties.GetEnumerator ();
 		}
 
 		/// <summary>
 		/// Returns an enumerator that iterates through this collection.
 		/// </summary>
-		IEnumerator<JsonValue> IEnumerable<JsonValue>.GetEnumerator()
-		{
-			return this.properties.Values.GetEnumerator();
+		IEnumerator<JsonValue> IEnumerable<JsonValue>.GetEnumerator () {
+			return this.properties.Values.GetEnumerator ();
 		}
 
 		/// <summary>
 		/// Returns an enumerator that iterates through this collection.
 		/// </summary>
-		System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator()
-		{
-			return this.GetEnumerator();
+		System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator () {
+			return this.GetEnumerator ();
 		}
 
 		/// <summary>
@@ -206,17 +181,15 @@ namespace LightJson
 		/// The resulting string is safe to be inserted as is into dynamically
 		/// generated JavaScript or JSON code.
 		/// </remarks>
-		public override string ToString()
-		{
-			return this.ToString(this.options);
+		public override string ToString () {
+			return this.ToString ( this.options );
 		}
 
 		/// <summary>
 		/// Gets the properties of the current JSON object.
 		/// </summary>
 		/// <returns>An <see cref="IEnumerable{T}"/> of <see cref="KeyValuePair{TKey, TValue}"/> containing the property names and their corresponding <see cref="JsonValue"/>.</returns>
-		public IEnumerable<KeyValuePair<string, JsonValue>> GetProperties()
-		{
+		public IEnumerable<KeyValuePair<string, JsonValue>> GetProperties () {
 			return this.properties;
 		}
 
@@ -228,9 +201,8 @@ namespace LightJson
 		/// generated JavaScript or JSON code.
 		/// </remarks>
 		/// <param name="options">Specifies the JsonOptions used to render this Json value.</param>
-		public string ToString(JsonOptions options)
-		{
-			return JsonWriter.Serialize(this.AsJsonValue(), options);
+		public string ToString ( JsonOptions options ) {
+			return JsonWriter.Serialize ( this.AsJsonValue (), options );
 		}
 
 		/// <summary>
@@ -240,106 +212,108 @@ namespace LightJson
 		/// <param name="key">The key of the element to add.</param>
 		/// <param name="value">The value of the element to add. This value will be converted to its JSON representation.</param>
 		/// <returns>The original value that was added.</returns>
-		public TValue Add<TValue>(string key, TValue value) where TValue : IImplicitJsonValue
-		{
-			if (properties.TryGetValue(key, out var existingValue) && existingValue.Equals(value.AsJsonValue()))
-			{
+		public TValue Add<TValue> ( string key, TValue value ) where TValue : IImplicitJsonValue {
+			if (properties.TryGetValue ( key, out var existingValue ) && existingValue.Equals ( value.AsJsonValue () )) {
 				return value;
 			}
-			this.properties.Add(key, value.AsJsonValue());
+			this.properties.Add ( key, value.AsJsonValue () );
 			return value;
 		}
 
 		/// <inheritdoc/>
-		public void Add(string key, JsonValue value)
-		{
-			this.properties.Add(key, value);
+		public void Add ( string key, JsonValue value ) {
+			this.properties.Add ( key, value );
 		}
 
 		/// <inheritdoc/>
-		public bool TryGetValue(string key, [MaybeNullWhen(false)] out JsonValue value)
-		{
-			return this.properties.TryGetValue(key, out value);
+		public bool TryGetValue ( string key, [MaybeNullWhen ( false )] out JsonValue value ) {
+			return this.properties.TryGetValue ( key, out value );
 		}
 
 		/// <inheritdoc/>
-		public void Add(KeyValuePair<string, JsonValue> item)
-		{
-			this.properties.Add(item);
+		public void Add ( KeyValuePair<string, JsonValue> item ) {
+			this.properties.Add ( item );
 		}
 
 		/// <inheritdoc/>
-		void ICollection<KeyValuePair<string, JsonValue>>.Clear()
-		{
-			this.properties.Clear();
+		void ICollection<KeyValuePair<string, JsonValue>>.Clear () {
+			this.properties.Clear ();
 		}
 
 		/// <inheritdoc/>
-		public bool Contains(KeyValuePair<string, JsonValue> item)
-		{
-			return this.properties.Contains(item);
+		public bool Contains ( KeyValuePair<string, JsonValue> item ) {
+			return this.properties.Contains ( item );
 		}
 
 		/// <inheritdoc/>
-		public void CopyTo(KeyValuePair<string, JsonValue>[] array, int arrayIndex)
-		{
-			this.properties.CopyTo(array, arrayIndex);
+		public void CopyTo ( KeyValuePair<string, JsonValue> [] array, int arrayIndex ) {
+			this.properties.CopyTo ( array, arrayIndex );
 		}
 
 		/// <inheritdoc/>
-		public bool Remove(KeyValuePair<string, JsonValue> item)
-		{
-			return this.properties.Remove(item);
+		public bool Remove ( KeyValuePair<string, JsonValue> item ) {
+			return this.properties.Remove ( item );
 		}
 
 		/// <inheritdoc/>
-		public bool Remove(string key)
-		{
-			return this.properties.Remove(key);
+		public bool Remove ( string key ) {
+			return this.properties.Remove ( key );
+		}
+
+		/// <summary>
+		/// Renames the key of an existing property.
+		/// </summary>
+		/// <param name="key">The current key to rename.</param>
+		/// <param name="newKey">The new key name.</param>
+		/// <returns><see langword="true"/> if the key was found and renamed; otherwise, <see langword="false"/>.</returns>
+		public bool Rename ( string key, string newKey ) {
+			if (this.properties.TryGetValue ( key, out var value )) {
+				this.properties.Remove ( key );
+				this.properties [ newKey ] = value;
+				return true;
+			}
+			return false;
 		}
 
 		/// <inheritdoc/>
-		public bool Equals(JsonObject? other)
-		{
+		public bool Equals ( JsonObject? other ) {
 			if (other is null)
 				return false;
 
-			return this.properties.ToArray().SequenceEqual(other.properties.ToArray());
+			return this.properties
+				.ToArray ()
+				.OrderBy ( s => s.Key )
+				.SequenceEqual (
+					other.properties.OrderBy ( s => s.Key ).ToArray () );
 		}
 
 		/// <inheritdoc/>
-		public bool Equals(JsonValue other)
-		{
-			return other.Type == JsonValueType.Object && this.Equals(other.GetJsonObject());
+		public bool Equals ( JsonValue other ) {
+			return other.Type == JsonValueType.Object && this.Equals ( other.GetJsonObject () );
 		}
 
 		/// <inheritdoc/>
-		public override bool Equals(object? obj)
-		{
-			if (obj is JsonObject jobj)
-			{
-				return this.Equals(jobj);
+		public override bool Equals ( object? obj ) {
+			if (obj is JsonObject jobj) {
+				return this.Equals ( jobj );
 			}
-			else if (obj is JsonValue jval)
-			{
-				return this.Equals(jval);
+			else if (obj is JsonValue jval) {
+				return this.Equals ( jval );
 			}
 
 			return false;
 		}
 
 		/// <inheritdoc/>
-		public override int GetHashCode()
-		{
+		public override int GetHashCode () {
 			int carry = UInt16.MaxValue;
-			foreach (var item in this.properties)
-			{
-				carry ^= HashCode.Combine(item.Key, item.Value);
+			foreach (var item in this.properties) {
+				carry ^= HashCode.Combine ( item.Key, item.Value );
 			}
 			return carry;
 		}
 
 		/// <exclude/>
-		public static implicit operator HttpContent(JsonObject value) => new StringContent(value.ToString(), Encoding.UTF8, "application/json");
+		public static implicit operator HttpContent ( JsonObject value ) => new StringContent ( value.ToString (), Encoding.UTF8, "application/json" );
 	}
 }

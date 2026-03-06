@@ -678,6 +678,59 @@ namespace LightJson
 		}
 
 		/// <summary>
+		/// Calculates the total heap size in bytes of this JSON value and all its nested content.
+		/// </summary>
+		/// <returns>The total byte count.</returns>
+		public int GetManagedSize()
+		{
+			return GetSizeCore(this, 0);
+		}
+
+		static int GetSizeCore(JsonValue value, int depth = 0)
+		{
+			if (depth > 100)
+			{
+				return 0;
+			}
+
+			switch (value.Type)
+			{
+				case JsonValueType.Null:
+				case JsonValueType.Undefined:
+					return 0;
+
+				case JsonValueType.Boolean:
+					return sizeof(bool);
+
+				case JsonValueType.Number:
+					return sizeof(double);
+
+				case JsonValueType.String:
+					return Encoding.UTF8.GetByteCount((string)value.reference);
+
+				case JsonValueType.Object:
+					var jobj = (JsonObject)value.reference;
+					int size = 0;
+					foreach (var kvp in jobj)
+					{
+						size += Encoding.UTF8.GetByteCount(kvp.Key);
+						size += GetSizeCore(kvp.Value, depth + 1);
+					}
+					return size;
+				case JsonValueType.Array:
+					var jarr = (JsonArray)value.reference;
+					int arrSize = 0;
+					foreach (var item in jarr)
+					{
+						arrSize += GetSizeCore(item, depth + 1);
+					}
+					return arrSize;
+				default:
+					return 0;
+			}
+		}
+
+		/// <summary>
 		/// Returns an string representation of the value of this <see cref="JsonValue"/>,
 		/// regardless of its type.
 		/// </summary>
@@ -691,7 +744,11 @@ namespace LightJson
 		/// <returns>A string representation of the value.</returns>
 		public readonly string? ToValueString(IFormatProvider? formatProvider = null)
 		{
-			if (this.reference is { } r)
+			if (this.reference is string)
+			{
+				return (string)this.reference;
+			}
+			else if (this.reference is { } r)
 			{
 				return r.ToString();
 			}

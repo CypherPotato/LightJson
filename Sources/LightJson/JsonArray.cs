@@ -64,6 +64,34 @@ namespace LightJson
 		}
 
 		/// <summary>
+		/// Creates a new <see cref="JsonArray"/> containing the elements from the specified collection.
+		/// </summary>
+		/// <typeparam name="T">The type of elements in the input collection.</typeparam>
+		/// <param name="items">The collection of items to include in the <see cref="JsonArray"/>. Cannot be null.</param>
+		/// <returns>A <see cref="JsonArray"/> containing the elements from the specified collection.</returns>
+		public static JsonArray Create<T>(IEnumerable<T> items)
+		{
+			return Create<T>(items, JsonOptions.Default);
+		}
+
+		/// <summary>
+		/// Creates a new <see cref="JsonArray"/> containing the serialized representations of the specified items.
+		/// </summary>
+		/// <remarks>Each item in the input collection is serialized using the provided JsonOptions before being added
+		/// to the array. The order of items in the resulting <see cref="JsonArray"/> matches the order of the input collection.</remarks>
+		/// <typeparam name="T">The type of elements in the input collection to be serialized.</typeparam>
+		/// <param name="items">The collection of items to serialize and include in the resulting <see cref="JsonArray"/>. Cannot be null.</param>
+		/// <param name="options">The serialization options to use when converting each item to JSON. Cannot be null.</param>
+		/// <returns>A JsonArray containing the serialized JSON values of each item in the input collection.</returns>
+		public static JsonArray Create<T>(IEnumerable<T> items, JsonOptions options)
+		{
+			var arr = new JsonArray(options);
+			arr.AddRange(items.Select(t => options.Serialize(t)));
+
+			return arr;
+		}
+
+		/// <summary>
 		/// Initializes a new instance of JsonArray.
 		/// </summary>
 		public JsonArray() : this(JsonOptions.Default)

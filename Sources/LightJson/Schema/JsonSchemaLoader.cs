@@ -394,6 +394,13 @@ static class JsonSchemaLoader
 				var enumMemberName = field.GetCustomAttribute<JsonStringEnumMemberNameAttribute>();
 				values.Add(enumMemberName?.Name ?? field.Name);
 			}
+
+			bool isFlags = enumType.GetCustomAttribute<FlagsAttribute>() != null;
+			if (isFlags)
+			{
+				return JsonSchema.CreateArraySchema(JsonSchema.CreateStringSchema(enums: values));
+			}
+
 			return JsonSchema.CreateStringSchema(enums: values);
 		}
 		else
