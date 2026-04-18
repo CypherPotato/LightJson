@@ -6,15 +6,13 @@ using System.Linq;
 using System.Text.Encodings.Web;
 using System.Text.Json;
 
-namespace LightJson.Serialization
-{
+namespace LightJson.Serialization {
 	using ErrorType = JsonSerializationException.ErrorType;
 
 	/// <summary>
 	/// Represents a TextWriter adapter that can write string representations of JsonValues.
 	/// </summary>
-	public sealed class JsonWriter : IDisposable
-	{
+	public sealed class JsonWriter : IDisposable {
 		private int indent;
 		private bool isNewLine;
 
@@ -79,9 +77,8 @@ namespace LightJson.Serialization
 		/// <summary>
 		/// Initializes an new instance of <see cref="JsonWriter"/>.
 		/// </summary>
-		public JsonWriter()
-		{
-			this.InnerWriter = new StringWriter();
+		public JsonWriter () {
+			this.InnerWriter = new StringWriter ();
 			this.renderingCollections = [];
 		}
 
@@ -89,18 +86,16 @@ namespace LightJson.Serialization
 		/// Initializes a new instance of JsonWriter.
 		/// </summary>
 		/// <param name="innerWriter">The TextWriter used to write JsonValues.</param>
-		public JsonWriter(TextWriter innerWriter) : this(innerWriter, JsonOptions.Default) { }
+		public JsonWriter ( TextWriter innerWriter ) : this ( innerWriter, JsonOptions.Default ) { }
 
 		/// <summary>
 		/// Initializes a new instance of JsonWriter.
 		/// </summary>
 		/// <param name="innerWriter">The TextWriter used to write JsonValues.</param>
 		/// <param name="options">The JsonOptions used to write data.</param>
-		public JsonWriter(TextWriter innerWriter, JsonOptions options)
-		{
-			if (options.WriteIndented)
-			{
-				this.UseIndentedSyntax();
+		public JsonWriter ( TextWriter innerWriter, JsonOptions options ) {
+			if (options.WriteIndented) {
+				this.UseIndentedSyntax ();
 			}
 
 			this.NamingPolicy = options.NamingPolicy;
@@ -110,309 +105,271 @@ namespace LightJson.Serialization
 			this.StringEncoder = options.StringEncoder;
 		}
 
-		private void Write(string? text)
-		{
-			if (this.isNewLine)
-			{
+		private void Write ( string? text ) {
+			if (this.isNewLine) {
 				this.isNewLine = false;
-				this.WriteIndentation();
+				this.WriteIndentation ();
 			}
 
-			this.InnerWriter.Write(text);
+			this.InnerWriter.Write ( text );
 		}
 
-		private void WriteJsonKey(string key)
-		{
-			if (this.UnquotedPropertyKeys)
-			{
-				this.Write(key);
+		private void WriteJsonKey ( string key ) {
+			if (this.UnquotedPropertyKeys) {
+				this.Write ( key );
 			}
-			else
-			{
-				this.WriteEncodedString(key);
+			else {
+				this.WriteEncodedString ( key );
 			}
 		}
 
-		private void WriteEncodedString(string text)
-		{
-			if (text.StartsWith(JsonRawValue.TAG))
-			{
-				this.Write(text[JsonRawValue.TAG.Length..]);
-				return;
+		private void WriteEncodedString ( string text ) {
+			this.Write ( "\"" );
+
+			if (this.StringEncoder is not null) {
+				this.InnerWriter.Write ( this.StringEncoder.Encode ( text ) );
 			}
+			else {
+				for (int i = 0; i < text.Length; i += 1) {
+					var currentChar = text [ i ];
 
-			this.Write("\"");
-
-			if (this.StringEncoder is not null)
-			{
-				this.InnerWriter.Write(this.StringEncoder.Encode(text));
-			}
-			else
-			{
-				for (int i = 0; i < text.Length; i += 1)
-				{
-					var currentChar = text[i];
-
-					switch (currentChar)
-					{
+					switch (currentChar) {
 						case '\\':
-							this.InnerWriter.Write("\\\\");
+							this.InnerWriter.Write ( "\\\\" );
 							break;
 
 						case '\"':
-							this.InnerWriter.Write("\\\"");
+							this.InnerWriter.Write ( "\\\"" );
 							break;
 
 						case '/':
-							this.InnerWriter.Write("\\/");
+							this.InnerWriter.Write ( "\\/" );
 							break;
 
 						case '\b':
-							this.InnerWriter.Write("\\b");
+							this.InnerWriter.Write ( "\\b" );
 							break;
 
 						case '\f':
-							this.InnerWriter.Write("\\f");
+							this.InnerWriter.Write ( "\\f" );
 							break;
 
 						case '\n':
-							this.InnerWriter.Write("\\n");
+							this.InnerWriter.Write ( "\\n" );
 							break;
 
 						case '\r':
-							this.InnerWriter.Write("\\r");
+							this.InnerWriter.Write ( "\\r" );
 							break;
 
 						case '\t':
-							this.InnerWriter.Write("\\t");
+							this.InnerWriter.Write ( "\\t" );
 							break;
 
 						default:
-							this.InnerWriter.Write(currentChar);
+							this.InnerWriter.Write ( currentChar );
 							break;
 					}
 				}
 			}
 
-			this.Write("\"");
+			this.Write ( "\"" );
 		}
 
-		private void WriteIndentation()
-		{
-			for (var i = 0; i < this.indent; i += 1)
-			{
-				this.Write(this.IndentString);
+		private void WriteIndentation () {
+			for (var i = 0; i < this.indent; i += 1) {
+				this.Write ( this.IndentString );
 			}
 		}
 
-		private void WriteSpacing()
-		{
-			this.Write(this.SpacingString);
+		private void WriteSpacing () {
+			this.Write ( this.SpacingString );
 		}
 
-		private void WriteLine()
-		{
-			this.Write(this.NewLineString);
+		private void WriteLine () {
+			this.Write ( this.NewLineString );
 			this.isNewLine = true;
 		}
 
-		private void WriteLine(string line)
-		{
-			this.Write(line);
-			this.WriteLine();
+		private void WriteLine ( string line ) {
+			this.Write ( line );
+			this.WriteLine ();
 		}
 
-		private void AddRenderingCollection(IEnumerable<JsonValue> value)
-		{
-			if (!this.renderingCollections.Add(value))
-			{
-				throw new JsonSerializationException(ErrorType.CircularReference);
+		private void AddRenderingCollection ( IEnumerable<JsonValue> value ) {
+			if (!this.renderingCollections.Add ( value )) {
+				throw new JsonSerializationException ( ErrorType.CircularReference );
 			}
 		}
 
-		private void RemoveRenderingCollection(IEnumerable<JsonValue> value)
-		{
-			_ = this.renderingCollections.Remove(value);
+		private void RemoveRenderingCollection ( IEnumerable<JsonValue> value ) {
+			_ = this.renderingCollections.Remove ( value );
 		}
 
-		private void Render(JsonValue value)
-		{
-			switch (value.Type)
-			{
+		private void Render ( JsonValue value ) {
+			switch (value.Type) {
 				case JsonValueType.Null:
-					this.Write("null");
+					this.Write ( "null" );
 					break;
 
 				case JsonValueType.Boolean:
-					this.Write(value.GetBoolean() ? "true" : "false");
+					this.Write ( value.GetBoolean () ? "true" : "false" );
 					break;
 
 				case JsonValueType.Number:
-					var number = value.GetNumber();
-					if (double.IsNaN(number))
-					{
-						switch (this.InfinityHandleOption)
-						{
+					var number = value.GetNumber ();
+					if (double.IsNaN ( number )) {
+						switch (this.InfinityHandleOption) {
 							case JsonInfinityHandleOption.WriteZero:
-								this.Write("0");
+								this.Write ( "0" );
 								break;
 							case JsonInfinityHandleOption.ReplaceWithString:
-								this.Write("\"NaN\"");
+								this.Write ( "\"NaN\"" );
 								break;
 							case JsonInfinityHandleOption.ThrowException:
-								throw new JsonSerializationException(ErrorType.InvalidValueType); // Or a specific error
+								throw new JsonSerializationException ( ErrorType.InvalidValueType ); // Or a specific error
 							case JsonInfinityHandleOption.WriteNull:
 							default:
-								this.Write("null");
+								this.Write ( "null" );
 								break;
 						}
 					}
-					else if (double.IsPositiveInfinity(number) || double.IsNegativeInfinity(number))
-					{
-						switch (this.InfinityHandleOption)
-						{
+					else if (double.IsPositiveInfinity ( number ) || double.IsNegativeInfinity ( number )) {
+						switch (this.InfinityHandleOption) {
 							case JsonInfinityHandleOption.WriteZero:
-								this.Write("0");
+								this.Write ( "0" );
 								break;
 							case JsonInfinityHandleOption.ReplaceWithString:
-								this.Write(double.IsPositiveInfinity(number) ? "\"Infinity\"" : "\"-Infinity\"");
+								this.Write ( double.IsPositiveInfinity ( number ) ? "\"Infinity\"" : "\"-Infinity\"" );
 								break;
 							case JsonInfinityHandleOption.ThrowException:
-								throw new JsonSerializationException(ErrorType.InvalidValueType);
+								throw new JsonSerializationException ( ErrorType.InvalidValueType );
 							case JsonInfinityHandleOption.WriteNull:
 							default:
-								this.Write("null");
+								this.Write ( "null" );
 								break;
 						}
 					}
-					else
-					{
-						string numberStr = ((decimal)number).ToString(CultureInfo.InvariantCulture);
-						this.Write(numberStr);
+					else {
+						string numberStr = ((decimal) number).ToString ( CultureInfo.InvariantCulture );
+						this.Write ( numberStr );
 					}
 					break;
 
 				case JsonValueType.String:
-					this.WriteEncodedString(value.GetString());
+					this.WriteEncodedString ( value.GetString () );
 					break;
 
 				case JsonValueType.Object:
-					this.Render(value.GetJsonObject());
+					this.Render ( value.GetJsonObject () );
 					break;
 
 				case JsonValueType.Array:
-					this.Render(value.GetJsonArray());
+					this.Render ( value.GetJsonArray () );
+					break;
+
+				case JsonValueType.Raw:
+					this.Render ( value.GetRawValue () );
 					break;
 
 				case JsonValueType.Undefined:
-					throw new JsonSerializationException(ErrorType.RenderUndefined);
+					throw new JsonSerializationException ( ErrorType.RenderUndefined );
 
 				default:
-					throw new JsonSerializationException(ErrorType.InvalidValueType);
+					throw new JsonSerializationException ( ErrorType.InvalidValueType );
 			}
 		}
 
-		private void Render(JsonArray value)
-		{
-			this.AddRenderingCollection(value);
-			this.WriteLine("[");
+		private void Render ( JsonArray value ) {
+			this.AddRenderingCollection ( value );
+			this.WriteLine ( "[" );
 			this.indent += 1;
 
-			using (var enumerator = value.GetEnumerator())
-			{
-				var hasNext = enumerator.MoveNext();
-				while (hasNext)
-				{
-					if (!enumerator.Current.IsDefined)
-					{
-						hasNext = enumerator.MoveNext();
+			using (var enumerator = value.GetEnumerator ()) {
+				var hasNext = enumerator.MoveNext ();
+				while (hasNext) {
+					if (!enumerator.Current.IsDefined) {
+						hasNext = enumerator.MoveNext ();
 						continue;
 					}
 
-					this.Render(enumerator.Current);
-					hasNext = enumerator.MoveNext();
+					this.Render ( enumerator.Current );
+					hasNext = enumerator.MoveNext ();
 
-					if (hasNext)
-					{
-						this.WriteLine(",");
+					if (hasNext) {
+						this.WriteLine ( "," );
 					}
-					else
-					{
-						this.WriteLine();
+					else {
+						this.WriteLine ();
 					}
 				}
 			}
 
 			this.indent -= 1;
-			this.Write("]");
-			this.RemoveRenderingCollection(value);
+			this.Write ( "]" );
+			this.RemoveRenderingCollection ( value );
 		}
 
-		private void Render(JsonObject value)
-		{
-			if (value.Count == 0)
-			{
-				this.Write("{}");
+		private void Render ( JsonObject value ) {
+			if (value.Count == 0) {
+				this.Write ( "{}" );
 				return;
 			}
-			this.AddRenderingCollection(value);
-			this.WriteLine("{");
+			this.AddRenderingCollection ( value );
+			this.WriteLine ( "{" );
 			this.indent += 1;
 
-			using (var enumerator = this.GetJsonObjectEnumerator(value))
-			{
-				var hasNext = enumerator.MoveNext();
-				while (hasNext)
-				{
+			using (var enumerator = this.GetJsonObjectEnumerator ( value )) {
+				var hasNext = enumerator.MoveNext ();
+				while (hasNext) {
 					if (!enumerator.Current.Value.IsDefined)
 						continue;
 
 					string key = enumerator.Current.Key;
 					if (!value.PreserveExactNamingConvention)
-						key = this.NamingPolicy?.ConvertName(key) ?? key;
+						key = this.NamingPolicy?.ConvertName ( key ) ?? key;
 
-					this.WriteJsonKey(key);
-					this.Write(":");
-					this.WriteSpacing();
-					this.Render(enumerator.Current.Value);
+					this.WriteJsonKey ( key );
+					this.Write ( ":" );
+					this.WriteSpacing ();
+					this.Render ( enumerator.Current.Value );
 
-					hasNext = enumerator.MoveNext();
+					hasNext = enumerator.MoveNext ();
 
-					if (hasNext)
-					{
-						this.WriteLine(",");
+					if (hasNext) {
+						this.WriteLine ( "," );
 					}
-					else
-					{
-						this.WriteLine();
+					else {
+						this.WriteLine ();
 					}
 				}
 			}
 
 			this.indent -= 1;
-			this.Write("}");
-			this.RemoveRenderingCollection(value);
+			this.Write ( "}" );
+			this.RemoveRenderingCollection ( value );
 		}
 
-		private IEnumerator<KeyValuePair<string, JsonValue>> GetJsonObjectEnumerator(JsonObject jsonObject)
-		{
-			if (this.SortObjects)
-			{
+		private void Render ( JsonRawValue rawValue ) {
+			rawValue.SerializeToStream ( this.InnerWriter );
+		}
+
+		private IEnumerator<KeyValuePair<string, JsonValue>> GetJsonObjectEnumerator ( JsonObject jsonObject ) {
+			if (this.SortObjects) {
 				return jsonObject
-					.GetProperties()
-					.OrderBy(o => o.Key, StringComparer.Ordinal)
-					.GetEnumerator();
+					.GetProperties ()
+					.OrderBy ( o => o.Key, StringComparer.Ordinal )
+					.GetEnumerator ();
 			}
-			else
-			{
-				return jsonObject.GetEnumerator();
+			else {
+				return jsonObject.GetEnumerator ();
 			}
 		}
 
 		/// <summary>
 		/// Sets this <see cref="JsonWriter"/> to write using an pretty, indented JSON syntax.
 		/// </summary>
-		public void UseIndentedSyntax() => UseIndentedSyntax(true);
+		public void UseIndentedSyntax () => UseIndentedSyntax ( true );
 
 		/// <summary>
 		/// Enables or disables indented syntax formatting for output.
@@ -422,16 +379,13 @@ namespace LightJson.Serialization
 		/// output, which may be preferable for minimizing file size or transmission costs.</remarks>
 		/// <param name="enableIndentedSyntax">true to enable indented syntax with spaces and new lines; false to use compact formatting without indentation or
 		/// extra spacing.</param>
-		public void UseIndentedSyntax(bool enableIndentedSyntax)
-		{
-			if (enableIndentedSyntax)
-			{
-				this.IndentString = new string(' ', 4);
+		public void UseIndentedSyntax ( bool enableIndentedSyntax ) {
+			if (enableIndentedSyntax) {
+				this.IndentString = new string ( ' ', 4 );
 				this.SpacingString = " ";
 				this.NewLineString = "\n";
 			}
-			else
-			{
+			else {
 				this.IndentString = null;
 				this.SpacingString = null;
 				this.NewLineString = null;
@@ -441,24 +395,21 @@ namespace LightJson.Serialization
 		/// <summary>
 		/// Resets the indentation level to zero.
 		/// </summary>
-		public void ResetIndent()
-		{
+		public void ResetIndent () {
 			this.indent = 0;
 		}
 
 		/// <summary>
 		/// Increases the indentation level.
 		/// </summary>
-		public void IncreaseIndent()
-		{
+		public void IncreaseIndent () {
 			this.indent++;
 		}
 
 		/// <summary>
 		/// Reduces the indentation level.
 		/// </summary>
-		public void ReduceIndent()
-		{
+		public void ReduceIndent () {
 			this.indent--;
 		}
 
@@ -466,14 +417,13 @@ namespace LightJson.Serialization
 		/// Writes the given value to the writer.
 		/// </summary>
 		/// <param name="jsonValue">The JsonValue to write.</param>
-		public void Write(JsonValue jsonValue)
-		{
+		public void Write ( JsonValue jsonValue ) {
 			this.indent = 0;
 			this.isNewLine = true;
 
-			this.Render(jsonValue);
+			this.Render ( jsonValue );
 
-			this.renderingCollections.Clear();
+			this.renderingCollections.Clear ();
 		}
 
 		/// <summary>
@@ -482,31 +432,26 @@ namespace LightJson.Serialization
 		/// <param name="comment">The comment text.</param>
 		/// <param name="multiLine">Optional. Specifies if the comment should be written using an multi-line syntax or inline syntax.</param>
 		/// <param name="padTopLine">Optional. Specifies if the writer should write and empty line before the comment.</param>
-		public void WriteComment(string comment, bool multiLine = false, bool padTopLine = true)
-		{
+		public void WriteComment ( string comment, bool multiLine = false, bool padTopLine = true ) {
 			if (padTopLine)
-				this.InnerWriter.WriteLine();
+				this.InnerWriter.WriteLine ();
 
-			string[] lines = comment.Split('\n');
+			string [] lines = comment.Split ( '\n' );
 
-			if (multiLine)
-			{
-				this.WriteIndentation();
-				this.InnerWriter.WriteLine("/*");
-				for (int i = 0; i < lines.Length; i++)
-				{
-					this.WriteIndentation();
-					this.InnerWriter.WriteLine(" * " + lines[i].TrimEnd());
+			if (multiLine) {
+				this.WriteIndentation ();
+				this.InnerWriter.WriteLine ( "/*" );
+				for (int i = 0; i < lines.Length; i++) {
+					this.WriteIndentation ();
+					this.InnerWriter.WriteLine ( " * " + lines [ i ].TrimEnd () );
 				}
-				this.WriteIndentation();
-				this.InnerWriter.WriteLine("*/");
+				this.WriteIndentation ();
+				this.InnerWriter.WriteLine ( "*/" );
 			}
-			else
-			{
-				for (int i = 0; i < lines.Length; i++)
-				{
-					this.WriteIndentation();
-					this.InnerWriter.WriteLine("// " + lines[i].TrimEnd());
+			else {
+				for (int i = 0; i < lines.Length; i++) {
+					this.WriteIndentation ();
+					this.InnerWriter.WriteLine ( "// " + lines [ i ].TrimEnd () );
 				}
 			}
 		}
@@ -516,9 +461,8 @@ namespace LightJson.Serialization
 		/// </summary>
 		/// <param name="value">The <see cref="JsonValue"/> to serialize.</param>
 		/// <returns>A JSON string representation of the <paramref name="value"/>.</returns>
-		public static string Serialize(JsonValue value)
-		{
-			return Serialize(value, JsonOptions.Default);
+		public static string Serialize ( JsonValue value ) {
+			return Serialize ( value, JsonOptions.Default );
 		}
 
 		/// <summary>
@@ -527,13 +471,11 @@ namespace LightJson.Serialization
 		/// <param name="value">The <see cref="JsonValue"/> to serialize.</param>
 		/// <param name="options">The <see cref="JsonOptions"/> to use for serialization.</param>
 		/// <returns>A JSON string representation of the <paramref name="value"/>.</returns>
-		public static string Serialize(JsonValue value, JsonOptions options)
-		{
-			using (var sw = new StringWriter())
-			using (var jsonWriter = new JsonWriter(sw, options))
-			{
-				jsonWriter.Write(value);
-				return sw.ToString();
+		public static string Serialize ( JsonValue value, JsonOptions options ) {
+			using (var sw = new StringWriter ())
+			using (var jsonWriter = new JsonWriter ( sw, options )) {
+				jsonWriter.Write ( value );
+				return sw.ToString ();
 			}
 		}
 
@@ -545,19 +487,17 @@ namespace LightJson.Serialization
 		/// <param name="unquotedPropertyKeys">If <c>true</c>, property keys will not be quoted in the JSON output.</param>
 		/// <param name="namingPolicy">The <see cref="JsonNamingPolicy"/> to use for serialization. If <c>null</c>, the default naming policy will be used.</param>
 		/// <returns>A JSON string representation of the <paramref name="value"/>.</returns>
-		public static string Serialize(JsonValue value, bool prettyOutput = false, bool unquotedPropertyKeys = false, JsonNamingPolicy? namingPolicy = null)
-		{
-			using (var sw = new StringWriter())
-			using (var jsonWriter = new JsonWriter(sw))
-			{
+		public static string Serialize ( JsonValue value, bool prettyOutput = false, bool unquotedPropertyKeys = false, JsonNamingPolicy? namingPolicy = null ) {
+			using (var sw = new StringWriter ())
+			using (var jsonWriter = new JsonWriter ( sw )) {
 				if (prettyOutput)
-					jsonWriter.UseIndentedSyntax();
+					jsonWriter.UseIndentedSyntax ();
 
 				jsonWriter.NamingPolicy = namingPolicy;
 				jsonWriter.UnquotedPropertyKeys = unquotedPropertyKeys;
 
-				jsonWriter.Write(value);
-				return sw.ToString();
+				jsonWriter.Write ( value );
+				return sw.ToString ();
 			}
 		}
 
@@ -568,9 +508,8 @@ namespace LightJson.Serialization
 		/// <param name="prettyOutput">If <c>true</c>, the JSON5 output will be formatted with indentation.</param>
 		/// <param name="namingPolicy">The <see cref="JsonNamingPolicy"/> to use for serialization. If <see langword="null"/>, the default naming policy will be used.</param>
 		/// <returns>A JSON5 string representation of the <paramref name="value"/>.</returns>
-		public static string SerializeJson5(JsonValue value, bool prettyOutput = false, JsonNamingPolicy? namingPolicy = null)
-		{
-			return Serialize(value, prettyOutput, unquotedPropertyKeys: true, namingPolicy);
+		public static string SerializeJson5 ( JsonValue value, bool prettyOutput = false, JsonNamingPolicy? namingPolicy = null ) {
+			return Serialize ( value, prettyOutput, unquotedPropertyKeys: true, namingPolicy );
 		}
 
 		/// <summary>
@@ -578,23 +517,20 @@ namespace LightJson.Serialization
 		/// </summary>
 		/// <param name="value">The <see cref="JsonValue"/> to serialize.</param>
 		/// <returns>A JSON5 string representation of the <paramref name="value"/> with unquoted property keys.</returns>
-		public static string SerializeJson5(JsonValue value)
-		{
-			return Serialize(value, prettyOutput: false, unquotedPropertyKeys: true, namingPolicy: null);
+		public static string SerializeJson5 ( JsonValue value ) {
+			return Serialize ( value, prettyOutput: false, unquotedPropertyKeys: true, namingPolicy: null );
 		}
 
 		/// <summary>
 		/// Returns a string containing the characters written to the current <see cref="JsonWriter"/> so far.
 		/// </summary>
-		public override string ToString()
-		{
-			return this.InnerWriter.ToString() ?? string.Empty;
+		public override string ToString () {
+			return this.InnerWriter.ToString () ?? string.Empty;
 		}
 
 		/// <inheritdoc/>
-		public void Dispose()
-		{
-			this.InnerWriter?.Dispose();
+		public void Dispose () {
+			this.InnerWriter?.Dispose ();
 		}
 	}
 }

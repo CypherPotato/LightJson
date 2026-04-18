@@ -1,18 +1,11 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-
-namespace LightJson.Serialization;
+﻿namespace LightJson.Serialization;
 
 /// <summary>
 /// Represents the result of a JSON deserialization operation.
 /// </summary>
 /// <param name="error">The error message if the deserialization failed; otherwise; null.</param>
 /// <param name="result">The resulting JSON value.</param>
-public class JsonDeserializationResult(string? error, JsonValue result)
-{
+public class JsonDeserializationResult ( string? error, JsonValue result ) {
 	/// <summary>
 	/// Gets a value indicating whether the deserialization was successful.
 	/// </summary>
@@ -41,8 +34,7 @@ public class JsonDeserializationResult(string? error, JsonValue result)
 /// <param name="error">The error message if the deserialization failed; otherwise; <see langword="null"/>.</param>
 /// <param name="resultJson">The resulting JSON value.</param>
 /// <param name="resultObject">The resulting object of type <typeparamref name="T"/>.</param>
-public sealed class JsonDeserializationResult<T>(string? error, JsonValue resultJson, T? resultObject) : JsonDeserializationResult(error, resultJson)
-{
+public sealed class JsonDeserializationResult<T> ( string? error, JsonValue resultJson, T? resultObject ) : JsonDeserializationResult ( error, resultJson ) {
 	/// <summary>
 	/// Gets the resulting object of type <typeparamref name="T"/>.
 	/// </summary>
