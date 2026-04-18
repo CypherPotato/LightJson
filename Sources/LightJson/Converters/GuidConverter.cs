@@ -1,34 +1,29 @@
-﻿using LightJson.Schema;
-using System;
+﻿using System;
+using LightJson.Schema;
 
 namespace LightJson.Converters;
 
 /// <summary>
 /// Represents an <see cref="JsonConverter"/> which can serialize and deserialize <see cref="Guid"/> values.
 /// </summary>
-public sealed class GuidConverter : JsonConverter
-{
+public sealed class GuidConverter : JsonConverter {
 	/// <inheritdoc/>
-	public override Boolean CanSerialize(Type type, JsonOptions currentOptions)
-	{
-		return type == typeof(Guid);
+	public override Boolean CanSerialize ( Type type, JsonOptions currentOptions ) {
+		return type == typeof ( Guid );
 	}
 
 	/// <inheritdoc/>
-	public override Object Deserialize(JsonValue value, Type requestedType, JsonOptions currentOptions)
-	{
-		return Guid.Parse(value.GetString());
+	public override Object Deserialize ( JsonValue value, Type requestedType, JsonOptions currentOptions ) {
+		return Guid.Parse ( value.GetString () );
 	}
 
 	/// <inheritdoc/>
-	public override JsonValue Serialize(Object value, JsonOptions currentOptions)
-	{
-		return new JsonValue(value.ToString()!, currentOptions);
+	public override JsonValue Serialize ( Object value, JsonOptions currentOptions ) {
+		return new JsonValue ( value.ToString ()!, currentOptions );
 	}
 
 	/// <inheritdoc/>
-	public override JsonSchema GetSchema(JsonOptions options)
-	{
-		return JsonSchema.CreateStringSchema(format: JsonSchemaStringFormat.Uuid, description: "UUID/GUID string");
+	public override JsonSchema GetSchema ( JsonOptions options ) {
+		return JsonSchema.CreateStringSchema ( format: JsonSchemaStringFormat.Uuid, description: "UUID/GUID string" );
 	}
 }
