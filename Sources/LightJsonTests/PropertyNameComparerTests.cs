@@ -1,78 +1,69 @@
+using System;
 using LightJson;
 using LightJson.Serialization;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
-using System;
 
-namespace LightJsonTests
-{
+namespace LightJsonTests {
     [TestClass]
-    public class PropertyNameComparerTests
-    {
+    public class PropertyNameComparerTests {
         [TestMethod]
-        public void PropertyNameComparer_Ordinal_IsCaseSensitive()
-        {
+        public void PropertyNameComparer_Ordinal_IsCaseSensitive () {
             var options = new JsonOptions { PropertyNameComparer = StringComparer.Ordinal };
-            var obj = new JsonObject(options);
-            obj["Name"] = "Value";
+            var obj = new JsonObject ( options );
+            obj [ "Name" ] = "Value";
 
-            Assert.IsTrue(obj.ContainsKey("Name"));
-            Assert.IsFalse(obj.ContainsKey("name"));
-            Assert.AreEqual(JsonValueType.Undefined, obj["name"].Type);
+            Assert.IsTrue ( obj.ContainsKey ( "Name" ) );
+            Assert.IsFalse ( obj.ContainsKey ( "name" ) );
+            Assert.AreEqual ( JsonValueType.Undefined, obj [ "name" ].Type );
         }
 
         [TestMethod]
-        public void PropertyNameComparer_OrdinalIgnoreCase_IsCaseInsensitive()
-        {
+        public void PropertyNameComparer_OrdinalIgnoreCase_IsCaseInsensitive () {
             var options = new JsonOptions { PropertyNameComparer = StringComparer.OrdinalIgnoreCase };
-            var obj = new JsonObject(options);
-            obj["Name"] = "Value";
+            var obj = new JsonObject ( options );
+            obj [ "Name" ] = "Value";
 
-            Assert.IsTrue(obj.ContainsKey("Name"));
-            Assert.IsTrue(obj.ContainsKey("name"));
-            Assert.AreEqual("Value", obj["name"].GetString());
+            Assert.IsTrue ( obj.ContainsKey ( "Name" ) );
+            Assert.IsTrue ( obj.ContainsKey ( "name" ) );
+            Assert.AreEqual ( "Value", obj [ "name" ].GetString () );
         }
 
         [TestMethod]
-        public void PropertyNameComparer_Default_UsesOrdinal()
-        {
-            var obj = new JsonObject(); // Uses JsonOptions.Default
-            obj["Name"] = "Value";
+        public void PropertyNameComparer_Default_UsesOrdinal () {
+            var obj = new JsonObject (); // Uses JsonOptions.Default
+            obj [ "Name" ] = "Value";
 
-            Assert.IsFalse(obj.ContainsKey("name"));
+            Assert.IsFalse ( obj.ContainsKey ( "name" ) );
         }
 
         [TestMethod]
-        public void PropertyNameComparer_Serialize_PreservesOriginalCasing()
-        {
+        public void PropertyNameComparer_Serialize_PreservesOriginalCasing () {
             var options = new JsonOptions { PropertyNameComparer = StringComparer.OrdinalIgnoreCase };
-            var obj = new JsonObject(options);
-            obj["Name"] = "Value";
+            var obj = new JsonObject ( options );
+            obj [ "Name" ] = "Value";
 
-            var json = obj.ToString();
-            Assert.IsTrue(json.Contains("\"Name\""));
+            var json = obj.ToString ();
+            Assert.IsTrue ( json.Contains ( "\"Name\"" ) );
         }
 
         [TestMethod]
-        public void PropertyNameComparer_Deserialize_UsesComparerForDuplicates()
-        {
+        public void PropertyNameComparer_Deserialize_UsesComparerForDuplicates () {
             var json = "{\"Name\": \"Value1\", \"name\": \"Value2\"}";
-            var options = new JsonOptions
-            {
+            var options = new JsonOptions {
                 PropertyNameComparer = StringComparer.OrdinalIgnoreCase,
                 ThrowOnDuplicateObjectKeys = true
             };
 
-            Assert.ThrowsException<JsonParseException>(() => options.Deserialize(json));
+            Assert.ThrowsException<JsonParseException> ( () => options.Deserialize ( json ) );
         }
 
         [TestMethod]
-        public void PropertyNameComparer_ContainsKey_RespectsComparer()
-        {
+        public void PropertyNameComparer_ContainsKey_RespectsComparer () {
             var options = new JsonOptions { PropertyNameComparer = StringComparer.OrdinalIgnoreCase };
-            var obj = new JsonObject(options);
-            obj["Name"] = "Value";
+            var obj = new JsonObject ( options );
+            obj [ "Name" ] = "Value";
 
-            Assert.IsTrue(obj.ContainsKey("NAME"));
+            Assert.IsTrue ( obj.ContainsKey ( "NAME" ) );
         }
     }
 }

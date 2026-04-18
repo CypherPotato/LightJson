@@ -1,18 +1,15 @@
+using System.IO;
 using LightJson;
 using LightJson.Serialization;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
-using System.IO;
 
-namespace LightJsonTests
-{
-  [TestClass]
-  public class JsonToonWriterTests
-  {
-    [TestMethod]
-    public void Toon_Unwrap_Json_Mixed_Structure()
-    {
-      // Arrange
-      var json = """
+namespace LightJsonTests {
+    [TestClass]
+    public class JsonToonWriterTests {
+        [TestMethod]
+        public void Toon_Unwrap_Json_Mixed_Structure () {
+            // Arrange
+            var json = """
                 {
                   "context": {
                     "task": "Our favorite hikes together",
@@ -52,7 +49,7 @@ namespace LightJsonTests
                   ]
                 }
                 """;
-      var expectedToon = """
+            var expectedToon = """
                 context:
                   task: Our favorite hikes together
                   location: Boulder
@@ -64,19 +61,18 @@ namespace LightJsonTests
                   3,Wildflower Loop,5.1,180,sam,true
                 """;
 
-      // Act
-      var jsonValue = JsonValue.Deserialize(json);
-      var result = SerializeToToon(jsonValue);
+            // Act
+            var jsonValue = JsonValue.Deserialize ( json );
+            var result = SerializeToToon ( jsonValue );
 
-      // Assert
-      Assert.AreEqual(expectedToon, result);
-    }
+            // Assert
+            Assert.AreEqual ( expectedToon, result );
+        }
 
-    [TestMethod]
-    public void Toon_Unwrap_Json_Nested_Objects()
-    {
-      // Arrange
-      var json = """
+        [TestMethod]
+        public void Toon_Unwrap_Json_Nested_Objects () {
+            // Arrange
+            var json = """
                 {
                   "orders": [
                     {
@@ -119,7 +115,7 @@ namespace LightJsonTests
                   ]
                 }
                 """;
-      var expectedToon = """
+            var expectedToon = """
                 orders[2]:
                   - orderId: ORD-001
                     customer:
@@ -140,19 +136,18 @@ namespace LightJsonTests
                     status: delivered
                 """;
 
-      // Act
-      var jsonValue = JsonValue.Deserialize(json);
-      var result = SerializeToToon(jsonValue);
+            // Act
+            var jsonValue = JsonValue.Deserialize ( json );
+            var result = SerializeToToon ( jsonValue );
 
-      // Assert
-      Assert.AreEqual(expectedToon, result);
-    }
+            // Assert
+            Assert.AreEqual ( expectedToon, result );
+        }
 
-    [TestMethod]
-    public void Toon_Unwrap_Json_Tabular_Data()
-    {
-      // Arrange
-      var json = """
+        [TestMethod]
+        public void Toon_Unwrap_Json_Tabular_Data () {
+            // Arrange
+            var json = """
                 {
                   "metrics": [
                     {
@@ -187,7 +182,7 @@ namespace LightJsonTests
                 }
                 """;
 
-      var expectedToon = """
+            var expectedToon = """
                 metrics[4]{date,views,clicks,conversions,revenue}:
                   2025-01-01,5200,180,24,2890.5
                   2025-01-02,6100,220,31,3450
@@ -195,19 +190,18 @@ namespace LightJsonTests
                   2025-01-04,5900,205,28,3200
                 """;
 
-      // Act
-      var jsonValue = JsonValue.Deserialize(json);
-      var result = SerializeToToon(jsonValue);
+            // Act
+            var jsonValue = JsonValue.Deserialize ( json );
+            var result = SerializeToToon ( jsonValue );
 
-      // Assert
-      Assert.AreEqual(expectedToon, result);
-    }
+            // Assert
+            Assert.AreEqual ( expectedToon, result );
+        }
 
-    [TestMethod]
-    public void Toon_Unwrap_Json_Semi_Uniform_Data()
-    {
-      // Arrange
-      var json = """
+        [TestMethod]
+        public void Toon_Unwrap_Json_Semi_Uniform_Data () {
+            // Arrange
+            var json = """
                 {
                   "logs": [
                     {
@@ -250,7 +244,7 @@ namespace LightJsonTests
                 }
                 """;
 
-      var expectedToon = """
+            var expectedToon = """
                 logs[4]:
                   - timestamp: "2025-01-15T10:23:45Z"
                     level: info
@@ -280,19 +274,18 @@ namespace LightJsonTests
                       retryable: true
                 """;
 
-      // Act
-      var jsonValue = JsonValue.Deserialize(json);
-      var result = SerializeToToon(jsonValue);
+            // Act
+            var jsonValue = JsonValue.Deserialize ( json );
+            var result = SerializeToToon ( jsonValue );
 
-      // Assert
-      Assert.AreEqual(expectedToon, result);
-    }
+            // Assert
+            Assert.AreEqual ( expectedToon, result );
+        }
 
-    [TestMethod]
-    public void Toon_Unwrap_Json_Complex_Object()
-    {
-      // Arrange
-      var json = """
+        [TestMethod]
+        public void Toon_Unwrap_Json_Complex_Object () {
+            // Arrange
+            var json = """
                 {
                     "glossary": {
                         "title": "example glossary",
@@ -317,7 +310,7 @@ namespace LightJsonTests
                 }
                 """;
 
-      var expectedToon = """
+            var expectedToon = """
                 glossary:
                   title: example glossary
                   GlossDiv:
@@ -335,39 +328,36 @@ namespace LightJsonTests
                         GlossSee: markup
                 """;
 
-      // Act
-      var jsonValue = JsonValue.Deserialize(json);
-      var result = SerializeToToon(jsonValue);
+            // Act
+            var jsonValue = JsonValue.Deserialize ( json );
+            var result = SerializeToToon ( jsonValue );
 
-      // Assert
-      Assert.AreEqual(expectedToon, result);
-    }
+            // Assert
+            Assert.AreEqual ( expectedToon, result );
+        }
 
-    [TestMethod]
-    public void Toon_Keyfolding_BaseTest()
-    {
-      // Arrange
-      var json = """
+        [TestMethod]
+        public void Toon_Keyfolding_BaseTest () {
+            // Arrange
+            var json = """
                 {"a": {"b": {"c":1}}}
                 """;
 
-      var expectedToon = """
+            var expectedToon = """
                 a.b.c: 1
                 """;
 
-      // Act
-      using (var st = new StringWriter())
-      using (var tw = new JsonToonWriter(st) { KeyFolding = ToonKeyFolding.Safe, FlattenDepth = 3 })
-      {
-        tw.Write(JsonValue.Deserialize(json));
-        Assert.AreEqual(expectedToon, st.ToString());
-      }
-    }
+            // Act
+            using (var st = new StringWriter ())
+            using (var tw = new JsonToonWriter ( st ) { KeyFolding = ToonKeyFolding.Safe, FlattenDepth = 3 }) {
+                tw.Write ( JsonValue.Deserialize ( json ) );
+                Assert.AreEqual ( expectedToon, st.ToString () );
+            }
+        }
 
-    [TestMethod]
-    public void Toon_KeyFolding_Test()
-    {
-      var json = """
+        [TestMethod]
+        public void Toon_KeyFolding_Test () {
+            var json = """
                 {
                   "server": {
                     "interface": "eth0",
@@ -383,16 +373,15 @@ namespace LightJsonTests
                 }
                 """;
 
-      var jsonValue = JsonValue.Deserialize(json);
+            var jsonValue = JsonValue.Deserialize ( json );
 
-      // Case 1: Off (Default)
-      using (var sw = new StringWriter())
-      using (var writer = new JsonToonWriter(sw) { NewLine = "\n" })
-      {
-        writer.KeyFolding = ToonKeyFolding.Off;
-        writer.Write(jsonValue);
-        var result = sw.ToString();
-        var expected = """
+            // Case 1: Off (Default)
+            using (var sw = new StringWriter ())
+            using (var writer = new JsonToonWriter ( sw ) { NewLine = "\n" }) {
+                writer.KeyFolding = ToonKeyFolding.Off;
+                writer.Write ( jsonValue );
+                var result = sw.ToString ();
+                var expected = """
                     server:
                       interface: eth0
                       port: 80
@@ -402,18 +391,17 @@ namespace LightJsonTests
                     logging:
                       level: debug
                     """;
-        Assert.AreEqual(expected.Replace("\r\n", "\n"), result.Replace("\r\n", "\n"));
-      }
+                Assert.AreEqual ( expected.Replace ( "\r\n", "\n" ), result.Replace ( "\r\n", "\n" ) );
+            }
 
-      // Case 2: Safe, Depth 2
-      using (var sw = new StringWriter())
-      using (var writer = new JsonToonWriter(sw) { NewLine = "\n" })
-      {
-        writer.KeyFolding = ToonKeyFolding.Safe;
-        writer.FlattenDepth = 2;
-        writer.Write(jsonValue);
-        var result = sw.ToString();
-        var expected = """
+            // Case 2: Safe, Depth 2
+            using (var sw = new StringWriter ())
+            using (var writer = new JsonToonWriter ( sw ) { NewLine = "\n" }) {
+                writer.KeyFolding = ToonKeyFolding.Safe;
+                writer.FlattenDepth = 2;
+                writer.Write ( jsonValue );
+                var result = sw.ToString ();
+                var expected = """
                     server.interface: eth0
                     server.port: 80
                     server.ssl:
@@ -421,18 +409,17 @@ namespace LightJsonTests
                       cert: path/to/cert
                     logging.level: debug
                     """;
-        Assert.AreEqual(expected.Replace("\r\n", "\n"), result.Replace("\r\n", "\n"));
-      }
+                Assert.AreEqual ( expected.Replace ( "\r\n", "\n" ), result.Replace ( "\r\n", "\n" ) );
+            }
 
-      // Case 3: Safe, Depth 1
-      using (var sw = new StringWriter())
-      using (var writer = new JsonToonWriter(sw) { NewLine = "\n" })
-      {
-        writer.KeyFolding = ToonKeyFolding.Safe;
-        writer.FlattenDepth = 1;
-        writer.Write(jsonValue);
-        var result = sw.ToString();
-        var expected = """
+            // Case 3: Safe, Depth 1
+            using (var sw = new StringWriter ())
+            using (var writer = new JsonToonWriter ( sw ) { NewLine = "\n" }) {
+                writer.KeyFolding = ToonKeyFolding.Safe;
+                writer.FlattenDepth = 1;
+                writer.Write ( jsonValue );
+                var result = sw.ToString ();
+                var expected = """
                     server:
                       interface: eth0
                       port: 80
@@ -442,11 +429,11 @@ namespace LightJsonTests
                     logging:
                       level: debug
                     """;
-        Assert.AreEqual(expected.Replace("\r\n", "\n"), result.Replace("\r\n", "\n"));
-      }
+                Assert.AreEqual ( expected.Replace ( "\r\n", "\n" ), result.Replace ( "\r\n", "\n" ) );
+            }
 
-      // Case 4: List Item Folding
-      var jsonList = """
+            // Case 4: List Item Folding
+            var jsonList = """
                 [
                   {
                     "id": 1,
@@ -457,32 +444,30 @@ namespace LightJsonTests
                   }
                 ]
                 """;
-      var jsonListValue = JsonValue.Deserialize(jsonList);
+            var jsonListValue = JsonValue.Deserialize ( jsonList );
 
-      using (var sw = new StringWriter())
-      using (var writer = new JsonToonWriter(sw) { NewLine = "\n" })
-      {
-        writer.KeyFolding = ToonKeyFolding.Safe;
-        writer.FlattenDepth = 2;
-        writer.Write(jsonListValue);
-        var result = sw.ToString();
-        var expected = """
+            using (var sw = new StringWriter ())
+            using (var writer = new JsonToonWriter ( sw ) { NewLine = "\n" }) {
+                writer.KeyFolding = ToonKeyFolding.Safe;
+                writer.FlattenDepth = 2;
+                writer.Write ( jsonListValue );
+                var result = sw.ToString ();
+                var expected = """
                     [1]:
                       - id: 1
                         details.name: Item 1
                         details.active: true
                     """;
-        Assert.AreEqual(expected.Replace("\r\n", "\n"), result.Replace("\r\n", "\n"));
-      }
-    }
+                Assert.AreEqual ( expected.Replace ( "\r\n", "\n" ), result.Replace ( "\r\n", "\n" ) );
+            }
+        }
 
-    private static string SerializeToToon(JsonValue jsonValue)
-    {
-      using var stringWriter = new StringWriter();
-      using var toonWriter = new JsonToonWriter(stringWriter);
-      toonWriter.Write(jsonValue);
+        private static string SerializeToToon ( JsonValue jsonValue ) {
+            using var stringWriter = new StringWriter ();
+            using var toonWriter = new JsonToonWriter ( stringWriter );
+            toonWriter.Write ( jsonValue );
 
-      return stringWriter.ToString();
+            return stringWriter.ToString ();
+        }
     }
-  }
 }
