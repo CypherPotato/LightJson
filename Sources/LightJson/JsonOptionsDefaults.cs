@@ -5,8 +5,7 @@ namespace LightJson;
 /// <summary>
 /// Specifies what default options are used by <see cref="JsonOptions"/>.
 /// </summary>
-public enum JsonOptionsDefaults
-{
+public enum JsonOptionsDefaults {
 	/// <summary>
 	/// Specifies that general-purpose values should be used. These are the same settings applied if a <see cref="JsonSerializerDefaults"/> isn't specified.
 	/// </summary>

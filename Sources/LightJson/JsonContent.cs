@@ -1,19 +1,18 @@
-﻿using LightJson.Serialization;
-using System.IO;
+﻿using System.IO;
 using System.Net;
 using System.Net.Http;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using LightJson.Serialization;
 
 namespace LightJson;
 
 /// <summary>
 /// Represents HTTP content for JSON data, providing serialization of JSON values to HTTP message streams.
 /// </summary>
-public sealed class JsonContent : HttpContent
-{
-	static readonly Encoding encoding = new UTF8Encoding(false);
+public sealed class JsonContent : HttpContent {
+	static readonly Encoding encoding = new UTF8Encoding ( false );
 	private readonly JsonValue jsonValue;
 	private readonly JsonOptions options;
 
@@ -22,8 +21,7 @@ public sealed class JsonContent : HttpContent
 	/// using default JSON options.
 	/// </summary>
 	/// <param name="content">The object to serialize as JSON content.</param>
-	public JsonContent(object? content) : this(JsonOptions.Default.Serialize(content), JsonOptions.Default)
-	{
+	public JsonContent ( object? content ) : this ( JsonOptions.Default.Serialize ( content ), JsonOptions.Default ) {
 	}
 
 	/// <summary>
@@ -31,8 +29,7 @@ public sealed class JsonContent : HttpContent
 	/// using default JSON options.
 	/// </summary>
 	/// <param name="jsonValue">The JSON value to be used as HTTP content.</param>
-	public JsonContent(JsonValue jsonValue) : this(jsonValue, JsonOptions.Default)
-	{
+	public JsonContent ( JsonValue jsonValue ) : this ( jsonValue, JsonOptions.Default ) {
 	}
 
 	/// <summary>
@@ -41,8 +38,7 @@ public sealed class JsonContent : HttpContent
 	/// </summary>
 	/// <param name="content">The object to serialize as JSON content.</param>
 	/// <param name="options">The JSON serialization options to use.</param>
-	public JsonContent(object? content, JsonOptions options) : this(options.Serialize(content), options)
-	{
+	public JsonContent ( object? content, JsonOptions options ) : this ( options.Serialize ( content ), options ) {
 	}
 
 	/// <summary>
@@ -51,11 +47,10 @@ public sealed class JsonContent : HttpContent
 	/// </summary>
 	/// <param name="jsonValue">The JSON value to be used as HTTP content.</param>
 	/// <param name="options">The JSON serialization options to use.</param>
-	public JsonContent(JsonValue jsonValue, JsonOptions options)
-	{
+	public JsonContent ( JsonValue jsonValue, JsonOptions options ) {
 		this.jsonValue = jsonValue;
 		this.options = options;
-		Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("application/json", "utf-8");
+		Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue ( "application/json", "utf-8" );
 	}
 
 	/// <summary>
@@ -64,15 +59,14 @@ public sealed class JsonContent : HttpContent
 	/// <param name="stream">The target stream to write the serialized JSON content.</param>
 	/// <param name="context">The transport context information.</param>
 	/// <returns>A task that represents the asynchronous serialization operation.</returns>
-	protected override async Task SerializeToStreamAsync(Stream stream, TransportContext? context)
-	{
-		using var writer = new StreamWriter(stream, encoding, 4096, true);
-		using var jwriter = new JsonWriter(writer, options);
+	protected override async Task SerializeToStreamAsync ( Stream stream, TransportContext? context ) {
+		using var writer = new StreamWriter ( stream, encoding, 4096, true );
+		using var jwriter = new JsonWriter ( writer, options );
 
-		jwriter.UseIndentedSyntax(false);
-		jwriter.Write(jsonValue);
+		jwriter.UseIndentedSyntax ( false );
+		jwriter.Write ( jsonValue );
 
-		await writer.FlushAsync().ConfigureAwait(false);
+		await writer.FlushAsync ().ConfigureAwait ( false );
 	}
 
 	/// <summary>
@@ -82,15 +76,14 @@ public sealed class JsonContent : HttpContent
 	/// <param name="context">The transport context information.</param>
 	/// <param name="cancellationToken">The cancellation token to cancel the operation.</param>
 	/// <returns>A task that represents the asynchronous serialization operation.</returns>
-	protected override async Task SerializeToStreamAsync(Stream stream, TransportContext? context, CancellationToken cancellationToken)
-	{
-		using var writer = new StreamWriter(stream, encoding, 4096, true);
-		using var jwriter = new JsonWriter(writer, options);
+	protected override async Task SerializeToStreamAsync ( Stream stream, TransportContext? context, CancellationToken cancellationToken ) {
+		using var writer = new StreamWriter ( stream, encoding, 4096, true );
+		using var jwriter = new JsonWriter ( writer, options );
 
-		jwriter.UseIndentedSyntax(false);
-		jwriter.Write(jsonValue);
+		jwriter.UseIndentedSyntax ( false );
+		jwriter.Write ( jsonValue );
 
-		await writer.FlushAsync(cancellationToken).ConfigureAwait(false);
+		await writer.FlushAsync ( cancellationToken ).ConfigureAwait ( false );
 	}
 
 	/// <summary>
@@ -98,8 +91,7 @@ public sealed class JsonContent : HttpContent
 	/// </summary>
 	/// <param name="length">When this method returns, contains the computed length of the HTTP content, or -1 if the length cannot be determined.</param>
 	/// <returns><see langword="false"/> because the content length cannot be pre-computed for JSON serialization.</returns>
-	protected override bool TryComputeLength(out long length)
-	{
+	protected override bool TryComputeLength ( out long length ) {
 		length = -1;
 		return false;
 	}

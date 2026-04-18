@@ -1,10 +1,8 @@
-﻿namespace LightJson
-{
+﻿namespace LightJson {
 	/// <summary>
 	/// Enumerates the types of Json values.
 	/// </summary>
-	public enum JsonValueType : byte
-	{
+	public enum JsonValueType : byte {
 		/// <summary>
 		/// A null value.
 		/// </summary>
@@ -39,5 +37,10 @@
 		/// An array value.
 		/// </summary>
 		Array,
+
+		/// <summary>
+		/// A raw JSON value that can be serialized directly without parsing.
+		/// </summary>
+		Raw
 	}
 }

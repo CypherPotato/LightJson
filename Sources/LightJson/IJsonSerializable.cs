@@ -6,154 +6,130 @@ using System.Text.Json;
 
 namespace LightJson;
 
-class DummySerializable : IJsonSerializable<DummySerializable>
-{
-	public static JsonValue SerializeIntoJson(DummySerializable self, JsonOptions options) => throw new NotImplementedException();
-	public static DummySerializable DeserializeFromJson(JsonValue json, JsonOptions options) => throw new NotImplementedException();
+class DummySerializable : IJsonSerializable<DummySerializable> {
+	public static JsonValue SerializeIntoJson ( DummySerializable self, JsonOptions options ) => throw new NotImplementedException ();
+	public static DummySerializable DeserializeFromJson ( JsonValue json, JsonOptions options ) => throw new NotImplementedException ();
 }
 
 /// <summary>
 /// Defines a mechanism for serializing and deserializing a JSON value into a value.
 /// </summary>
 /// <typeparam name="TSelf">The type that implements this interface.</typeparam>
-public interface IJsonSerializable<TSelf> where TSelf : IJsonSerializable<TSelf>?
-{
+public interface IJsonSerializable<TSelf> where TSelf : IJsonSerializable<TSelf>? {
 	/// <summary>
 	/// Serializes a <typeparamref name="TSelf"/> into an <see cref="JsonValue"/>.
 	/// </summary>
 	/// <param name="self">The <typeparamref name="TSelf"/> object which will be serialized.</param>
 	/// <param name="options">The contextual <see cref="JsonOptions"/> for the serialization.</param>
-	public static abstract JsonValue SerializeIntoJson(TSelf self, JsonOptions options);
+	public static abstract JsonValue SerializeIntoJson ( TSelf self, JsonOptions options );
 
 	/// <summary>
 	/// Deserializes the specified <see cref="JsonValue"/> into an <typeparamref name="TSelf"/>.
 	/// </summary>
 	/// <param name="json">The provided JSON encoded value.</param>
 	/// <param name="options">The contextual <see cref="JsonOptions"/> for the serialization.</param>
-	public static abstract TSelf DeserializeFromJson(JsonValue json, JsonOptions options);
+	public static abstract TSelf DeserializeFromJson ( JsonValue json, JsonOptions options );
 }
 
-internal static class JsonSerializableHelpers
-{
-	private static readonly ConcurrentDictionary<Type, MethodInfo?> s_serializeMethodCache = new();
-	private static readonly ConcurrentDictionary<Type, MethodInfo?> s_deserializeMethodCache = new();
-	private static readonly ConcurrentDictionary<Type, bool> s_interfaceImplementationCache = new();
+internal static class JsonSerializableHelpers {
+	private static readonly ConcurrentDictionary<Type, MethodInfo?> s_serializeMethodCache = new ();
+	private static readonly ConcurrentDictionary<Type, MethodInfo?> s_deserializeMethodCache = new ();
+	private static readonly ConcurrentDictionary<Type, bool> s_interfaceImplementationCache = new ();
 
-	private const string SerializeMethodName = nameof(IJsonSerializable<DummySerializable>.SerializeIntoJson);
-	private const string DeserializeMethodName = nameof(IJsonSerializable<DummySerializable>.DeserializeFromJson);
+	private const string SerializeMethodName = nameof ( IJsonSerializable<DummySerializable>.SerializeIntoJson );
+	private const string DeserializeMethodName = nameof ( IJsonSerializable<DummySerializable>.DeserializeFromJson );
 	private const BindingFlags PublicStaticFlags = BindingFlags.Public | BindingFlags.Static;
 
-	private static bool ImplementsISerilizable([DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.Interfaces)] Type type)
-	{
-		if (s_interfaceImplementationCache.TryGetValue(type, out bool result))
-		{
+	private static bool ImplementsISerilizable ( [DynamicallyAccessedMembers ( DynamicallyAccessedMemberTypes.Interfaces )] Type type ) {
+		if (s_interfaceImplementationCache.TryGetValue ( type, out bool result )) {
 			return result;
 		}
 
 		bool implements = false;
-		if (type.IsValueType || !type.IsAbstract)
-		{
-			foreach (var iface in type.GetInterfaces())
-			{
+		if (type.IsValueType || !type.IsAbstract) {
+			foreach (var iface in type.GetInterfaces ()) {
 				if (iface.IsGenericType &&
-					iface.GetGenericTypeDefinition() == typeof(IJsonSerializable<>) &&
-					iface.GetGenericArguments()[0] == type)
-				{
+					iface.GetGenericTypeDefinition () == typeof ( IJsonSerializable<> ) &&
+					iface.GetGenericArguments () [ 0 ] == type) {
 					implements = true;
 					break;
 				}
 			}
 		}
 
-		_ = s_interfaceImplementationCache.TryAdd(type, implements);
+		_ = s_interfaceImplementationCache.TryAdd ( type, implements );
 		return implements;
 	}
 
-	public static bool TryDynamicSerialize(object value, [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.Interfaces | DynamicallyAccessedMemberTypes.PublicMethods)] Type valueType, JsonOptions options, out JsonValue result)
-	{
-		if (value == null || value.GetType() != valueType)
-		{
+	public static bool TryDynamicSerialize ( object value, [DynamicallyAccessedMembers ( DynamicallyAccessedMemberTypes.Interfaces | DynamicallyAccessedMemberTypes.PublicMethods )] Type valueType, JsonOptions options, out JsonValue result ) {
+		if (value == null || value.GetType () != valueType) {
 			result = JsonValue.Null;
 			return false;
 		}
 
-		if (!ImplementsISerilizable(valueType))
-		{
+		if (!ImplementsISerilizable ( valueType )) {
 			result = JsonValue.Null;
 			return false;
 		}
 
-		MethodInfo? serializeMethod = s_serializeMethodCache.GetOrAdd(valueType, _ =>
-		{
-			return valueType.GetMethod(
+		MethodInfo? serializeMethod = s_serializeMethodCache.GetOrAdd ( valueType, _ => {
+			return valueType.GetMethod (
 				SerializeMethodName,
 				PublicStaticFlags,
 				null,
-				new Type[] { valueType, typeof(JsonOptions) },
-				null);
-		});
+				new Type [] { valueType, typeof ( JsonOptions ) },
+				null );
+		} );
 
-		if (serializeMethod == null)
-		{
+		if (serializeMethod == null) {
 			result = JsonValue.Null;
 			return false;
 		}
 
-		try
-		{
-			result = (JsonValue)serializeMethod.Invoke(null, [value, options])!;
+		try {
+			result = (JsonValue) serializeMethod.Invoke ( null, [ value, options ] )!;
 			return true;
 		}
-		catch (TargetInvocationException ex)
-		{
-			throw new JsonException($"Error during JSON serialization of {valueType.Name}: {ex.InnerException?.Message ?? ex.Message}", ex);
+		catch (TargetInvocationException ex) {
+			throw new JsonException ( $"Error during JSON serialization of {valueType.Name}: {ex.InnerException?.Message ?? ex.Message}", ex );
 		}
-		catch (Exception ex)
-		{
-			throw new JsonException($"Unexpected reflection/invocation error during serialization of {valueType.Name}: {ex.Message}");
+		catch (Exception ex) {
+			throw new JsonException ( $"Unexpected reflection/invocation error during serialization of {valueType.Name}: {ex.Message}" );
 		}
 	}
 
-	public static bool TryDynamicDeserialize(in JsonValue json, JsonOptions options, [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.Interfaces | DynamicallyAccessedMemberTypes.PublicMethods)] Type targetType, out object? result)
-	{
+	public static bool TryDynamicDeserialize ( in JsonValue json, JsonOptions options, [DynamicallyAccessedMembers ( DynamicallyAccessedMemberTypes.Interfaces | DynamicallyAccessedMemberTypes.PublicMethods )] Type targetType, out object? result ) {
 		result = null;
-		if (targetType == null)
-		{
+		if (targetType == null) {
 			return false;
 		}
 
-		if (!ImplementsISerilizable(targetType))
-		{
+		if (!ImplementsISerilizable ( targetType )) {
 			return false;
 		}
 
-		MethodInfo? deserializeMethod = s_deserializeMethodCache.GetOrAdd(targetType, _ =>
-		{
-			return targetType.GetMethod(
+		MethodInfo? deserializeMethod = s_deserializeMethodCache.GetOrAdd ( targetType, _ => {
+			return targetType.GetMethod (
 				DeserializeMethodName,
 				PublicStaticFlags,
 				null,
-				new Type[] { typeof(JsonValue), typeof(JsonOptions) },
-				null);
-		});
+				new Type [] { typeof ( JsonValue ), typeof ( JsonOptions ) },
+				null );
+		} );
 
-		if (deserializeMethod == null)
-		{
+		if (deserializeMethod == null) {
 			return false;
 		}
 
-		try
-		{
-			result = deserializeMethod.Invoke(null, new object[] { json, options });
+		try {
+			result = deserializeMethod.Invoke ( null, new object [] { json, options } );
 			return true;
 		}
-		catch (TargetInvocationException ex)
-		{
-			throw new JsonException($"Error during deserialization to {targetType.Name}: {ex.InnerException?.Message ?? ex.Message}", ex);
+		catch (TargetInvocationException ex) {
+			throw new JsonException ( $"Error during deserialization to {targetType.Name}: {ex.InnerException?.Message ?? ex.Message}", ex );
 		}
-		catch (Exception ex)
-		{
-			throw new JsonException($"Unexpected reflection/invocation error during deserialization to {targetType.Name}: {ex.InnerException?.Message ?? ex.Message}", ex);
+		catch (Exception ex) {
+			throw new JsonException ( $"Unexpected reflection/invocation error during deserialization to {targetType.Name}: {ex.InnerException?.Message ?? ex.Message}", ex );
 		}
 	}
 }
