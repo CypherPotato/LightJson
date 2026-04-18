@@ -1,14 +1,11 @@
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 
-namespace LightJsonTests.ToonTests.Encode
-{
+namespace LightJsonTests.ToonTests.Encode {
     [TestClass]
-    public class WhitespaceTests : ToonTestBase
-    {
+    public class WhitespaceTests : ToonTestBase {
         [TestMethod]
-        public void TestWhitespace()
-        {
-            RunEncodeTests("whitespace.json");
+        public void TestWhitespace () {
+            RunEncodeTests ( "whitespace.json" );
         }
     }
 }
