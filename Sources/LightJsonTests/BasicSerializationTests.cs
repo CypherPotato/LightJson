@@ -1,16 +1,13 @@
 using LightJson;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 
-namespace LightJsonTests
-{
+namespace LightJsonTests {
     [TestClass]
-    public class BasicSerializationTests
-    {
-        JsonOptions testsOptions = new JsonOptions();
+    public class BasicSerializationTests {
+        JsonOptions testsOptions = new JsonOptions ();
 
         [TestMethod]
-        public void ParseExampleMessage()
-        {
+        public void ParseExampleMessage () {
             var message = @"
 				{
 					""menu"": [
@@ -21,28 +18,26 @@ namespace LightJsonTests
 				}
 			";
 
-            var json = testsOptions.Deserialize(message);
+            var json = testsOptions.Deserialize ( message );
 
-            Assert.IsTrue(json.IsJsonObject);
+            Assert.IsTrue ( json.IsJsonObject );
 
-            Assert.AreEqual(1, json.GetJsonObject().Count);
-            Assert.IsTrue(json.GetJsonObject().ContainsKey("menu"));
+            Assert.AreEqual ( 1, json.GetJsonObject ().Count );
+            Assert.IsTrue ( json.GetJsonObject ().ContainsKey ( "menu" ) );
 
-            var items = json["menu"].GetJsonArray();
+            var items = json [ "menu" ].GetJsonArray ();
 
-            Assert.IsNotNull(items);
-            Assert.AreEqual(3, items.Count);
-            Assert.IsTrue(items.Contains("home"));
-            Assert.IsTrue(items.Contains("projects"));
-            Assert.IsTrue(items.Contains("about"));
+            Assert.IsNotNull ( items );
+            Assert.AreEqual ( 3, items.Count );
+            Assert.IsTrue ( items.Contains ( "home" ) );
+            Assert.IsTrue ( items.Contains ( "projects" ) );
+            Assert.IsTrue ( items.Contains ( "about" ) );
         }
 
         [TestMethod]
-        public void SerializeExampleMessage()
-        {
-            var json = new JsonObject
-            {
-                ["menu"] = new JsonArray
+        public void SerializeExampleMessage () {
+            var json = new JsonObject {
+                [ "menu" ] = new JsonArray
                 {
                     "home",
                     "projects",
@@ -50,27 +45,25 @@ namespace LightJsonTests
                 }
             };
 
-            var message = json.ToString(testsOptions);
+            var message = json.ToString ( testsOptions );
             var expectedMessage = @"{""menu"":[""home"",""projects"",""about""]}";
 
-            Assert.AreEqual(expectedMessage, message);
+            Assert.AreEqual ( expectedMessage, message );
         }
 
-        private class ClassWithPrivateProperties
-        {
+        private class ClassWithPrivateProperties {
             public string PublicProp { get; set; } = "Public";
             private string PrivateProp { get; set; } = "Private";
         }
 
         [TestMethod]
-        public void Serialize_IgnoresPrivateProperties()
-        {
-            var obj = new ClassWithPrivateProperties();
-            var json = JsonValue.Serialize(obj);
+        public void Serialize_IgnoresPrivateProperties () {
+            var obj = new ClassWithPrivateProperties ();
+            var json = JsonValue.Serialize ( obj );
 
-            Assert.IsTrue(json.IsJsonObject);
-            Assert.IsTrue(json.GetJsonObject().ContainsKey("PublicProp"));
-            Assert.IsFalse(json.GetJsonObject().ContainsKey("PrivateProp"));
+            Assert.IsTrue ( json.IsJsonObject );
+            Assert.IsTrue ( json.GetJsonObject ().ContainsKey ( "PublicProp" ) );
+            Assert.IsFalse ( json.GetJsonObject ().ContainsKey ( "PrivateProp" ) );
         }
     }
 }
