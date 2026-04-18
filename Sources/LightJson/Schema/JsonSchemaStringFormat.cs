@@ -1,16 +1,9 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-
-namespace LightJson.Schema;
+﻿namespace LightJson.Schema;
 
 /// <summary>
 /// Defines string formats for JSON schema validation.
 /// </summary>
-public sealed class JsonSchemaStringFormat
-{
+public sealed class JsonSchemaStringFormat {
 	/// <summary>
 	/// Represents the date and time format.
 	/// </summary>
