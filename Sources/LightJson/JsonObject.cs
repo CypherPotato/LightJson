@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
@@ -75,6 +75,74 @@ namespace LightJson {
 					this.properties [ key ] = value;
 				}
 			}
+		}
+
+		/// <summary>
+		/// Recursively merges an array of <see cref="JsonObject"/> instances into a single
+		/// <see cref="JsonObject"/>. The merge is performed left‑to‑right, where each subsequent
+		/// <see cref="JsonObject"/> overwrites or merges into the accumulated result.
+		/// </summary>
+		/// <param name="items">
+		/// The <see cref="JsonObject"/> instances to merge. The array must contain at least one
+		/// element; otherwise an <see cref="ArgumentOutOfRangeException"/> is thrown.
+		/// </param>
+		/// <returns>
+		/// A new <see cref="JsonObject"/> that contains the merged contents of all supplied
+		/// <paramref name="items"/>.
+		/// </returns>
+		/// <exception cref="ArgumentOutOfRangeException">
+		/// Thrown when <paramref name="items"/> is empty.
+		/// </exception>
+		public static JsonObject RecursiveMerge ( params JsonObject [] items ) {
+			ArgumentOutOfRangeException.ThrowIfZero ( items.Length, nameof ( items ) );
+
+			var carry = items [ 0 ];
+			foreach (var item in items) {
+				carry = RecursiveMerge ( carry, item );
+			}
+
+			return carry;
+		}
+
+		/// <summary>
+		/// Recursively merges two <see cref="JsonObject"/> instances. For each property in
+		/// <paramref name="b"/>, if the same key exists in <paramref name="a"/> and both values are
+		/// objects (<see cref="JsonValueType.Object"/>), the merge proceeds recursively; otherwise
+		/// the value from <paramref name="b"/> overwrites the value in <paramref name="a"/>.
+		/// </summary>
+		/// <param name="a">
+		/// The base <see cref="JsonObject"/>. Its options are used to create the result instance.
+		/// </param>
+		/// <param name="b">
+		/// The <see cref="JsonObject"/> whose properties are merged into <paramref name="a"/>.
+		/// </param>
+		/// <returns>
+		/// A new <see cref="JsonObject"/> that contains the merged properties of <paramref name="a"/>
+		/// and <paramref name="b"/>.
+		/// </returns>
+		public static JsonObject RecursiveMerge ( JsonObject a, JsonObject b ) {
+			var result = new JsonObject ( a.options, a.properties );
+			foreach (var (key, bValue) in b.properties) {
+				if (result.properties.TryGetValue ( key, out var aValue )) {
+					if (aValue.Type == JsonValueType.Object && bValue.Type == JsonValueType.Object) {
+						result.properties [ key ] = RecursiveMerge ( aValue.GetJsonObject (), bValue.GetJsonObject () );
+					}
+					else if (aValue.Type == JsonValueType.Array && bValue.Type == JsonValueType.Array) {
+						var merged = JsonArray.Create ( aValue.GetJsonArray (), aValue.options );
+						foreach (var item in bValue.GetJsonArray ()) {
+							merged.Add ( item );
+						}
+						result.properties [ key ] = merged;
+					}
+					else {
+						result.properties [ key ] = bValue;
+					}
+				}
+				else {
+					result.properties [ key ] = bValue;
+				}
+			}
+			return result;
 		}
 
 		/// <summary>
