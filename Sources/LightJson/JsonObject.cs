@@ -4,6 +4,7 @@ using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Net.Http;
+using System.Runtime.CompilerServices;
 using System.Text;
 using System.Text.Json.Serialization;
 using LightJson.Serialization;
@@ -97,8 +98,8 @@ namespace LightJson {
 			ArgumentOutOfRangeException.ThrowIfZero ( items.Length, nameof ( items ) );
 
 			var carry = items [ 0 ];
-			foreach (var item in items) {
-				carry = RecursiveMerge ( carry, item );
+			for (var i = 1; i < items.Length; i++) {
+				carry = RecursiveMerge ( carry, items [ i ] );
 			}
 
 			return carry;
@@ -121,11 +122,24 @@ namespace LightJson {
 		/// and <paramref name="b"/>.
 		/// </returns>
 		public static JsonObject RecursiveMerge ( JsonObject a, JsonObject b ) {
+			return RecursiveMerge ( a, b, 0, new HashSet<ObjectPair> () );
+		}
+
+		private static JsonObject RecursiveMerge ( JsonObject a, JsonObject b, int depth, HashSet<ObjectPair> visited ) {
+			const int MaxDepth = 512;
+			if (depth > MaxDepth) {
+				throw new InvalidOperationException ( "Maximum recursion depth reached while merging JsonObject instances." );
+			}
+
+			if (!visited.Add ( new ObjectPair ( a, b ) )) {
+				return a;
+			}
+
 			var result = new JsonObject ( a.options, a.properties );
 			foreach (var (key, bValue) in b.properties) {
 				if (result.properties.TryGetValue ( key, out var aValue )) {
 					if (aValue.Type == JsonValueType.Object && bValue.Type == JsonValueType.Object) {
-						result.properties [ key ] = RecursiveMerge ( aValue.GetJsonObject (), bValue.GetJsonObject () );
+						result.properties [ key ] = RecursiveMerge ( aValue.GetJsonObject (), bValue.GetJsonObject (), depth + 1, visited );
 					}
 					else if (aValue.Type == JsonValueType.Array && bValue.Type == JsonValueType.Array) {
 						var merged = JsonArray.Create ( aValue.GetJsonArray (), aValue.options );
@@ -143,6 +157,26 @@ namespace LightJson {
 				}
 			}
 			return result;
+		}
+
+		private readonly struct ObjectPair {
+			private readonly JsonObject left;
+			private readonly JsonObject right;
+
+			public ObjectPair ( JsonObject left, JsonObject right ) {
+				this.left = left;
+				this.right = right;
+			}
+
+			public override bool Equals ( object obj ) {
+				return obj is ObjectPair other
+					&& ReferenceEquals ( this.left, other.left )
+					&& ReferenceEquals ( this.right, other.right );
+			}
+
+			public override int GetHashCode () {
+				return HashCode.Combine ( RuntimeHelpers.GetHashCode ( this.left ), RuntimeHelpers.GetHashCode ( this.right ) );
+			}
 		}
 
 		/// <summary>
